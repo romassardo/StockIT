@@ -1,0 +1,30 @@
+{
+    "postman.settings.dotenv-detection-notification-visibility": false,
+    "css.validate": false,
+    "scss.validate": false,
+    "less.validate": false,
+    "css.lint.unknownAtRules": "ignore",
+    "scss.lint.unknownAtRules": "ignore",
+    "less.lint.unknownAtRules": "ignore",
+    "tailwindCSS.includeLanguages": {
+        "typescript": "javascript",
+        "typescriptreact": "javascript"
+    },
+    "editor.quickSuggestions": {
+        "strings": true
+    },
+    "tailwindCSS.experimental.classRegex": [
+        ["cva\\(([^)]*)\\)", "[\"'`]([^\"'`]*).*?[\"'`]"],
+        ["cx\\(([^)]*)\\)", "(?:'|\"|`)([^']*)(?:'|\"|`)"]
+    ],
+    "mssql.applyLocalization": true,
+    "mssql.connections": [
+
+        {
+            "server": "{RODPC\SQLEXPRESS}",
+            "database": "{StockIT}",
+            "user": "{Rodrigo}",
+            "password": "{197575}"
+        }
+    ]
+}

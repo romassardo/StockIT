@@ -1,0 +1,485 @@
+/* =====================================
+   LOGIN PAGE - MODERN DESIGN SYSTEM 2025
+   ===================================== */
+
+/* 🌟 CONTAINER PRINCIPAL CON FONDO DINÁMICO */
+.login-container {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  overflow: hidden;
+  
+  /* Fondo dinámico con gradientes modernos */
+  background: linear-gradient(135deg, 
+    #F8FAFC 0%, 
+    #F1F5F9 25%, 
+    #E2E8F0 50%, 
+    #CBD5E1 75%, 
+    #94A3B8 100%);
+  
+  /* Modo oscuro */
+  .dark &,
+  [data-theme="dark"] &,
+  html.dark & {
+    background: linear-gradient(135deg, 
+      #0F172A 0%, 
+      #1E293B 25%, 
+      #334155 50%, 
+      #475569 75%, 
+      #64748B 100%);
+  }
+}
+
+/* 🎭 PARTÍCULAS ANIMADAS DE FONDO */
+.bg-particles {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.4;
+}
+
+.particle {
+  position: absolute;
+  background: linear-gradient(135deg, var(--primary-500), var(--secondary-500));
+  border-radius: 50%;
+  filter: blur(1px);
+  animation: float 6s ease-in-out infinite;
+  
+  /* Modo oscuro - partículas más visibles */
+  .dark &,
+  [data-theme="dark"] &,
+  html.dark & {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.6), rgba(236, 72, 153, 0.4));
+    opacity: 0.8;
+  }
+}
+
+/* 💡 EFECTOS DE LUZ DE FONDO */
+.background-lights {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.light-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.3;
+  animation: glow 4s ease-in-out infinite alternate;
+}
+
+.light-orb-1 {
+  width: 300px;
+  height: 300px;
+  background: radial-gradient(circle, var(--primary-500), transparent);
+  top: 10%;
+  left: 20%;
+  animation-delay: 0s;
+}
+
+.light-orb-2 {
+  width: 200px;
+  height: 200px;
+  background: radial-gradient(circle, var(--secondary-500), transparent);
+  bottom: 20%;
+  right: 15%;
+  animation-delay: 2s;
+}
+
+.light-orb-3 {
+  width: 250px;
+  height: 250px;
+  background: radial-gradient(circle, var(--info-500), transparent);
+  top: 60%;
+  left: 70%;
+  animation-delay: 1s;
+}
+
+/* 🔮 TARJETA PRINCIPAL CON GLASSMORPHISM AVANZADO */
+.login-card {
+  position: relative;
+  width: 100%;
+  max-width: 480px;
+  margin: 2rem;
+  padding: 2.5rem;
+  z-index: 10;
+  
+  /* Glassmorphism mejorado */
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(30px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: var(--radius-3xl);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.1),
+              0 10px 15px -3px rgba(99, 102, 241, 0.1),
+              inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  
+  /* Gradiente de fondo sutil */
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, 
+      rgba(99, 102, 241, 0.05) 0%, 
+      rgba(139, 92, 246, 0.03) 50%,
+      transparent 100%);
+    border-radius: inherit;
+    pointer-events: none;
+  }
+
+  /* Modo oscuro */
+  .dark &,
+  [data-theme="dark"] &,
+  html.dark & {
+    background: rgba(15, 23, 42, 0.85) !important;
+    border: 1px solid rgba(148, 163, 184, 0.2) !important;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8),
+                0 10px 15px -3px rgba(99, 102, 241, 0.2),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
+    
+    &::before {
+      background: linear-gradient(135deg, 
+        rgba(99, 102, 241, 0.1) 0%, 
+        rgba(139, 92, 246, 0.05) 50%,
+        transparent 100%) !important;
+    }
+  }
+}
+
+/* 🎨 HEADER CON GRADIENTES MODERNOS */
+.login-header {
+  text-align: center;
+  margin-bottom: 2rem;
+  position: relative;
+}
+
+.login-header h1 {
+  font-family: 'Inter Variable', 'Geist', system-ui, sans-serif;
+  font-size: clamp(2.2rem, 5vw, 3rem);
+  font-weight: 800;
+  margin-bottom: 0.5rem;
+  text-shadow: 0 2px 10px rgba(99, 102, 241, 0.3);
+  letter-spacing: -0.02em;
+}
+
+.login-header h2 {
+  font-family: 'Inter Variable', 'Geist', system-ui, sans-serif;
+  font-size: clamp(0.875rem, 2vw, 1rem);
+  font-weight: 500;
+  color: var(--slate-600);
+  margin-bottom: 1.25rem;
+  opacity: 0.9;
+  line-height: 1.5;
+  
+  .dark &,
+  [data-theme="dark"] &,
+  html.dark & {
+    color: var(--slate-300);
+  }
+}
+
+.header-decoration {
+  position: relative;
+  width: 50px;
+  height: 3px;
+  background: var(--bg-gradient-primary);
+  margin: 0 auto;
+  border-radius: var(--radius-full);
+  box-shadow: 0 2px 10px rgba(99, 102, 241, 0.3);
+  
+  &::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 6px;
+    height: 6px;
+    background: var(--primary-500);
+    border-radius: 50%;
+    box-shadow: 0 0 15px rgba(99, 102, 241, 0.6);
+  }
+}
+
+/* 📋 FORMULARIO CON GLASSMORPHISM */
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  width: 100%;
+}
+
+/* 🏷️ GRUPOS DE CAMPOS MODERNOS */
+.form-group-glass {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  position: relative;
+}
+
+.form-label-glass {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-family: 'Inter Variable', 'Geist', system-ui, sans-serif;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--slate-700);
+  cursor: pointer;
+  transition: all var(--duration-normal) var(--ease-out-expo);
+  
+  .dark &,
+  [data-theme="dark"] &,
+  html.dark & {
+    color: var(--slate-300);
+  }
+}
+
+.label-icon {
+  color: var(--primary-500);
+  transition: all var(--duration-normal) var(--ease-out-expo);
+  filter: drop-shadow(0 2px 4px rgba(99, 102, 241, 0.2));
+}
+
+.form-label-glass:hover .label-icon {
+  color: var(--primary-600);
+  transform: scale(1.1);
+}
+
+/* 🎯 INPUT GLASS CON ERRORES */
+.input-glass-error {
+  border-color: var(--danger-500) !important;
+  box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.1) !important;
+  background: rgba(239, 68, 68, 0.02) !important;
+}
+
+/* ⚠️ MENSAJES DE ERROR GLASS */
+.error-message-glass {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: rgba(239, 68, 68, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: var(--radius-lg);
+  color: var(--danger-600);
+  font-size: 0.875rem;
+  font-weight: 500;
+  font-family: 'Inter Variable', 'Geist', system-ui, sans-serif;
+  
+  .dark &,
+  [data-theme="dark"] &,
+  html.dark & {
+    background: rgba(239, 68, 68, 0.15);
+    color: var(--danger-400);
+  }
+}
+
+.error-icon {
+  color: var(--danger-500);
+  flex-shrink: 0;
+}
+
+/* 🚨 ALERTA GLASS */
+.alert-glass {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  background: rgba(239, 68, 68, 0.1);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: var(--radius-xl);
+  color: var(--danger-700);
+  font-size: 0.875rem;
+  font-weight: 500;
+  font-family: 'Inter Variable', 'Geist', system-ui, sans-serif;
+  margin-bottom: 1.5rem;
+  
+  .dark &,
+  [data-theme="dark"] &,
+  html.dark & {
+    background: rgba(239, 68, 68, 0.15);
+    color: var(--danger-300);
+  }
+}
+
+.alert-icon {
+  color: var(--danger-500);
+  flex-shrink: 0;
+}
+
+/* ⚡ SPINNER GLASS */
+.spinner-glass {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  border-top-color: rgba(255, 255, 255, 0.8);
+  animation: spin var(--duration-normal) linear infinite;
+  flex-shrink: 0;
+}
+
+/* 👆 ICONOS DE BOTÓN */
+.button-icon {
+  flex-shrink: 0;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.2));
+}
+
+/* 📝 FOOTER DEL FORMULARIO */
+.form-footer-glass {
+  text-align: center;
+  padding: 1.5rem 1rem 0.5rem;
+  margin-top: 1rem;
+  position: relative;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 60%;
+    height: 1px;
+    background: linear-gradient(90deg, 
+      transparent 0%, 
+      rgba(148, 163, 184, 0.3) 50%, 
+      transparent 100%);
+  }
+  
+  span {
+    font-family: 'Inter Variable', 'Geist', system-ui, sans-serif;
+    font-size: 0.875rem;
+    color: var(--slate-500);
+    opacity: 0.8;
+    
+    .dark &,
+    [data-theme="dark"] &,
+    html.dark & {
+      color: var(--slate-400);
+    }
+  }
+}
+
+/* 🌟 FOOTER DE LA TARJETA */
+.login-footer {
+  text-align: center;
+  margin-top: 2rem;
+  position: relative;
+}
+
+.login-footer p {
+  font-family: 'Inter Variable', 'Geist', system-ui, sans-serif;
+  font-size: 0.75rem;
+  color: var(--slate-500);
+  opacity: 0.7;
+  margin: 0;
+  
+  .dark &,
+  [data-theme="dark"] &,
+  html.dark & {
+    color: var(--slate-400);
+  }
+}
+
+.footer-glow {
+  position: absolute;
+  bottom: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 40px;
+  height: 2px;
+  background: var(--bg-gradient-primary);
+  border-radius: var(--radius-full);
+  filter: blur(4px);
+  opacity: 0.6;
+}
+
+/* 📱 RESPONSIVE DESIGN */
+@media (max-width: 640px) {
+  .login-card {
+    margin: 1rem;
+    padding: 2rem;
+    max-width: calc(100% - 2rem);
+  }
+  
+  .login-header h1 {
+    font-size: clamp(2rem, 8vw, 2.5rem);
+  }
+  
+  .login-header h2 {
+    font-size: clamp(0.875rem, 4vw, 1rem);
+  }
+  
+  .light-orb {
+    display: none; /* Ocultar efectos de luz en móvil para rendimiento */
+  }
+}
+
+@media (max-width: 480px) {
+  .login-card {
+    padding: 1.5rem;
+  }
+  
+  .login-form {
+    gap: 1.25rem;
+  }
+  
+  .bg-particles {
+    opacity: 0.2; /* Reducir partículas en pantallas muy pequeñas */
+  }
+}
+
+/* 🎬 MEJORAS DE ANIMACIÓN */
+@media (prefers-reduced-motion: no-preference) {
+  .login-card {
+    animation: glassAppear 0.8s ease-out;
+  }
+  
+  .form-group-glass {
+    animation: slideUp 0.6s ease-out forwards;
+  }
+  
+  .form-group-glass:nth-child(2) { animation-delay: 0.1s; }
+  .form-group-glass:nth-child(3) { animation-delay: 0.2s; }
+  .btn-glass-primary { animation-delay: 0.3s; }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 🔍 MEJOR ACCESIBILIDAD */
+@media (prefers-contrast: high) {
+  .login-card {
+    border: 2px solid var(--slate-300);
+    background: rgba(255, 255, 255, 0.95);
+  }
+  
+  .form-label-glass {
+    color: var(--slate-900);
+    font-weight: 700;
+  }
+  
+  .input-glass {
+    border: 2px solid var(--slate-400);
+  }
+}

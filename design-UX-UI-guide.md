@@ -1,0 +1,461 @@
+# **Especificaciones de Diseño UX/UI: Sistema Inventario IT - Modern Design System 2025**
+
+Este documento define el nuevo sistema de diseño moderno para "StockIT". El objetivo es crear una experiencia visual vibrante, profunda y contemporánea que refleje las mejores prácticas de diseño 2025.
+
+## **1. Principios de Diseño Visual Moderno**
+
+* **Profundidad y Dimensión:** Uso estratégico de glassmorphism, sombras elevadas y efectos de paralaje para crear jerarquía visual natural.
+* **Fluidez y Dinamismo:** Animaciones suaves, transiciones orgánicas y microinteracciones que guían al usuario intuitivamente.
+* **Vibrancia Equilibrada:** Colores saturados y gradientes modernos balanceados con espacios blancos generosos.
+* **Glassmorphism Sutil:** Efectos de cristal y transparencias que crean sensación de modernidad sin sacrificar legibilidad.
+* **Responsive Primero:** Diseño que se adapta fluidamente desde mobile hasta desktop con breakpoints inteligentes.
+* **Accesibilidad Inteligente:** Alto contraste y navegación intuitiva sin comprometer la estética moderna.
+
+## **2. Identidad Visual Moderna**
+
+### **2.1. Paleta de Colores Vibrante**
+
+#### **Colores Primarios Modernos**
+* **Primary 500 (#6366F1 - Indigo Vibrante):**
+  * **Uso:** Elementos principales, CTAs, navegación activa, gradientes primarios
+  * **Hover:** #4F46E5 (Primary 600)
+  * **Active:** #4338CA (Primary 700)
+  * **Gradiente:** `linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%)`
+
+* **Secondary 500 (#EC4899 - Pink Moderno):**
+  * **Uso:** Acentos importantes, notificaciones especiales, elementos destacados
+  * **Hover:** #DB2777 (Secondary 600)
+  * **Gradiente:** `linear-gradient(135deg, #EC4899 0%, #F59E0B 100%)`
+
+#### **Colores Semánticos Vibrantes**
+* **Success (#10B981 - Emerald):**
+  * Gradiente: `linear-gradient(135deg, #10B981 0%, #34D399 100%)`
+  * Uso: Estados "Disponible", validaciones exitosas, métricas positivas
+  
+* **Warning (#F59E0B - Amber):**
+  * Gradiente: `linear-gradient(135deg, #F59E0B 0%, #FbbF24 100%)`
+  * Uso: Estados "En Proceso", alertas de stock bajo
+  
+* **Danger (#EF4444 - Red):**
+  * Gradiente: `linear-gradient(135deg, #EF4444 0%, #F87171 100%)`
+  * Uso: Estados "Dado de Baja", errores críticos
+  
+* **Info (#06B6D4 - Cyan):**
+  * Gradiente: `linear-gradient(135deg, #06B6D4 0%, #22D3EE 100%)`
+  * Uso: Estados "Asignado", información contextual
+
+#### **Neutros Modernos**
+* **Backgrounds:**
+  * **Principal:** `linear-gradient(135deg, #F8FAFC 0%, #F1F5F9 50%, #E2E8F0 100%)`
+  * **Superficie:** `rgba(255, 255, 255, 0.8)` con `backdrop-filter: blur(20px)`
+  * **Elevada:** `rgba(255, 255, 255, 0.95)` con `backdrop-filter: blur(40px)`
+
+* **Texto Moderno:**
+  * **Principal:** #0F172A (Slate 900) - Ultra legible
+  * **Secundario:** #475569 (Slate 600) - Descriptivo
+  * **Terciario:** #64748B (Slate 500) - Sutil
+  * **Placeholder:** #94A3B8 (Slate 400) - Muy sutil
+
+#### **Modo Oscuro Vibrante**
+* **Backgrounds Oscuros:**
+  * **Principal:** `linear-gradient(135deg, #0F172A 0%, #1E293B 50%, #334155 100%)`
+  * **Superficie:** `rgba(30, 41, 59, 0.8)` con `backdrop-filter: blur(20px)`
+  * **Elevada:** `rgba(30, 41, 59, 0.95)` con `backdrop-filter: blur(40px)`
+
+* **Texto Oscuro:**
+  * **Principal:** #F8FAFC (Slate 50)
+  * **Secundario:** #CBD5E1 (Slate 300)
+  * **Terciario:** #94A3B8 (Slate 400)
+
+### **2.2. Tipografía Moderna**
+
+* **Fuente Principal:** "Inter Variable" o "Geist" (System fonts de última generación)
+* **Fuente Displays:** "Cal Sans" o "Satoshi" para títulos impactantes
+* **Fuente Monospace:** "JetBrains Mono" para códigos y datos técnicos
+
+#### **Escala Tipográfica Fluida**
+* **Display XL:** clamp(3rem, 8vw, 6rem) - Títulos hero
+* **Display L:** clamp(2.5rem, 6vw, 4.5rem) - Títulos principales
+* **H1:** clamp(2rem, 4vw, 3rem) - Títulos de página
+* **H2:** clamp(1.5rem, 3vw, 2.25rem) - Títulos de sección
+* **H3:** clamp(1.25rem, 2.5vw, 1.875rem) - Subtítulos
+* **Body Large:** 1.125rem (18px) - Texto importante
+* **Body:** 1rem (16px) - Texto base
+* **Body Small:** 0.875rem (14px) - Texto secundario
+* **Caption:** 0.75rem (12px) - Metadatos y ayudas
+
+### **2.3. Iconografía Moderna**
+
+* **Estilo:** Duotone con gradientes sutiles, grosor variable (1.5px-2.5px)
+* **Librería Principal:** Phosphor Icons (Duotone) + Lucide React
+* **Tamaños Fluidos:**
+  * **Micro:** 12px-14px (badges, indicadores)
+  * **Small:** 16px-20px (botones, inputs)
+  * **Medium:** 24px-28px (navegación)
+  * **Large:** 32px-40px (ilustraciones, empty states)
+  * **XL:** 48px-64px (hero sections)
+
+### **2.4. Espaciado y Layout Fluido**
+
+#### **Sistema de Espaciado Exponencial**
+```css
+--space-1: 0.25rem;   /* 4px */
+--space-2: 0.5rem;    /* 8px */
+--space-3: 0.75rem;   /* 12px */
+--space-4: 1rem;      /* 16px */
+--space-6: 1.5rem;    /* 24px */
+--space-8: 2rem;      /* 32px */
+--space-12: 3rem;     /* 48px */
+--space-16: 4rem;     /* 64px */
+--space-24: 6rem;     /* 96px */
+--space-32: 8rem;     /* 128px */
+```
+
+#### **Sombras con Profundidad (Elevation System)**
+```css
+/* Sombras modernas con múltiples capas */
+--shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+--shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+--shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+--shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+--shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+--shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+
+/* Sombras con color (para elementos vibrantes) */
+--shadow-primary: 0 10px 15px -3px rgba(99, 102, 241, 0.2), 0 4px 6px -2px rgba(99, 102, 241, 0.1);
+--shadow-success: 0 10px 15px -3px rgba(16, 185, 129, 0.2), 0 4px 6px -2px rgba(16, 185, 129, 0.1);
+--shadow-danger: 0 10px 15px -3px rgba(239, 68, 68, 0.2), 0 4px 6px -2px rgba(239, 68, 68, 0.1);
+
+/* Glassmorphism shadows */
+--shadow-glass: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+--shadow-glass-hover: 0 20px 40px -14px rgba(31, 38, 135, 0.5);
+```
+
+#### **Border Radius Moderno**
+```css
+--radius-xs: 0.125rem;  /* 2px */
+--radius-sm: 0.25rem;   /* 4px */
+--radius-md: 0.5rem;    /* 8px */
+--radius-lg: 0.75rem;   /* 12px */
+--radius-xl: 1rem;      /* 16px */
+--radius-2xl: 1.5rem;   /* 24px */
+--radius-3xl: 2rem;     /* 32px */
+--radius-full: 9999px;  /* Circular */
+```
+
+### **2.5. Animaciones y Microinteracciones**
+
+#### **Timing Functions Naturales**
+```css
+--ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+--ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+--ease-spring: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+--ease-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.35);
+```
+
+#### **Duraciones Escalonadas**
+```css
+--duration-fast: 150ms;     /* Micro-interacciones */
+--duration-normal: 250ms;   /* Transiciones estándar */
+--duration-slow: 400ms;     /* Animaciones complejas */
+--duration-slower: 600ms;   /* Transiciones de página */
+```
+
+#### **Animaciones Signature**
+```css
+/* Hover lift effect */
+.hover-lift {
+  transition: transform var(--duration-normal) var(--ease-out-expo),
+              box-shadow var(--duration-normal) var(--ease-out-expo);
+}
+.hover-lift:hover {
+  transform: translateY(-4px) scale(1.02);
+  box-shadow: var(--shadow-2xl);
+}
+
+/* Glassmorphism entrance */
+@keyframes glassAppear {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+    backdrop-filter: blur(0px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    backdrop-filter: blur(20px);
+  }
+}
+
+/* Pulse effect for notifications */
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.7); }
+  50% { box-shadow: 0 0 0 10px rgba(99, 102, 241, 0); }
+}
+```
+
+## **3. Componentes Modernos**
+
+### **3.1. Botones de Nueva Generación**
+
+#### **Botón Primario (Glassmorphism)**
+```css
+.btn-primary {
+  /* Base */
+  background: linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: var(--radius-xl);
+  padding: 1rem 2rem;
+  color: white;
+  font-weight: 600;
+  
+  /* Efectos */
+  backdrop-filter: blur(20px);
+  box-shadow: var(--shadow-primary);
+  transition: all var(--duration-normal) var(--ease-out-expo);
+  
+  /* Estados */
+  &:hover {
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: var(--shadow-2xl), 0 0 30px rgba(99, 102, 241, 0.3);
+    background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
+  }
+  
+  &:active {
+    transform: translateY(0) scale(0.98);
+  }
+}
+```
+
+#### **Botón Secundario (Cristal)**
+```css
+.btn-secondary {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  backdrop-filter: blur(20px);
+  color: #6366F1;
+  border-radius: var(--radius-xl);
+  
+  &:hover {
+    background: rgba(99, 102, 241, 0.1);
+    border-color: rgba(99, 102, 241, 0.5);
+    transform: translateY(-1px);
+  }
+}
+```
+
+### **3.2. Tarjetas Glassmorphism**
+
+#### **StatCard Moderna**
+```css
+.stat-card {
+  /* Glassmorphism base */
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: var(--radius-2xl);
+  
+  /* Sombra con profundidad */
+  box-shadow: var(--shadow-xl);
+  
+  /* Transiciones fluidas */
+  transition: all var(--duration-normal) var(--ease-out-expo);
+  
+  /* Gradiente sutil de fondo */
+  position: relative;
+  overflow: hidden;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(135deg, 
+      rgba(99, 102, 241, 0.1) 0%, 
+      rgba(139, 92, 246, 0.05) 50%,
+      transparent 100%);
+    pointer-events: none;
+  }
+  
+  /* Estados interactivos */
+  &:hover {
+    transform: translateY(-8px) scale(1.02);
+    box-shadow: var(--shadow-2xl), var(--shadow-primary);
+    background: rgba(255, 255, 255, 0.9);
+  }
+}
+```
+
+### **3.3. Navegación Moderna**
+
+#### **Sidebar con Glassmorphism**
+```css
+.sidebar {
+  background: rgba(15, 23, 42, 0.8);
+  backdrop-filter: blur(40px);
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  
+  /* Enlaces con efectos */
+  .nav-link {
+    border-radius: var(--radius-lg);
+    transition: all var(--duration-normal) var(--ease-out-expo);
+    position: relative;
+    overflow: hidden;
+    
+    &::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, 
+        transparent 0%,
+        rgba(99, 102, 241, 0.1) 50%,
+        transparent 100%);
+      transition: left var(--duration-slow) var(--ease-out-expo);
+    }
+    
+    &:hover::before {
+      left: 100%;
+    }
+    
+    &.active {
+      background: linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%);
+      box-shadow: var(--shadow-primary);
+    }
+  }
+}
+```
+
+### **3.4. Formularios Modernos**
+
+#### **Input con Glassmorphism**
+```css
+.input-glass {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: var(--radius-xl);
+  padding: 1rem 1.5rem;
+  
+  transition: all var(--duration-normal) var(--ease-out-expo);
+  
+  &:focus {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: #6366F1;
+    box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
+    transform: translateY(-1px);
+  }
+  
+  &::placeholder {
+    color: rgba(148, 163, 184, 0.8);
+  }
+}
+```
+
+### **3.5. Gráficos y Visualizaciones**
+
+#### **Chart Container Moderno**
+```css
+.chart-container {
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(30px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: var(--radius-3xl);
+  padding: 2rem;
+  
+  /* Gradiente de fondo sutil */
+  background-image: 
+    radial-gradient(circle at 20% 80%, rgba(99, 102, 241, 0.1) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(139, 92, 246, 0.1) 0%, transparent 50%);
+}
+```
+
+## **4. Efectos Especiales**
+
+### **4.1. Orbes de Fondo Animados - ESTÁNDAR DEL PROYECTO**
+```css
+/* Implementación estándar consistente en todas las páginas */
+@keyframes float {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  33% { transform: translateY(-30px) rotate(120deg); }
+  66% { transform: translateY(-20px) rotate(240deg); }
+}
+
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+```
+
+**Implementación JSX estándar (4 orbes fijos):**
+```jsx
+{/* 🌌 IMPLEMENTACIÓN OBLIGATORIA EN TODAS LAS PÁGINAS DEL PROYECTO */}
+<div className={`fixed inset-0 pointer-events-none transition-all duration-300 ${
+  theme === 'dark' 
+    ? 'bg-gradient-to-br from-slate-900/95 via-slate-800/90 to-slate-900/95' 
+    : 'bg-gradient-to-br from-slate-50/95 via-slate-100/90 to-slate-200/95'
+}`}>
+  {/* Orbe 1: Top-left - Primary */}
+  <div className={`absolute top-20 left-10 w-32 h-32 rounded-full blur-xl animate-float transition-all duration-300 ${
+    theme === 'dark' 
+      ? 'bg-primary-500/20' 
+      : 'bg-primary-500/10'
+  }`}></div>
+  
+  {/* Orbe 2: Top-right - Secondary */}
+  <div className={`absolute top-40 right-20 w-24 h-24 rounded-full blur-lg animate-float transition-all duration-300 ${
+    theme === 'dark' 
+      ? 'bg-secondary-500/20' 
+      : 'bg-secondary-500/10'
+  }`} style={{animationDelay: '2s'}}></div>
+  
+  {/* Orbe 3: Bottom-left - Success */}
+  <div className={`absolute bottom-32 left-1/4 w-20 h-20 rounded-full blur-lg animate-float transition-all duration-300 ${
+    theme === 'dark' 
+      ? 'bg-success-500/20' 
+      : 'bg-success-500/10'
+  }`} style={{animationDelay: '4s'}}></div>
+  
+  {/* Orbe 4: Bottom-right - Info */}
+  <div className={`absolute bottom-20 right-1/3 w-28 h-28 rounded-full blur-xl animate-float transition-all duration-300 ${
+    theme === 'dark' 
+      ? 'bg-info-500/20' 
+      : 'bg-info-500/10'
+  }`} style={{animationDelay: '1s'}}></div>
+</div>
+```
+
+**Especificaciones técnicas:**
+- **4 orbes grandes fijos** en posiciones estratégicas específicas
+- **Tamaños diferenciados**: 128px, 96px, 80px, 112px para profundidad visual
+- **Blur diferenciado**: `blur-xl` (24px) y `blur-lg` (16px) para efectos naturales
+- **Delays escalonados**: 0s, 1s, 2s, 4s para movimiento orgánico
+- **Opacidad adaptativa**: `/20` en modo oscuro, `/10` en modo claro
+- **Colores semánticos**: primary, secondary, success, info según ubicación
+- **Transiciones**: `duration-300` para cambios de tema suaves
+
+### **4.2. Loading States con Skeleton Glass**
+```css
+.skeleton-glass {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.1) 25%,
+    rgba(255, 255, 255, 0.3) 50%,
+    rgba(255, 255, 255, 0.1) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
+  backdrop-filter: blur(10px);
+  border-radius: var(--radius-lg);
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+```
+
+Esta guía establece un sistema de diseño moderno, vibrante y cohesivo que transformará completamente la experiencia visual de StockIT. ¿Listo para implementar estos cambios en los componentes?
