@@ -19,18 +19,60 @@ interface ReportCardProps {
 const ReportCard: React.FC<ReportCardProps> = ({ icon: Icon, title, description, to, count, color, disabled = false }) => {
   const { addNotification } = useNotification();
 
+  // Mapeo de colores estáticos para evitar clases dinámicas
+  const colorMap = {
+    primary: {
+      bg: 'bg-primary-500/10',
+      icon: 'text-primary-400',
+      badge: 'bg-primary-500/20 text-primary-300',
+      shadow: 'hover:shadow-primary-500/10'
+    },
+    success: {
+      bg: 'bg-success-500/10',
+      icon: 'text-success-400',
+      badge: 'bg-success-500/20 text-success-300',
+      shadow: 'hover:shadow-success-500/10'
+    },
+    warning: {
+      bg: 'bg-warning-500/10',
+      icon: 'text-warning-400',
+      badge: 'bg-warning-500/20 text-warning-300',
+      shadow: 'hover:shadow-warning-500/10'
+    },
+    danger: {
+      bg: 'bg-danger-500/10',
+      icon: 'text-danger-400',
+      badge: 'bg-danger-500/20 text-danger-300',
+      shadow: 'hover:shadow-danger-500/10'
+    },
+    info: {
+      bg: 'bg-info-500/10',
+      icon: 'text-info-400',
+      badge: 'bg-info-500/20 text-info-300',
+      shadow: 'hover:shadow-info-500/10'
+    },
+    secondary: {
+      bg: 'bg-secondary-500/10',
+      icon: 'text-secondary-400',
+      badge: 'bg-secondary-500/20 text-secondary-300',
+      shadow: 'hover:shadow-secondary-500/10'
+    }
+  };
+
+  const colors = colorMap[color as keyof typeof colorMap];
+
   const content = (
     <div className={`relative p-6 rounded-2xl overflow-hidden transition-all duration-300 ease-out-expo group h-full min-h-[140px] flex flex-col justify-between ${
       disabled 
         ? 'bg-slate-700/50 cursor-not-allowed'
-        : `bg-slate-800/60 hover:bg-slate-700/80 hover:shadow-xl hover:-translate-y-1 hover:shadow-${color}-500/10`
+        : `bg-slate-800/60 hover:bg-slate-700/80 hover:shadow-xl hover:-translate-y-1 ${colors.shadow}`
     } backdrop-blur-lg border border-slate-700`}>
       <div className="flex items-start justify-between">
-        <div className={`p-3 rounded-lg bg-${color}-500/10`}>
-          <Icon className={`w-6 h-6 text-${color}-400`} />
+        <div className={`p-3 rounded-lg ${colors.bg}`}>
+          <Icon className={`w-6 h-6 ${colors.icon}`} strokeWidth={2.5} />
         </div>
         {count !== undefined && (
-          <span className={`px-3 py-1 text-xs font-bold rounded-full bg-${color}-500/20 text-${color}-300`}>
+          <span className={`px-3 py-1 text-xs font-bold rounded-full ${colors.badge}`}>
             {count}
           </span>
         )}
@@ -84,12 +126,18 @@ const ReportsPage = () => {
       {/* Contenido principal */}
       <div className="relative z-10">
         <header className="mb-8">
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-slate-100 font-display">
-            Hub de Reportes y Auditoría
-          </h1>
-          <p className="mt-2 text-slate-400 max-w-2xl">
-            Genera y exporta reportes detallados del inventario, asignaciones y métricas del sistema.
-          </p>
+          {/* 🎯 HEADER ESTÁNDAR MODERN DESIGN SYSTEM 2025 */}
+          <div className="flex items-center space-x-4">
+            <FiFileText className="w-8 h-8 text-primary-500" strokeWidth={2.5} />
+            <div>
+              <h1 className="text-2xl md:text-5xl font-bold bg-gradient-to-r from-primary-600 via-primary-500 to-secondary-500 bg-clip-text text-transparent">
+                Hub de Reportes y Auditoría
+              </h1>
+              <p className="mt-2 text-slate-400 max-w-2xl">
+                Genera y exporta reportes detallados del inventario, asignaciones y métricas del sistema.
+              </p>
+            </div>
+          </div>
         </header>
         
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">

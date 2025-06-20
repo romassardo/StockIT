@@ -291,10 +291,18 @@ const Inventory: React.FC = () => {
       {/* Contenido principal */}
       <div className={`relative z-10 p-4 sm:p-6 transition-colors duration-300 min-h-screen ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
        <header className="mb-6">
-         <h1 className="text-3xl font-bold text-gradient-primary">Inventario General</h1>
-         <p className={`mt-1 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
-           Visualiza y gestiona todos los activos serializados.
-         </p>
+         {/* 🎯 HEADER ESTÁNDAR MODERN DESIGN SYSTEM 2025 */}
+         <div className="flex items-center space-x-4">
+           <FiPackage className="w-8 h-8 text-primary-500" strokeWidth={2.5} />
+           <div>
+             <h1 className="text-2xl md:text-5xl font-bold bg-gradient-to-r from-primary-600 via-primary-500 to-secondary-500 bg-clip-text text-transparent">
+               Inventario General
+             </h1>
+             <p className={`mt-1 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
+               Visualiza y gestiona todos los activos serializados.
+             </p>
+           </div>
+         </div>
        </header>
        
        <div className="glass-card p-4 mb-6">

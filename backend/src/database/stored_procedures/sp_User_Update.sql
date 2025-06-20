@@ -18,7 +18,9 @@ CREATE PROCEDURE sp_User_Update
     @user_id INT,
     @nombre NVARCHAR(100),
     @email NVARCHAR(100),
+    @password_hash NVARCHAR(255) = NULL,
     @rol NVARCHAR(20),
+    @activo BIT = NULL,
     @usuario_ejecutor_id INT
 AS
 BEGIN
@@ -55,7 +57,8 @@ BEGIN
         SELECT @old_values = CONCAT(
             N'nombre: ', nombre, 
             N', email: ', email, 
-            N', rol: ', rol
+            N', rol: ', rol,
+            N', activo: ', CASE WHEN activo = 1 THEN N'true' ELSE N'false' END
         )
         FROM Usuarios
         WHERE id = @user_id;
@@ -63,9 +66,11 @@ BEGIN
         -- Actualizar usuario
         UPDATE Usuarios
         SET 
-            nombre = @nombre,
-            email = @email,
-            rol = @rol
+            nombre = ISNULL(@nombre, nombre),
+            email = ISNULL(@email, email),
+            password_hash = ISNULL(@password_hash, password_hash),
+            rol = ISNULL(@rol, rol),
+            activo = ISNULL(@activo, activo)
         WHERE id = @user_id;
         
         -- Log de actividad usando la estructura correcta de la tabla
@@ -82,7 +87,7 @@ BEGIN
             N'Usuarios', 
             N'UPDATE', 
             @user_id, 
-            CONCAT(N'Actualización de usuario. Valores anteriores: [', @old_values, N']. Valores nuevos: [nombre: ', @nombre, N', email: ', @email, N', rol: ', @rol, N']'),
+            CONCAT(N'Actualización de usuario. Valores anteriores: [', @old_values, N']. Valores nuevos: [nombre: ', ISNULL(@nombre, N'sin cambio'), N', email: ', ISNULL(@email, N'sin cambio'), N', rol: ', ISNULL(@rol, N'sin cambio'), N', activo: ', CASE WHEN @activo IS NULL THEN N'sin cambio' WHEN @activo = 1 THEN N'true' ELSE N'false' END, N', password: ', CASE WHEN @password_hash IS NULL THEN N'sin cambio' ELSE N'actualizada' END, N']'),
             GETDATE()
         );
         

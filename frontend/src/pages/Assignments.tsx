@@ -35,12 +35,17 @@ const Assignments: React.FC = () => {
     <AnimatedOrbsBackground>
       <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
         <div className="mb-8 text-center sm:text-left">
-          <h1 className="text-display-l font-bold text-slate-900 dark:text-slate-50">
-            GestiÃ³n de Asignaciones
-          </h1>
-          <p className="mt-2 text-body-large text-slate-600 dark:text-slate-400">
-            Activos actualmente en uso por empleados, sectores y sucursales.
-          </p>
+          <div className="flex items-center space-x-4">
+            <FiList className="w-8 h-8 text-primary-500" strokeWidth={2.5} />
+            <div>
+              <h1 className="text-2xl md:text-5xl font-bold bg-gradient-to-r from-primary-600 via-primary-500 to-secondary-500 bg-clip-text text-transparent">
+                Gestión de Asignaciones
+              </h1>
+              <p className="mt-2 text-body-large text-slate-600 dark:text-slate-400">
+                Activos actualmente en uso por empleados, sectores y sucursales.
+              </p>
+            </div>
+          </div>
         </div>
         
         <div className="glass-card p-4 sm:p-6">

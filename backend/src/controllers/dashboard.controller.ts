@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { DatabaseConnection } from '../utils/database';
 import { logger } from '../utils/logger';
 import { AuthRequest } from '../types/auth.types';
+import { cacheService } from '../services/cache.service';
 
 /**
  * Interfaces para las respuestas del dashboard
@@ -63,6 +64,19 @@ export class DashboardController {
    */
   public getSystemStats = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
+      // 🚀 VERIFICAR CACHÉ PRIMERO (5 minutos TTL)
+      const cacheKey = 'dashboard_system_stats';
+      const cachedStats = await cacheService.get<SystemStats>(cacheKey);
+      
+      if (cachedStats) {
+        logger.info('Estadísticas del dashboard servidas desde caché');
+        res.status(200).json({
+          success: true,
+          data: cachedStats,
+          source: 'cache'
+        });
+        return;
+      }
       try {
         // Intentar ejecutar el stored procedure primero
         logger.info('Intentando obtener estadísticas con el SP sp_Dashboard_GetSystemStats');
@@ -70,6 +84,8 @@ export class DashboardController {
         
         if (spResult.recordset && spResult.recordset.length > 0) {
           logger.info('Estadísticas obtenidas exitosamente con SP sp_Dashboard_GetSystemStats');
+          // 🚀 GUARDAR EN CACHÉ (5 minutos)
+          await cacheService.set(cacheKey, spResult.recordset[0], 5 * 60 * 1000);
           res.status(200).json({
             success: true,
             data: spResult.recordset[0],
@@ -168,6 +184,8 @@ export class DashboardController {
       };
       
       logger.info('Estadísticas obtenidas exitosamente con consultas directas');
+      // 🚀 GUARDAR EN CACHÉ (5 minutos)
+      await cacheService.set(cacheKey, stats, 5 * 60 * 1000);
       res.status(200).json({
         success: true,
         data: stats,

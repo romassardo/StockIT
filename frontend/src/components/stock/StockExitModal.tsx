@@ -54,6 +54,7 @@ const StockExitModal: React.FC<StockExitModalProps> = ({
     producto_id: selectedProductId?.toString() || '',
     cantidad: '',
     motivo: '',
+    motivo_personalizado: '', // Para cuando selecciona "Otro motivo"
     destino_tipo: '', // 'empleado', 'sector', 'sucursal'
     empleado_id: '',
     sector_id: '',
@@ -226,7 +227,12 @@ const StockExitModal: React.FC<StockExitModalProps> = ({
         throw new Error(`No hay suficiente stock. Disponible: ${selectedProduct.cantidad_actual} unidades`);
       }
 
-      if (formData.motivo.trim().length < 5) {
+      // Validar motivo - usar personalizado si está seleccionado "Otro motivo"
+      const motivoFinal = formData.motivo === 'Otro motivo' 
+        ? formData.motivo_personalizado.trim() 
+        : formData.motivo.trim();
+      
+      if (motivoFinal.length < 5) {
         throw new Error('El motivo debe tener al menos 5 caracteres');
       }
 
@@ -296,7 +302,7 @@ const StockExitModal: React.FC<StockExitModalProps> = ({
           operationId, // Clave de idempotencia
           producto_id: parseInt(formData.producto_id),
           cantidad: cantidad,
-          motivo: formData.motivo.trim(),
+          motivo: motivoFinal,
           empleado_id: destinoPrincipal.empleado_id,
           sector_id: destinoPrincipal.sector_id,
           sucursal_id: destinoPrincipal.sucursal_id,
@@ -326,6 +332,7 @@ const StockExitModal: React.FC<StockExitModalProps> = ({
           producto_id: '',
           cantidad: '',
           motivo: '',
+          motivo_personalizado: '',
           destino_tipo: '',
           empleado_id: '',
           sector_id: '',
@@ -350,6 +357,7 @@ const StockExitModal: React.FC<StockExitModalProps> = ({
         producto_id: '',
         cantidad: '',
         motivo: '',
+        motivo_personalizado: '',
         destino_tipo: '',
         empleado_id: '',
         sector_id: '',
@@ -393,41 +401,52 @@ const StockExitModal: React.FC<StockExitModalProps> = ({
   if (!isOpen) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[9998] flex items-center justify-center p-4">
-      {/* Backdrop */}
+    <div className="modal-overlay-protection flex items-center justify-center p-6 overflow-y-auto">
+      {/* Backdrop clickeable */}
       <div 
-        className="absolute inset-0 bg-black/60"
+        className="absolute inset-0"
         onClick={handleClose}
       />
       
       {/* Modal */}
-      <div className="relative z-[9999] w-full max-w-2xl max-h-[90vh] flex flex-col">
-        <div className="glass-card-static h-full flex flex-col">
-          {/* Header - Fixed */}
-          <div className="flex items-center justify-between p-6 border-b border-slate-200 dark:border-slate-700 flex-shrink-0">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-gradient-to-r from-red-500 to-pink-600 rounded-lg text-white">
-                <FiMinus className="w-5 h-5" />
+      <div className="relative z-[10000] w-full max-w-2xl max-h-[75vh] flex flex-col my-auto">
+        <div className="modal-glass h-full flex flex-col">
+          {/* 🎯 Header - Modern Design System 2025 */}
+          <div style={{
+            background: 'linear-gradient(135deg, #EF4444 0%, #F87171 100%)',
+            borderRadius: 'var(--radius-2xl) var(--radius-2xl) 0 0',
+            boxShadow: 'var(--shadow-danger)'
+          }} className="text-white p-8 flex items-center justify-between flex-shrink-0">
+            <div className="flex items-center space-x-4">
+              <div className="p-3 bg-white/20 backdrop-blur-sm" style={{borderRadius: 'var(--radius-lg)'}}>
+                <FiMinus className="w-7 h-7" strokeWidth={2.5} />
               </div>
-              <h2 className="text-xl font-bold text-slate-800 dark:text-slate-200">
-                Salida de Stock
-              </h2>
+              <div>
+                <h2 className="text-2xl font-bold tracking-tight">Salida de Stock</h2>
+                <p className="text-white/80 text-base mt-1">Consumo o asignación de productos</p>
+              </div>
             </div>
             <button
               onClick={handleClose}
               disabled={submitting}
-              className="p-2 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg transition-colors duration-200 disabled:opacity-50"
+              className="p-3 hover:bg-white/20 transition-all"
+              style={{
+                borderRadius: 'var(--radius-lg)',
+                transitionDuration: 'var(--duration-normal)',
+                transitionTimingFunction: 'var(--ease-out-expo)'
+              }}
             >
-              <FiX className="w-5 h-5 text-slate-500 dark:text-slate-400" />
+              <FiX className="w-6 h-6" strokeWidth={2.5} />
             </button>
           </div>
 
           {/* Content - Scrollable */}
-          <div className="flex-1 overflow-y-auto">
-            <form onSubmit={handleSubmit} className="p-6 space-y-6">
-            {/* Selector de producto */}
+          <div className="flex-1 overflow-y-auto min-h-0">
+            <form onSubmit={handleSubmit} className="flex flex-col h-full">
+              <div className="flex-1 p-6 space-y-6 overflow-y-auto">
+            {/* 🎯 Selector de producto - Modern Design */}
             <div>
-              <label className="block text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
+              <label className="block text-base font-semibold mb-3 text-slate-900 dark:text-slate-50">
                 Producto *
               </label>
               <ProductSearchSelect
@@ -484,8 +503,8 @@ const StockExitModal: React.FC<StockExitModalProps> = ({
               {formData.motivo === 'Otro motivo' && (
                 <input
                   type="text"
-                  value={formData.motivo}
-                  onChange={(e) => setFormData(prev => ({ ...prev, motivo: e.target.value }))}
+                  value={formData.motivo_personalizado}
+                  onChange={(e) => setFormData(prev => ({ ...prev, motivo_personalizado: e.target.value }))}
                   disabled={submitting}
                   className="input-glass w-full"
                   placeholder="Especifique el motivo (mínimo 5 caracteres)"
@@ -519,14 +538,12 @@ const StockExitModal: React.FC<StockExitModalProps> = ({
                   type="button"
                   onClick={() => handleDestinoTipoToggle('empleado')}
                   disabled={submitting}
-                  className={`p-4 border-2 rounded-xl transition-all duration-200 ${
-                    formData.destino_tipo.includes('empleado')
-                      ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20'
-                      : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
+                  className={`destination-card ${
+                    formData.destino_tipo.includes('empleado') ? 'selected' : ''
                   }`}
                 >
                   <div className="flex flex-col items-center gap-2">
-                    <FiUser className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
+                    <FiUser className="w-6 h-6" style={{color: '#6366F1'}} />
                     <span className="font-medium text-slate-700 dark:text-slate-300">Empleado</span>
                     {formData.destino_tipo.includes('empleado') && (
                       <div className="w-2 h-2 bg-indigo-500 rounded-full"></div>
@@ -538,17 +555,15 @@ const StockExitModal: React.FC<StockExitModalProps> = ({
                   type="button"
                   onClick={() => handleDestinoTipoToggle('sector')}
                   disabled={submitting}
-                  className={`p-4 border-2 rounded-xl transition-all duration-200 ${
-                    formData.destino_tipo.includes('sector')
-                      ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20'
-                      : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
+                  className={`destination-card ${
+                    formData.destino_tipo.includes('sector') ? 'selected' : ''
                   }`}
                 >
                   <div className="flex flex-col items-center gap-2">
-                    <FiMapPin className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
+                    <FiMapPin className="w-6 h-6" style={{color: '#6366F1'}} />
                     <span className="font-medium text-slate-700 dark:text-slate-300">Sector</span>
                     {formData.destino_tipo.includes('sector') && (
-                      <div className="w-2 h-2 bg-indigo-500 rounded-full"></div>
+                      <div className="w-2 h-2 rounded-full" style={{backgroundColor: '#6366F1'}}></div>
                     )}
                   </div>
                 </button>
@@ -557,14 +572,12 @@ const StockExitModal: React.FC<StockExitModalProps> = ({
                   type="button"
                   onClick={() => handleDestinoTipoToggle('sucursal')}
                   disabled={submitting}
-                  className={`p-4 border-2 rounded-xl transition-all duration-200 ${
-                    formData.destino_tipo.includes('sucursal')
-                      ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20'
-                      : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
+                  className={`destination-card ${
+                    formData.destino_tipo.includes('sucursal') ? 'selected' : ''
                   }`}
                 >
                   <div className="flex flex-col items-center gap-2">
-                    <FiBriefcase className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
+                    <FiBriefcase className="w-6 h-6" style={{color: '#6366F1'}} />
                     <span className="font-medium text-slate-700 dark:text-slate-300">Sucursal</span>
                     {formData.destino_tipo.includes('sucursal') && (
                       <div className="w-2 h-2 bg-indigo-500 rounded-full"></div>
@@ -672,35 +685,37 @@ const StockExitModal: React.FC<StockExitModalProps> = ({
               </div>
             )}
 
-            {/* Botones */}
-            <div className="flex gap-3 pt-4">
-              <button
-                type="button"
-                onClick={handleClose}
-                disabled={submitting}
-                className="btn-glass-secondary flex-1"
-              >
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                disabled={submitting || !formData.producto_id || !formData.cantidad || !formData.motivo || !formData.destino_tipo}
-                className="btn-glass-primary flex-1 flex items-center justify-center gap-2"
-              >
-                {submitting ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    Procesando...
-                  </>
-                ) : (
-                  <>
-                    <FiMinus className="w-4 h-4" />
-                    Registrar Salida
-                  </>
-                )}
-              </button>
-            </div>
-          </form>
+              </div>
+              
+              {/* 🔘 Footer con botones fijos - Modern Design System 2025 */}
+              <div className="border-t border-slate-200 dark:border-slate-700 p-6 flex gap-4 bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm flex-shrink-0">
+                <button
+                  type="button"
+                  onClick={handleClose}
+                  disabled={submitting}
+                  className="btn-glass-secondary-modern flex-1"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting || !formData.producto_id || !formData.cantidad || !formData.motivo || !formData.destino_tipo}
+                  className="btn-glass-primary-modern flex-1 flex items-center justify-center gap-2"
+                >
+                  {submitting ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Procesando...
+                    </>
+                  ) : (
+                    <>
+                      <FiMinus className="w-5 h-5" strokeWidth={2.5} />
+                      Registrar Salida
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       </div>

@@ -2,6 +2,56 @@
 @tailwind components;
 @tailwind utilities;
 
+/* 🎨 DESIGN SYSTEM VARIABLES - Modern Design System 2025 */
+:root {
+  /* 🎯 Espaciado exponencial */
+  --space-1: 0.25rem;   /* 4px */
+  --space-2: 0.5rem;    /* 8px */
+  --space-3: 0.75rem;   /* 12px */
+  --space-4: 1rem;      /* 16px */
+  --space-6: 1.5rem;    /* 24px */
+  --space-8: 2rem;      /* 32px */
+  --space-12: 3rem;     /* 48px */
+  --space-16: 4rem;     /* 64px */
+  --space-24: 6rem;     /* 96px */
+  --space-32: 8rem;     /* 128px */
+
+  /* 🔘 Border Radius Moderno */
+  --radius-xs: 0.125rem;  /* 2px */
+  --radius-sm: 0.25rem;   /* 4px */
+  --radius-md: 0.5rem;    /* 8px */
+  --radius-lg: 0.75rem;   /* 12px */
+  --radius-xl: 1rem;      /* 16px */
+  --radius-2xl: 1.5rem;   /* 24px */
+  --radius-3xl: 2rem;     /* 32px */
+  --radius-full: 9999px;  /* Circular */
+
+  /* 🌊 Sombras con Profundidad */
+  --shadow-xs: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  --shadow-2xl: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+
+  /* 🎨 Sombras con color (para elementos vibrantes) */
+  --shadow-primary: 0 10px 15px -3px rgba(99, 102, 241, 0.2), 0 4px 6px -2px rgba(99, 102, 241, 0.1);
+  --shadow-success: 0 10px 15px -3px rgba(16, 185, 129, 0.2), 0 4px 6px -2px rgba(16, 185, 129, 0.1);
+  --shadow-danger: 0 10px 15px -3px rgba(239, 68, 68, 0.2), 0 4px 6px -2px rgba(239, 68, 68, 0.1);
+
+  /* ⏱️ Timing Functions Naturales */
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  --ease-bounce: cubic-bezier(0.68, -0.55, 0.265, 1.35);
+
+  /* 🕐 Duraciones Escalonadas */
+  --duration-fast: 150ms;     /* Micro-interacciones */
+  --duration-normal: 250ms;   /* Transiciones estándar */
+  --duration-slow: 400ms;     /* Animaciones complejas */
+  --duration-slower: 600ms;   /* Transiciones de página */
+}
+
 /* 🌟 VARIABLES CSS MODERNAS - SISTEMA DE TOKENS */
 :root {
   /* Colores Primarios - Violeta/Índigo modernos */
@@ -337,6 +387,292 @@
     @apply transition-all duration-300;
 }
 /* End of Deprecated */
+
+/* 🎨 MODAL SYSTEM - Modern Design System 2025 */
+.modal-glass {
+  /* Glassmorphism según especificaciones exactas */
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(40px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: var(--radius-2xl); /* 24px */
+  box-shadow: var(--shadow-2xl);
+  transition: all var(--duration-normal) var(--ease-out-expo);
+  /* Aislamiento completo del contenido de fondo */
+  isolation: isolate;
+  position: relative;
+  z-index: 1;
+}
+
+.dark .modal-glass {
+  background: rgba(30, 41, 59, 0.98);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* 🛡️ Protección anti-bleed del contenido de fondo */
+.modal-overlay-protection {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  z-index: 9999;
+  isolation: isolate;
+}
+
+/* 🔘 BOTONES - Especificaciones exactas de la guía */
+.btn-glass-primary-modern {
+  /* Gradiente primario exacto */
+  background: linear-gradient(135deg, #6366F1 0%, #8B5CF6 100%);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: var(--radius-xl); /* 16px */
+  padding: 1rem 2rem;
+  color: white;
+  font-weight: 600;
+  
+  /* Efectos glassmorphism */
+  backdrop-filter: blur(20px);
+  box-shadow: var(--shadow-primary);
+  transition: all var(--duration-normal) var(--ease-out-expo);
+  
+  /* Estados interactivos */
+  &:hover:not(:disabled) {
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: var(--shadow-2xl), 0 0 30px rgba(99, 102, 241, 0.3);
+    background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
+  }
+  
+  &:active {
+    transform: translateY(0) scale(0.98);
+  }
+  
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+  }
+}
+
+.btn-glass-secondary-modern {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  backdrop-filter: blur(20px);
+  color: #6366F1;
+  border-radius: var(--radius-xl);
+  padding: 1rem 2rem;
+  font-weight: 600;
+  transition: all var(--duration-normal) var(--ease-out-expo);
+  
+  &:hover:not(:disabled) {
+    background: rgba(99, 102, 241, 0.1);
+    border-color: rgba(99, 102, 241, 0.5);
+    transform: translateY(-1px);
+  }
+  
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+  }
+}
+
+/* 🎯 BOTONES SUCCESS Y DANGER - Modern Design System 2025 */
+.btn-glass-success-modern {
+  background: linear-gradient(135deg, #10B981 0%, #34D399 100%);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(20px);
+  color: white;
+  border-radius: var(--radius-lg);
+  font-weight: 600;
+  transition: all var(--duration-normal) var(--ease-out-expo);
+  
+  &:hover:not(:disabled) {
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: var(--shadow-success), var(--shadow-lg);
+    background: linear-gradient(135deg, #059669 0%, #10B981 100%);
+  }
+  
+  &:active {
+    transform: translateY(0) scale(0.98);
+  }
+}
+
+.btn-glass-danger-modern {
+  background: linear-gradient(135deg, #EF4444 0%, #F87171 100%);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(20px);
+  color: white;
+  border-radius: var(--radius-lg);
+  font-weight: 600;
+  transition: all var(--duration-normal) var(--ease-out-expo);
+  
+  &:hover:not(:disabled) {
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: var(--shadow-danger), var(--shadow-lg);
+    background: linear-gradient(135deg, #DC2626 0%, #EF4444 100%);
+  }
+  
+  &:active {
+    transform: translateY(0) scale(0.98);
+  }
+}
+
+.btn-glass-disabled {
+  background: rgba(148, 163, 184, 0.3);
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  color: rgba(148, 163, 184, 0.7);
+  border-radius: var(--radius-lg);
+  cursor: not-allowed;
+  opacity: 0.6;
+  transition: none;
+}
+
+.dark .btn-glass-disabled {
+  background: rgba(71, 85, 105, 0.3);
+  border-color: rgba(71, 85, 105, 0.2);
+  color: rgba(148, 163, 184, 0.5);
+}
+
+.dark .btn-glass-secondary-modern {
+  color: #8B5CF6;
+  border-color: rgba(139, 92, 246, 0.3);
+}
+
+.dark .btn-glass-secondary-modern:hover:not(:disabled) {
+  background: rgba(139, 92, 246, 0.1);
+  border-color: rgba(139, 92, 246, 0.5);
+}
+
+/* 📝 INPUTS - Glassmorphism exacto de la guía */
+.input-glass {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: var(--radius-xl);
+  color: #0F172A;
+  transition: all var(--duration-normal) var(--ease-out-expo);
+  
+  &:focus {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: #6366F1;
+    box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
+    transform: translateY(-1px);
+    outline: none;
+  }
+  
+  &::placeholder {
+    color: rgba(148, 163, 184, 0.8);
+  }
+}
+
+.dark .input-glass {
+  background: rgba(30, 41, 59, 0.3);
+  color: #F8FAFC;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.dark .input-glass:focus {
+  background: rgba(30, 41, 59, 0.5);
+  border-color: #8B5CF6;
+  box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.1);
+}
+
+.input-glass-modern {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: var(--radius-xl); /* 16px */
+  padding: 1rem 1.5rem;
+  color: #0F172A; /* Texto principal */
+  transition: all var(--duration-normal) var(--ease-out-expo);
+  
+  &:focus {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: #6366F1;
+    box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.1);
+    transform: translateY(-1px);
+    outline: none;
+  }
+  
+  &::placeholder {
+    color: rgba(148, 163, 184, 0.8);
+  }
+}
+
+/* 🎨 GLASS CARDS - Sistema de tarjetas del Modern Design System 2025 */
+.glass-card-static {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: var(--radius-2xl);
+  box-shadow: var(--shadow-xl);
+  transition: all var(--duration-normal) var(--ease-out-expo);
+}
+
+.dark .glass-card-static {
+  background: rgba(30, 41, 59, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* 🌟 ANIMACIONES - Modern Design System 2025 */
+@keyframes pulse-glow {
+  0%, 100% { 
+    box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.7);
+    opacity: 1;
+  }
+  50% { 
+    box-shadow: 0 0 0 10px rgba(99, 102, 241, 0);
+    opacity: 0.8;
+  }
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.dark .input-glass-modern {
+  background: rgba(30, 41, 59, 0.3);
+  color: #F8FAFC; /* Texto principal oscuro */
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.dark .input-glass-modern:focus {
+  background: rgba(30, 41, 59, 0.5);
+  border-color: #8B5CF6;
+  box-shadow: 0 0 0 4px rgba(139, 92, 246, 0.1);
+}
+
+/* 🎯 CARDS DE DESTINO - Primary colors correctos */
+.destination-card {
+  border: 2px solid rgba(148, 163, 184, 0.2);
+  border-radius: var(--radius-xl);
+  padding: 1.5rem;
+  transition: all var(--duration-normal) var(--ease-out-expo);
+  backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.destination-card:hover {
+  border-color: rgba(99, 102, 241, 0.4);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.destination-card.selected {
+  border-color: #6366F1;
+  background: rgba(99, 102, 241, 0.1);
+  box-shadow: var(--shadow-primary);
+}
+
+.dark .destination-card {
+  border-color: rgba(148, 163, 184, 0.1);
+  background: rgba(30, 41, 59, 0.1);
+}
+
+.dark .destination-card.selected {
+  border-color: #8B5CF6;
+  background: rgba(139, 92, 246, 0.1);
+}
 
 /* Solución directa para el fondo del modal */
 .modal-backdrop-glass {

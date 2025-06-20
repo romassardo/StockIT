@@ -206,18 +206,29 @@ export const ProductForm: React.FC<ProductFormProps> = ({
             <select
               value={formData.categoria_id}
               onChange={(e) => setFormData({ ...formData, categoria_id: parseInt(e.target.value) })}
+              disabled={loadingCategories}
               className="w-full px-4 py-3 bg-slate-800/60 backdrop-blur-sm border border-slate-600/50 rounded-xl text-slate-100 
                        focus:border-indigo-400 focus:ring-4 focus:ring-indigo-400/20 focus:bg-slate-800/80
-                       transition-all duration-200 hover:border-slate-500"
+                       transition-all duration-200 hover:border-slate-500 disabled:opacity-50 disabled:cursor-not-allowed"
               required
             >
-              <option value="">Selecciona una categoría</option>
-              {categories.map(cat => (
-                <option key={cat.id} value={cat.id} className="bg-slate-800 text-slate-100">
-                  {cat.ruta_completa}
-                </option>
-              ))}
+              <option value="">
+                {loadingCategories ? 'Cargando categorías...' : 'Selecciona una categoría'}
+              </option>
+              {!loadingCategories && categories
+                .filter(cat => cat.categoria_padre_id !== null) // 🎯 SOLO subcategorías específicas
+                .map(cat => (
+                  <option key={cat.id} value={cat.id} className="bg-slate-800 text-slate-100">
+                    {cat.ruta_completa}
+                  </option>
+                ))}
             </select>
+            <p className="text-xs text-slate-400">
+              {loadingCategories 
+                ? 'Cargando lista de categorías disponibles...' 
+                : 'Los productos se asignan a categorías específicas, no a categorías padre'
+              }
+            </p>
           </div>
 
           {/* Marca */}
@@ -288,7 +299,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
           </div>
 
           {/* Switches */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4">
             {/* Usa Número de Serie */}
             <div className="flex items-center justify-between p-4 bg-slate-800/40 backdrop-blur-sm rounded-xl border border-slate-700/50">
               <div>
@@ -306,26 +317,6 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                              peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] 
                              after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gradient-to-r 
                              peer-checked:from-indigo-500 peer-checked:to-purple-500"></div>
-              </label>
-            </div>
-
-            {/* Estado Activo */}
-            <div className="flex items-center justify-between p-4 bg-slate-800/40 backdrop-blur-sm rounded-xl border border-slate-700/50">
-              <div>
-                <span className="text-sm font-medium text-slate-200">Estado</span>
-                <p className="text-xs text-slate-400 mt-1">Producto activo en el sistema</p>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={formData.activo}
-                  onChange={(e) => setFormData({ ...formData, activo: e.target.checked })}
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-slate-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-emerald-400/20 rounded-full peer 
-                             peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] 
-                             after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gradient-to-r 
-                             peer-checked:from-emerald-500 peer-checked:to-green-500"></div>
               </label>
             </div>
           </div>

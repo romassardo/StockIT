@@ -31,7 +31,7 @@ import api from './api';
 
 export const getActiveRepairs = async (page: number = 1, pageSize: number = 10): Promise<ApiResponse<ActiveRepair[]>> => {
   try {
-    const response = await api.get<ApiResponse<ActiveRepair[]>>(`/inventory/repairs/active`, {
+    const response = await api.get<ApiResponse<ActiveRepair[]>>(`/repairs/active`, {
       params: { page, pageSize }
     });
     return sanitizeNumericFields(response.data);
@@ -47,7 +47,7 @@ export const createRepair = async (repairData: {
   problema_descripcion: string;
 }): Promise<ActiveRepair> => {
   try {
-    const response = await api.post<ApiResponse<ActiveRepair>>('/inventory/repairs', repairData);
+    const response = await api.post<ApiResponse<ActiveRepair>>('/repairs', repairData);
     return sanitizeNumericFields(response.data.data);
   } catch (error) {
     console.error('Error creando reparación:', error);
@@ -60,7 +60,7 @@ export const returnRepair = async (repairId: number, repairData: {
   estado: 'Reparado' | 'Sin Reparación';
 }): Promise<ApiResponse<ActiveRepair>> => {
   try {
-    const response = await api.put<ApiResponse<ActiveRepair>>(`/inventory/repairs/${repairId}/return`, repairData);
+    const response = await api.put<ApiResponse<ActiveRepair>>(`/repairs/${repairId}/return`, repairData);
     return sanitizeNumericFields(response.data);
   } catch (error) {
     console.error('Error retornando reparación:', error);

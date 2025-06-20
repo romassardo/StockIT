@@ -29,7 +29,7 @@ const RepairsPage: React.FC = () => {
     page: 1,
     limit: 10,
     totalItems: 0,
-    totalPages: 1,
+    totalPages: 0,
   });
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -40,7 +40,14 @@ const RepairsPage: React.FC = () => {
       const response: ApiResponse<ActiveRepair[]> = await repairService.getActiveRepairs(page, limit);
       if (response.success && response.data) {
         setRepairs(response.data);
-        if (response.pagination) setPagination(response.pagination);
+        if (response.pagination) {
+          setPagination({
+            page: response.pagination.page,
+            limit: response.pagination.limit,
+            totalItems: response.pagination.totalItems || 0,
+            totalPages: response.pagination.totalPages || 0,
+          });
+        }
       } else {
         throw new Error(response.error || 'Error al cargar las reparaciones.');
       }
@@ -48,16 +55,22 @@ const RepairsPage: React.FC = () => {
       const errorMessage = err.response?.data?.error || err.message || 'Ocurrió un error inesperado.';
       setError(errorMessage);
       addNotification({ type: 'error', message: errorMessage });
+      // Set safe defaults on error
+      setRepairs([]);
+      setPagination({
+        page: 1,
+        limit: 10,
+        totalItems: 0,
+        totalPages: 0,
+      });
     } finally {
       setLoading(false);
     }
   }, [addNotification]);
 
   useEffect(() => {
-    if (pagination.page) {
-      loadRepairs(pagination.page, pagination.limit);
-    }
-  }, [loadRepairs, pagination.page, pagination.limit]);
+    loadRepairs(pagination.page, pagination.limit);
+  }, [pagination.page, pagination.limit]);
 
   const handleSearch = () => {
     // La búsqueda se realiza en el lado del cliente por ahora, o se podría implementar en el backend.
@@ -67,12 +80,15 @@ const RepairsPage: React.FC = () => {
   };
 
   const handlePageChange = (newPage: number) => {
-    setPagination((p: Pagination) => ({ ...p, page: newPage }));
+    if (newPage >= 1 && newPage <= (pagination.totalPages || 1)) {
+      setPagination(prev => ({ ...prev, page: newPage }));
+    }
   };
   
   const handleRefresh = () => {
     setSearchTerm('');
-    setPagination((p: Pagination) => ({ ...p, page: 1 }));
+    setPagination(prev => ({ ...prev, page: 1 }));
+    loadRepairs(1, pagination.limit);
   };
 
   const handleOpenReturnModal = (repair: ActiveRepair) => {
@@ -96,7 +112,7 @@ const RepairsPage: React.FC = () => {
     { 
       id: 'producto',
       header: 'Producto', 
-      accessor: (row: ActiveRepair) => `${row.producto_marca} ${row.producto_modelo}`
+      accessor: (row: ActiveRepair) => `${row.producto_marca || row.marca} ${row.producto_modelo || row.modelo}`
     },
     {
       id: 'numero_serie',
@@ -153,28 +169,44 @@ const RepairsPage: React.FC = () => {
         </div>
       ),
     },
-  ], [handleViewDetails, handleOpenReturnModal]);
+  ], [handleViewDetails]);
 
-  const paginationState = {
-    currentPage: pagination.page,
-    pageSize: pagination.limit,
-    total: pagination.totalItems,
-  };
+  // 🔧 FIX: Safe pagination state calculation
+  const paginationState = useMemo(() => {
+    const totalItems = pagination.totalItems || 0;
+    const pageSize = pagination.limit || 10;
+    const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+    const currentPage = Math.max(1, Math.min(pagination.page, totalPages));
+
+    return {
+      currentPage,
+      pageSize,
+      total: totalItems,
+    };
+  }, [pagination]);
 
   return (
     <AnimatedOrbsBackground>
       <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
         <header className="mb-8 text-center sm:text-left">
-          <h1 className="text-display-l font-bold text-slate-900 dark:text-slate-50">Gestión de Reparaciones</h1>
-          <p className="mt-2 text-body-large text-slate-600 dark:text-slate-400">
-            Administre los envíos y retornos de activos en reparación.
-          </p>
+          {/* 🎯 HEADER ESTÁNDAR MODERN DESIGN SYSTEM 2025 */}
+          <div className="flex items-center space-x-4">
+            <FiTool className="w-8 h-8 text-primary-500" strokeWidth={2.5} />
+            <div>
+              <h1 className="text-2xl md:text-5xl font-bold bg-gradient-to-r from-primary-600 via-primary-500 to-secondary-500 bg-clip-text text-transparent">
+                Gestión de Reparaciones
+              </h1>
+              <p className="mt-2 text-body-large text-slate-600 dark:text-slate-400">
+                Administre los envíos y retornos de activos en reparación.
+              </p>
+            </div>
+          </div>
         </header>
 
         <div className="glass-card p-4 sm:p-6 mb-6">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div className="flex-grow w-full sm:w-auto flex items-center">
-                  <FiSearch className="absolute ml-4 text-slate-400 pointer-events-none"/>
+              <div className="flex-grow w-full sm:w-auto flex items-center relative">
+                  <FiSearch className="absolute ml-4 text-slate-400 pointer-events-none z-10"/>
                   <input
                       type="text"
                       value={searchTerm}
@@ -199,15 +231,26 @@ const RepairsPage: React.FC = () => {
         {loading ? (
           <Loading text="Cargando reparaciones..." />
         ) : error ? (
-          <div className="text-center text-red-500">{error}</div>
+          <div className="glass-card p-8 text-center">
+            <div className="text-red-500 text-lg font-medium mb-2">Error al cargar datos</div>
+            <div className="text-slate-600 dark:text-slate-400 mb-4">{error}</div>
+            <button 
+              onClick={handleRefresh}
+              className="btn-primary"
+            >
+              Reintentar
+            </button>
+          </div>
         ) : (
           <div className="glass-card p-4">
             <DataTable
               columns={columns}
               data={repairs}
-              keyExtractor={(item: ActiveRepair) => item.id.toString()}
+              keyExtractor={(item: ActiveRepair) => `repair-${item.id}-${item.reparacion_id || 'unknown'}`}
               pagination={paginationState}
               onPageChange={handlePageChange}
+              isLoading={loading}
+              emptyMessage="No hay reparaciones activas en este momento"
             />
           </div>
         )}

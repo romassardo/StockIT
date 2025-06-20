@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { DatabaseConnection } from '../utils/database';
 import { logger } from '../utils/logger';
+import { cacheService } from '../services/cache.service';
 import * as sql from 'mssql';
 
 // Definir el tipo de datos del SP sp_StockGeneral_GetAll
@@ -192,7 +193,17 @@ export class ProductController {
         return;
       }
 
-      logger.info('Obteniendo producto por ID', {
+      // 🚀 OPTIMIZACIÓN: Verificar caché primero
+      const cacheKey = `product_${productoId}`;
+      let cachedProduct = cacheService.get<any>(cacheKey);
+
+      if (cachedProduct) {
+        logger.info('Producto obtenido desde caché', { producto_id: productoId });
+        res.status(200).json({ success: true, data: cachedProduct });
+        return;
+      }
+
+      logger.info('Obteniendo producto por ID desde BD', {
         producto_id: productoId,
         usuario: req.user?.id
       });

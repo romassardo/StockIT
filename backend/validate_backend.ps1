@@ -59,22 +59,22 @@ Write-Host "`n🔍 FASE 1: ENDPOINTS BÁSICOS" -ForegroundColor Yellow
 Write-Host "-" * 40
 
 # Test 1: Endpoint raíz
-$rootResponse = Test-Endpoint "$baseUrl/" "GET" "Endpoint raíz - información básica"
+Test-Endpoint "$baseUrl/" "GET" "Endpoint raíz - información básica" | Out-Null
 
 # Test 2: Productos (no requiere auth)
-$productsResponse = Test-Endpoint "$baseUrl/api/products" "GET" "Listar productos"
+Test-Endpoint "$baseUrl/api/products" "GET" "Listar productos" | Out-Null
 
 # Test 3: Categorías
-$categoriesResponse = Test-Endpoint "$baseUrl/api/products/categories" "GET" "Listar categorías"
+Test-Endpoint "$baseUrl/api/products/categories" "GET" "Listar categorías" | Out-Null
 
 # Test 4: Empleados
-$employeesResponse = Test-Endpoint "$baseUrl/api/employees" "GET" "Listar empleados"
+Test-Endpoint "$baseUrl/api/employees" "GET" "Listar empleados" | Out-Null
 
 # Test 5: Sectores
-$sectorsResponse = Test-Endpoint "$baseUrl/api/sectors" "GET" "Listar sectores"
+Test-Endpoint "$baseUrl/api/sectors" "GET" "Listar sectores" | Out-Null
 
 # Test 6: Sucursales  
-$branchesResponse = Test-Endpoint "$baseUrl/api/branches" "GET" "Listar sucursales"
+Test-Endpoint "$baseUrl/api/branches" "GET" "Listar sucursales" | Out-Null
 
 Write-Host "`n🔑 FASE 2: AUTENTICACIÓN Y USUARIOS" -ForegroundColor Yellow
 Write-Host "-" * 40
@@ -107,61 +107,61 @@ if ($token) {
 
 # Test 8: Perfil usuario (requiere auth)
 if ($token) {
-    $profileResponse = Test-Endpoint "$baseUrl/api/auth/profile" "GET" "Obtener perfil usuario" $authHeaders
+    Test-Endpoint "$baseUrl/api/auth/profile" "GET" "Obtener perfil usuario" $authHeaders | Out-Null
 }
 
 # Test 9: Listar usuarios (requiere auth)
 if ($token) {
-    $usersResponse = Test-Endpoint "$baseUrl/api/users" "GET" "Listar usuarios" $authHeaders
+    Test-Endpoint "$baseUrl/api/users" "GET" "Listar usuarios" $authHeaders | Out-Null
 }
 
 Write-Host "`n📦 FASE 3: INVENTARIO Y STOCK" -ForegroundColor Yellow
 Write-Host "-" * 40
 
 # Test 10: Inventario Individual (Notebooks/Celulares)
-$inventoryResponse = Test-Endpoint "$baseUrl/api/inventory" "GET" "Inventario individual (notebooks/celulares)"
+Test-Endpoint "$baseUrl/api/inventory" "GET" "Inventario individual (notebooks/celulares)" | Out-Null
 
 # Test 11: Stock General
-$stockResponse = Test-Endpoint "$baseUrl/api/stock" "GET" "Stock general (otros productos)"
+Test-Endpoint "$baseUrl/api/stock" "GET" "Stock general (otros productos)" | Out-Null
 
 # Test 12: Stock con filtros
-$stockLowResponse = Test-Endpoint "$baseUrl/api/stock/alerts" "GET" "Stock bajo mínimo"
+Test-Endpoint "$baseUrl/api/stock/alerts" "GET" "Stock bajo mínimo" | Out-Null
 
 Write-Host "`n👥 FASE 4: ASIGNACIONES Y REPARACIONES" -ForegroundColor Yellow
 Write-Host "-" * 40
 
 # Test 13: Asignaciones
-$assignmentsResponse = Test-Endpoint "$baseUrl/api/assignments" "GET" "Listar asignaciones"
+Test-Endpoint "$baseUrl/api/assignments" "GET" "Listar asignaciones" | Out-Null
 
 # Test 14: Asignaciones activas
-$activeAssignmentsResponse = Test-Endpoint "$baseUrl/api/assignments/active" "GET" "Asignaciones activas"
+Test-Endpoint "$baseUrl/api/assignments/active" "GET" "Asignaciones activas" | Out-Null
 
 # Test 15: Reparaciones
-$repairsResponse = Test-Endpoint "$baseUrl/api/repairs" "GET" "Listar reparaciones"
+Test-Endpoint "$baseUrl/api/repairs" "GET" "Listar reparaciones" | Out-Null
 
 # Test 16: Reparaciones activas
-$activeRepairsResponse = Test-Endpoint "$baseUrl/api/repairs/active" "GET" "Reparaciones activas"
+Test-Endpoint "$baseUrl/api/repairs/active" "GET" "Reparaciones activas" | Out-Null
 
 Write-Host "`n📊 FASE 5: REPORTES Y DASHBOARD" -ForegroundColor Yellow
 Write-Host "-" * 40
 
 # Test 17: Dashboard metrics
-$dashboardResponse = Test-Endpoint "$baseUrl/api/dashboard/metrics" "GET" "Métricas dashboard"
+Test-Endpoint "$baseUrl/api/dashboard/metrics" "GET" "Métricas dashboard" | Out-Null
 
 # Test 18: Dashboard stats
-$dashboardStatsResponse = Test-Endpoint "$baseUrl/api/dashboard/stats" "GET" "Estadísticas dashboard"
+Test-Endpoint "$baseUrl/api/dashboard/stats" "GET" "Estadísticas dashboard" | Out-Null
 
 # Test 19: Reporte inventario
-$reportInventoryResponse = Test-Endpoint "$baseUrl/api/reports/inventory" "GET" "Reporte inventario"
+Test-Endpoint "$baseUrl/api/reports/inventory" "GET" "Reporte inventario" | Out-Null
 
 # Test 20: Búsqueda global
-$searchResponse = Test-Endpoint "$baseUrl/api/search?query=test" "GET" "Búsqueda global"
+Test-Endpoint "$baseUrl/api/search?query=test" "GET" "Búsqueda global" | Out-Null
 
 Write-Host "`n📝 FASE 6: CHANGELOG Y LOGS" -ForegroundColor Yellow
 Write-Host "-" * 40
 
 # Test 21: Changelog
-$changelogResponse = Test-Endpoint "$baseUrl/api/changelog" "GET" "Listar changelog"
+Test-Endpoint "$baseUrl/api/changelog" "GET" "Listar changelog" | Out-Null
 
 Write-Host "`n" + "=" * 60
 Write-Host "🏆 RESUMEN VALIDACIÓN BACKEND" -ForegroundColor Green

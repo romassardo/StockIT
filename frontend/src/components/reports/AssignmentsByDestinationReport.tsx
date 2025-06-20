@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { FiDownload, FiFilter, FiRefreshCw, FiUsers, FiMapPin } from 'react-icons/fi';
+import { FiDownload, FiFilter, FiRefreshCw } from 'react-icons/fi';
 import { useNotification } from '../../contexts/NotificationContext';
 import { getAssignmentsByDestination, GetAssignmentsByDestinationParams, AssignmentReportItem } from '../../services/report.service';
 import Loading from '../common/Loading';
@@ -21,7 +21,6 @@ const AssignmentsByDestinationReport: React.FC<AssignmentsByDestinationReportPro
 }) => {
   const { addNotification } = useNotification();
   const [assignments, setAssignments] = useState<AssignmentReportItem[]>([]);
-  const [stats, setStats] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [totalItems, setTotalItems] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
@@ -49,7 +48,6 @@ const AssignmentsByDestinationReport: React.FC<AssignmentsByDestinationReportPro
       const result = await getAssignmentsByDestination(params);
       
       setAssignments(result.items);
-      setStats(result.stats);
       setTotalItems(result.totalItems);
       setTotalPages(result.totalPages);
       setCurrentPage(page);
@@ -290,8 +288,22 @@ const AssignmentsByDestinationReport: React.FC<AssignmentsByDestinationReportPro
         <div className="p-6 rounded-2xl bg-slate-800/60 backdrop-blur-lg border border-slate-700 shadow-xl">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
             <div className="flex items-center gap-3">
-              <div className={`p-2 rounded-lg bg-${color}-500/20`}>
-                <IconComponent className={`w-5 h-5 text-${color}-400`} />
+              <div className={`p-2 rounded-lg ${
+                color === 'primary' ? 'bg-primary-500/20' :
+                color === 'success' ? 'bg-success-500/20' :
+                color === 'warning' ? 'bg-warning-500/20' :
+                color === 'danger' ? 'bg-danger-500/20' :
+                color === 'info' ? 'bg-info-500/20' :
+                'bg-secondary-500/20'
+              }`}>
+                <IconComponent className={`w-5 h-5 ${
+                  color === 'primary' ? 'text-primary-400' :
+                  color === 'success' ? 'text-success-400' :
+                  color === 'warning' ? 'text-warning-400' :
+                  color === 'danger' ? 'text-danger-400' :
+                  color === 'info' ? 'text-info-400' :
+                  'text-secondary-400'
+                }`} />
               </div>
               <div>
                 <h2 className="text-xl font-bold text-slate-100">
@@ -399,8 +411,22 @@ const AssignmentsByDestinationReport: React.FC<AssignmentsByDestinationReportPro
         {/* Estado vacío */}
         {assignments.length === 0 && !loading && (
           <div className="p-12 rounded-2xl bg-slate-800/60 backdrop-blur-lg border border-slate-700 text-center">
-            <div className={`inline-flex items-center justify-center w-16 h-16 rounded-full bg-${color}-500/20 mb-4`}>
-              <IconComponent className={`w-8 h-8 text-${color}-400`} />
+            <div className={`inline-flex items-center justify-center w-16 h-16 rounded-full mb-4 ${
+              color === 'primary' ? 'bg-primary-500/20' :
+              color === 'success' ? 'bg-success-500/20' :
+              color === 'warning' ? 'bg-warning-500/20' :
+              color === 'danger' ? 'bg-danger-500/20' :
+              color === 'info' ? 'bg-info-500/20' :
+              'bg-secondary-500/20'
+            }`}>
+              <IconComponent className={`w-8 h-8 ${
+                color === 'primary' ? 'text-primary-400' :
+                color === 'success' ? 'text-success-400' :
+                color === 'warning' ? 'text-warning-400' :
+                color === 'danger' ? 'text-danger-400' :
+                color === 'info' ? 'text-info-400' :
+                'text-secondary-400'
+              }`} />
             </div>
             <h3 className="text-lg font-medium text-slate-200 mb-2">
               Sin resultados

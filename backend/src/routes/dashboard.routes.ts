@@ -10,29 +10,29 @@ const dashboardController = new DashboardController();
 /**
  * @route   GET /api/dashboard/stats
  * @desc    Obtener estadísticas generales del sistema para el dashboard
- * @access  Private (Admin, Supervisor)
+ * @access  Private (Todos los usuarios autenticados)
  */
-router.get('/stats', authenticateToken, authorizeRole(['admin', 'supervisor']), dashboardController.getSystemStats);
+router.get('/stats', authenticateToken, dashboardController.getSystemStats);
 
 /**
  * @route   GET /api/dashboard/alerts
  * @desc    Obtener alertas de stock bajo
- * @access  Private (Admin, Técnico, Supervisor)
+ * @access  Private (Todos los usuarios autenticados)
  */
-router.get('/alerts', authenticateToken, authorizeRole(['admin', 'tecnico', 'supervisor']), dashboardController.getStockAlerts);
+router.get('/alerts', authenticateToken, dashboardController.getStockAlerts);
 
 /**
  * @route   GET /api/dashboard/activity
  * @desc    Obtener actividad reciente del sistema
- * @access  Private (Admin, Técnico, Supervisor)
+ * @access  Private (Todos los usuarios autenticados)
  */
-router.get('/activity', authenticateToken, authorizeRole(['admin', 'tecnico', 'supervisor']), dashboardController.getRecentActivity);
+router.get('/activity', authenticateToken, dashboardController.getRecentActivity);
 
 /**
  * @route   GET /api/dashboard/kpis
  * @desc    Obtener KPIs principales del inventario
- * @access  Private (Admin, Técnico, Supervisor)
+ * @access  Private (Todos los usuarios autenticados)
  */
-router.get('/kpis', authenticateToken, authorizeRole(['admin', 'tecnico', 'supervisor']), dashboardController.getInventoryKPIs);
+router.get('/kpis', authenticateToken, dashboardController.getInventoryKPIs);
 
 export default router;

@@ -4,7 +4,7 @@ import * as searchService from '../services/search.service';
 import SearchBar from '../components/common/SearchBar';
 import SearchResultCard from '../components/vault/SearchResultCard';
 import SensitiveDataModal from '../components/vault/SensitiveDataModal';
-import { FiInfo, FiSearch, FiXCircle } from 'react-icons/fi';
+import { FiSearch, FiXCircle } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import AnimatedOrbsBackground from '../components/layout/AnimatedOrbsBackground';
 
@@ -93,8 +93,17 @@ const Vault: React.FC = () => {
     <AnimatedOrbsBackground>
       <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8">
         <div className="mb-8 text-center">
-          <h1 className="text-display-l font-bold text-slate-900 dark:text-slate-50">Bóveda de Datos</h1>
-          <p className="text-body-large text-slate-600 dark:text-slate-400">Consulta rápida de información sensible de activos asignados.</p>
+          <div className="flex items-center justify-center space-x-4">
+            <FiSearch className="w-8 h-8 text-primary-500" strokeWidth={2.5} />
+            <div className="text-center">
+              <h1 className="text-2xl md:text-5xl font-bold bg-gradient-to-r from-primary-600 via-primary-500 to-secondary-500 bg-clip-text text-transparent">
+                Bóveda de Datos
+              </h1>
+              <p className="text-body-large text-slate-600 dark:text-slate-400">
+                Consulta rápida de información sensible de activos asignados.
+              </p>
+            </div>
+          </div>
         </div>
 
         <div className="glass-surface-elevated p-4 sm:p-6 mb-8 rounded-2xl sticky top-4 z-20 shadow-lg">

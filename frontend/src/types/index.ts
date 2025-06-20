@@ -293,21 +293,25 @@ export interface ChangelogEntry {
 export interface ActiveRepair {
   id: number;
   reparacion_id: number;
-  inventario_id: number;
+  inventario_individual_id: number;
   numero_serie: string;
   marca: string;
   modelo: string;
   producto_marca?: string;
   producto_modelo?: string;
+  producto_categoria?: string;
   empleado_asignado?: string;
   fecha_envio: string;
   fecha_retorno?: string;
   proveedor: string;
   problema_descripcion: string;
   solucion_descripcion?: string;
-  estado_reparacion: 'En Reparación' | 'Reparado' | 'Sin Reparación';
+  estado_reparacion?: 'En Reparación' | 'Reparado' | 'Sin Reparación';
+  usuario_envia_id: number;
   usuario_envia_nombre: string;
   usuario_recibe_nombre?: string;
+  dias_en_reparacion?: number;
+  TotalRows?: number;
 }
 
 // ===============================================

@@ -21,19 +21,19 @@ interface Category {
 
 interface CategoryFormProps {
   category?: Category | null;
+  categories: Category[];
   onClose: () => void;
   onSubmit: (data: CategoryCreateData) => void;
 }
 
 export const CategoryForm: React.FC<CategoryFormProps> = ({
   category,
+  categories,
   onClose,
   onSubmit
 }) => {
   const { addNotification } = useNotification();
   const [loading, setLoading] = useState(false);
-  const [loadingCategories, setLoadingCategories] = useState(true);
-  const [parentCategories, setParentCategories] = useState<Category[]>([]);
   
   // Estados del formulario
   const [formData, setFormData] = useState<CategoryCreateData>({
@@ -45,11 +45,6 @@ export const CategoryForm: React.FC<CategoryFormProps> = ({
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
-
-  // Cargar categorías padre al montar el componente
-  useEffect(() => {
-    loadParentCategories();
-  }, []);
 
   // Inicializar formulario si estamos editando
   useEffect(() => {
@@ -64,28 +59,9 @@ export const CategoryForm: React.FC<CategoryFormProps> = ({
     }
   }, [category]);
 
-  const loadParentCategories = async () => {
-    try {
-      setLoadingCategories(true);
-      const response = await productService.getAllCategoriesForSelect();
-      
-      if (response.success) {
-        // Filtrar la categoría actual si estamos editando (no puede ser padre de sí misma)
-        let categories = response.data || [];
-        if (category) {
-          categories = categories.filter((cat: Category) => cat.id !== category.id);
-        }
-        setParentCategories(categories);
-      } else {
-        addNotification({ message: 'Error al cargar categorías padre', type: 'error' });
-      }
-    } catch (error: any) {
-      console.error('Error cargando categorías padre:', error);
-      addNotification({ message: error.message || 'Error al cargar categorías padre', type: 'error' });
-    } finally {
-      setLoadingCategories(false);
-    }
-  };
+  const parentCategories = category
+    ? categories.filter(c => c.id !== category.id)
+    : categories;
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};

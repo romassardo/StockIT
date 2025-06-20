@@ -9,6 +9,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import ThemeToggle from '../common/ThemeToggle';
 import UserProfileModal from '../common/UserProfileModal';
+import { getAppVersion, getDeveloperInfo, getFooterConfig } from '../../config/app.config';
 
 // ðŸŽ¯ Interfaces para la navegaciÃ³n moderna
 interface SubMenuItem {
@@ -161,7 +162,7 @@ const MainLayout: React.FC = () => {
           ? 'bg-slate-900/80 border-slate-700/50' 
           : 'bg-primary-600/95 border-primary-500/20'
         }
-        backdrop-blur-xl border-r shadow-2xl
+        backdrop-blur-xl border-r shadow-2xl flex flex-col
       `}>
         {/* ✨ Logo y título con glassmorphism */}
         <div className={`
@@ -219,7 +220,7 @@ const MainLayout: React.FC = () => {
         </div>
 
         {/* ðŸ§­ NavegaciÃ³n moderna con submenÃºs */}
-        <nav className="px-6 py-8 space-y-2 overflow-y-auto flex-1">
+        <nav className="px-6 py-8 space-y-2 overflow-y-auto flex-1 min-h-0">
           {allNavigation.map((item) => 
             item.visible && (
               <div key={item.name} className="space-y-1">
@@ -373,7 +374,7 @@ const MainLayout: React.FC = () => {
 
         {/* ðŸŒŸ Footer de la sidebar */}
         <div className={`
-          p-6
+          mt-auto p-6
           ${theme === 'dark' 
             ? 'border-t border-slate-700/50 bg-slate-900/50' 
             : 'border-t border-primary-500/30 bg-primary-600/30'
@@ -384,8 +385,15 @@ const MainLayout: React.FC = () => {
             text-center text-sm opacity-75
             ${theme === 'dark' ? 'text-slate-400' : 'text-white/70'}
           `}>
-            <p className="font-medium">Modern Design System 2025</p>
-            <p className="text-xs mt-1">v1.0.41 - StockIT</p>
+            {getFooterConfig().showVersion && (
+              <p className="text-xs font-semibold tracking-wide">{getAppVersion()}</p>
+            )}
+            {getFooterConfig().showMessage && (
+              <p className="text-xs mt-1 opacity-60">{getDeveloperInfo().message}</p>
+            )}
+            {getFooterConfig().showDeveloper && (
+              <p className="text-xs mt-1 font-medium">{getDeveloperInfo().name}</p>
+            )}
           </div>
         </div>
       </div>

@@ -108,7 +108,7 @@ const Stock: React.FC = () => {
 
   const totalPages = Math.ceil(filteredProductos.length / itemsPerPage);
 
-  // Función para obtener el estado visual del stock - usando colores del design system
+  // Función para obtener el estado visual del stock - usando colores del design system (estáticos)
   const getStockStatus = (cantidad: number, minimo: number) => {
     if (cantidad === 0) return { 
       status: 'empty', 
@@ -253,28 +253,28 @@ const Stock: React.FC = () => {
         ? 'bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900' 
         : 'bg-gradient-to-br from-slate-50 via-gray-50 to-slate-100'
     }`}>
-      {/* 🌌 Fondo moderno con orbes animados - IGUAL QUE INVENTORY */}
-      <div className={`fixed inset-0 pointer-events-none transition-all duration-300 ${
+      {/* 🌌 Fondo moderno con orbes animados - OPTIMIZADO SIN PARPADEO */}
+      <div className={`fixed inset-0 pointer-events-none ${
         theme === 'dark' 
           ? 'bg-gradient-to-br from-slate-900/95 via-slate-800/90 to-slate-900/95' 
           : 'bg-gradient-to-br from-slate-50/95 via-slate-100/90 to-slate-200/95'
       }`}>
-        <div className={`absolute top-20 left-10 w-32 h-32 rounded-full blur-xl animate-float transition-all duration-300 ${
+        <div className={`absolute top-20 left-10 w-32 h-32 rounded-full blur-xl animate-float ${
           theme === 'dark' 
             ? 'bg-primary-500/20' 
             : 'bg-primary-500/10'
         }`}></div>
-        <div className={`absolute top-40 right-20 w-24 h-24 rounded-full blur-lg animate-float transition-all duration-300 ${
+        <div className={`absolute top-40 right-20 w-24 h-24 rounded-full blur-lg animate-float ${
           theme === 'dark' 
             ? 'bg-secondary-500/20' 
             : 'bg-secondary-500/10'
         }`} style={{animationDelay: '2s'}}></div>
-        <div className={`absolute bottom-32 left-1/4 w-20 h-20 rounded-full blur-lg animate-float transition-all duration-300 ${
+        <div className={`absolute bottom-32 left-1/4 w-20 h-20 rounded-full blur-lg animate-float ${
           theme === 'dark' 
             ? 'bg-success-500/20' 
             : 'bg-success-500/10'
         }`} style={{animationDelay: '4s'}}></div>
-        <div className={`absolute bottom-20 right-1/3 w-28 h-28 rounded-full blur-xl animate-float transition-all duration-300 ${
+        <div className={`absolute bottom-20 right-1/3 w-28 h-28 rounded-full blur-xl animate-float ${
           theme === 'dark' 
             ? 'bg-info-500/20' 
             : 'bg-info-500/10'
@@ -283,27 +283,31 @@ const Stock: React.FC = () => {
 
       <div className="relative z-20 p-6 max-w-7xl mx-auto">
         
-        {/* Header Compacto Rediseñado con animación de entrada */}
-        <div className={`glass-card p-4 mb-4 animate-glass-appear ${theme === 'dark' ? 'glass-dark' : ''}`}>
+        {/* Header Compacto - OPTIMIZADO SIN PARPADEO */}
+        <div className={`glass-card p-4 mb-4 ${theme === 'dark' ? 'glass-dark' : ''}`}>
           
           {/* Línea 1: Título + Pestañas + Botones */}
           <div className="flex items-center justify-between mb-4">
-            <div className="animate-glass-appear" style={{ animationDelay: '0.1s' }}>
-              <h1 className={`text-4xl font-bold text-gradient-primary`}>
-                Stock General
-              </h1>
-              <p className={`text-sm mt-1 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
-                Control por cantidad • {filteredProductos.length} productos activos
-              </p>
+            {/* 🎯 HEADER ESTÁNDAR MODERN DESIGN SYSTEM 2025 */}
+            <div className="flex items-center space-x-4">
+              <Package className={`w-8 h-8 text-primary-500`} strokeWidth={2.5} />
+              <div>
+                <h1 className={`text-2xl md:text-5xl font-bold bg-gradient-to-r from-primary-600 via-primary-500 to-secondary-500 bg-clip-text text-transparent`}>
+                  Stock General
+                </h1>
+                <p className={`text-sm mt-1 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
+                  Control por cantidad • {filteredProductos.length} productos activos
+                </p>
+              </div>
             </div>
             
-            <div className="flex items-center gap-4 animate-glass-appear" style={{ animationDelay: '0.2s' }}>
+            <div className="flex items-center gap-4">
               {/* Pestañas */}
               <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-1">
                 <button
                   className="px-3 py-1.5 rounded-md text-sm font-medium bg-primary-500 text-white shadow-sm flex items-center gap-1.5"
                 >
-                  <Package className="w-3.5 h-3.5" />
+                  <Package className="w-3.5 h-3.5" strokeWidth={2.5} />
                   Stock
                 </button>
                 <button
@@ -312,7 +316,7 @@ const Stock: React.FC = () => {
                     theme === 'dark' ? 'text-slate-300 hover:bg-slate-700' : 'text-slate-600 hover:bg-white'
                   }`}
                 >
-                  <History className="w-3.5 h-3.5" />
+                  <History className="w-3.5 h-3.5" strokeWidth={2.5} />
                   Movimientos
                 </button>
                 <button
@@ -321,7 +325,7 @@ const Stock: React.FC = () => {
                     theme === 'dark' ? 'text-slate-300 hover:bg-slate-700' : 'text-slate-600 hover:bg-white'
                   }`}
                 >
-                  <AlertTriangle className="w-3.5 h-3.5" />
+                  <AlertTriangle className="w-3.5 h-3.5" strokeWidth={2.5} />
                   Alertas
                   {stats.alertasActivas > 0 && (
                     <span className="bg-warning-500 text-white text-xs px-1 py-0.5 rounded-full text-[10px] animate-pulse-glow">
@@ -331,85 +335,101 @@ const Stock: React.FC = () => {
                 </button>
               </div>
 
-              {/* Botones con gradientes dinámicos */}
+              {/* 🎯 BOTONES GLASS MODERN DESIGN SYSTEM 2025 */}
               <div className="flex gap-2">
                 <button
                   onClick={() => handleOpenEntry()}
-                  className="bg-primary-500 hover:bg-primary-600 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2 hover-gradient-primary"
+                  className="btn-glass-primary-modern flex items-center gap-2"
                 >
-                  <Plus className="w-4 h-4" />
+                  <Plus className="w-4 h-4" strokeWidth={2.5} />
                   Entrada
                 </button>
                 <button
                   onClick={loadStockData}
-                  className={`border border-slate-300 hover:bg-slate-50 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2 hover-gradient-neutral ${
-                    theme === 'dark' 
-                      ? 'border-slate-600 hover:bg-slate-800 text-slate-300' 
-                      : 'text-slate-700'
-                  }`}
+                  className="btn-glass-secondary-modern flex items-center gap-2"
                 >
-                  <RefreshCw className="w-4 h-4" />
+                  <RefreshCw className="w-4 h-4" strokeWidth={2.5} />
                   Actualizar
                 </button>
               </div>
             </div>
           </div>
 
-          {/* Línea 2: Estadísticas con efectos 3D glassmorphism y animaciones stagger */}
+          {/* Línea 2: Estadísticas - OPTIMIZADO SIN PARPADEO */}
           <div className="grid grid-cols-4 gap-3 mb-4">
             {[
-              { icon: Package, label: 'Productos', value: stats.totalProductos, color: 'primary', delay: '0.1s' },
-              { icon: BarChart3, label: 'Unidades', value: stats.totalUnidades.toLocaleString(), color: 'success', delay: '0.2s' },
-              { icon: AlertTriangle, label: 'Alertas', value: stats.alertasActivas, color: 'warning', delay: '0.3s', pulse: stats.alertasActivas > 0 },
-              { icon: TrendingDown, label: 'Sin Stock', value: stats.sinStock, color: 'danger', delay: '0.4s', pulse: stats.sinStock > 0 }
-            ].map((stat, index) => (
-              <div 
-                key={index}
-                className={`glass-card-static p-3 rounded-lg hover-lift animate-glass-appear ${
-                  theme === 'dark' ? 'glass-dark' : ''
-                } ${stat.pulse ? 'animate-pulse-glow' : ''}`}
-                style={{ animationDelay: stat.delay }}
-              >
-                <div className="flex items-center gap-3">
-                  <div className={`p-2 rounded-lg ${
-                    theme === 'dark' 
-                      ? `bg-${stat.color}-900/30` 
-                      : `bg-${stat.color}-50`
-                  }`}>
-                    <stat.icon className={`w-5 h-5 text-${stat.color}-500`} />
-                  </div>
-                  <div>
-                    <p className={`text-xs font-medium ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
-                      {stat.label}
-                    </p>
-                    <p className={`text-lg font-bold ${
-                      stat.pulse && stat.value > 0 
-                        ? `text-${stat.color}-600` 
-                        : (theme === 'dark' ? 'text-white' : 'text-slate-900')
-                    }`}>
-                      {stat.value}
-                    </p>
+              { icon: Package, label: 'Productos', value: stats.totalProductos, color: 'primary', pulse: false },
+              { icon: BarChart3, label: 'Unidades', value: stats.totalUnidades.toLocaleString(), color: 'success', pulse: false },
+              { icon: AlertTriangle, label: 'Alertas', value: stats.alertasActivas, color: 'warning', pulse: stats.alertasActivas > 0 },
+              { icon: TrendingDown, label: 'Sin Stock', value: stats.sinStock, color: 'danger', pulse: stats.sinStock > 0 }
+            ].map((stat, index) => {
+              // Mapeo de colores estáticos para evitar clases dinámicas
+              const colorMap = {
+                primary: {
+                  bg: theme === 'dark' ? 'bg-primary-900/30' : 'bg-primary-50',
+                  icon: 'text-primary-500',
+                  text: 'text-primary-600'
+                },
+                success: {
+                  bg: theme === 'dark' ? 'bg-success-900/30' : 'bg-success-50',
+                  icon: 'text-success-500',
+                  text: 'text-success-600'
+                },
+                warning: {
+                  bg: theme === 'dark' ? 'bg-warning-900/30' : 'bg-warning-50',
+                  icon: 'text-warning-500',
+                  text: 'text-warning-600'
+                },
+                danger: {
+                  bg: theme === 'dark' ? 'bg-danger-900/30' : 'bg-danger-50',
+                  icon: 'text-danger-500',
+                  text: 'text-danger-600'
+                }
+              };
+              
+              const colors = colorMap[stat.color as keyof typeof colorMap];
+              
+              return (
+                <div 
+                  key={index}
+                  className={`glass-card-static p-3 rounded-lg hover-lift ${
+                    theme === 'dark' ? 'glass-dark' : ''
+                  } ${stat.pulse ? 'animate-pulse-glow' : ''}`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`p-2 rounded-lg ${colors.bg}`}>
+                      <stat.icon className={`w-5 h-5 ${colors.icon}`} strokeWidth={2.5} />
+                    </div>
+                    <div>
+                      <p className={`text-xs font-medium ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
+                        {stat.label}
+                      </p>
+                      <p className={`text-lg font-bold ${
+                        stat.pulse && typeof stat.value === 'number' && stat.value > 0 
+                          ? colors.text
+                          : (theme === 'dark' ? 'text-white' : 'text-slate-900')
+                      }`}>
+                        {stat.value}
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           {/* Línea 3: Filtros distribuidos de punta a punta */}
           {(
             <div className="flex items-center justify-between gap-4">
+              {/* 🎯 INPUT GLASS MODERN DESIGN SYSTEM 2025 */}
               <div className="relative flex-1 max-w-xs">
-                <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 w-3.5 h-3.5 text-slate-400" strokeWidth={2.5} />
                 <input
                   type="text"
                   placeholder="Buscar producto..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className={`w-full pl-8 pr-3 py-1.5 border rounded-lg text-sm ${
-                    theme === 'dark' 
-                      ? 'bg-slate-800 border-slate-600 text-white placeholder-slate-400' 
-                      : 'bg-white border-slate-300 text-slate-900 placeholder-slate-500'
-                  }`}
+                  className="input-glass w-full pl-8 pr-3 py-1.5"
                 />
               </div>
               
@@ -417,11 +437,7 @@ const Stock: React.FC = () => {
                 <select
                   value={categoryFilter}
                   onChange={(e) => setCategoryFilter(e.target.value)}
-                  className={`px-3 py-1.5 border rounded-lg text-sm flex-1 ${
-                    theme === 'dark' 
-                      ? 'bg-slate-800 border-slate-600 text-white' 
-                      : 'bg-white border-slate-300 text-slate-900'
-                  }`}
+                  className="input-glass px-3 py-1.5 flex-1"
                 >
                   <option value="">Todas las categorías</option>
                   {categorias.map(cat => (
@@ -432,11 +448,7 @@ const Stock: React.FC = () => {
                 <select
                   value={stockFilter}
                   onChange={(e) => setStockFilter(e.target.value as 'all' | 'low' | 'normal' | 'empty')}
-                  className={`px-3 py-1.5 border rounded-lg text-sm flex-1 ${
-                    theme === 'dark' 
-                      ? 'bg-slate-800 border-slate-600 text-white' 
-                      : 'bg-white border-slate-300 text-slate-900'
-                  }`}
+                  className="input-glass px-3 py-1.5 flex-1"
                 >
                   <option value="all">Todos los estados</option>
                   <option value="normal">Stock Normal</option>
@@ -449,11 +461,7 @@ const Stock: React.FC = () => {
                 <select
                   value={itemsPerPage.toString()}
                   onChange={(e) => setItemsPerPage(parseInt(e.target.value))}
-                  className={`px-2 py-1.5 border rounded-lg text-sm w-16 ${
-                    theme === 'dark' 
-                      ? 'bg-slate-800 border-slate-600 text-white' 
-                      : 'bg-white border-slate-300 text-slate-900'
-                  }`}
+                  className="input-glass px-2 py-1.5 w-16"
                 >
                   <option value="25">25</option>
                   <option value="50">50</option>
@@ -462,11 +470,7 @@ const Stock: React.FC = () => {
 
                 <button
                   onClick={clearFilters}
-                  className={`px-3 py-1.5 border rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
-                    theme === 'dark' 
-                      ? 'border-slate-600 text-slate-300 hover:bg-slate-700' 
-                      : 'border-slate-300 text-slate-600 hover:bg-slate-50'
-                  }`}
+                  className="btn-glass-secondary-modern text-sm font-medium whitespace-nowrap"
                 >
                   Limpiar
                 </button>
@@ -536,29 +540,29 @@ const Stock: React.FC = () => {
                             <span className={`text-lg font-semibold ${stockStatus.color}`}>
                               {producto.cantidad_actual}
                             </span>
-                            <div className="text-xs text-gray-500 mt-1">
-                              Mín: {producto.min_stock}
-                            </div>
+                                                <div className={`text-xs mt-1 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
+                      Mín: {producto.min_stock}
+                    </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-center">
                             <div className="flex justify-center gap-2">
                               <button
                                 onClick={() => handleOpenEntry(producto)}
-                                className="bg-success-600 hover:bg-success-700 text-white px-3 py-1 rounded-lg text-sm transition-colors flex items-center gap-1"
+                                className="btn-glass-success-modern flex items-center gap-1 px-3 py-1 text-sm"
                               >
-                                <Plus className="w-3 h-3" />
+                                <Plus className="w-3 h-3" strokeWidth={2.5} />
                                 Entrada
                               </button>
                               <button
                                 onClick={() => handleOpenExit(producto)}
                                 disabled={producto.cantidad_actual === 0}
-                                className={`px-3 py-1 rounded-lg text-sm transition-colors flex items-center gap-1 ${
+                                className={`px-3 py-1 text-sm flex items-center gap-1 ${
                                   producto.cantidad_actual === 0
-                                    ? theme === 'dark' ? 'bg-slate-600 text-slate-400 cursor-not-allowed' : 'bg-slate-300 text-slate-500 cursor-not-allowed'
-                                    : 'bg-danger-600 hover:bg-danger-700 text-white'
+                                    ? 'btn-glass-disabled'
+                                    : 'btn-glass-danger-modern'
                                 }`}
                               >
-                                <Minus className="w-3 h-3" />
+                                <Minus className="w-3 h-3" strokeWidth={2.5} />
                                 Salida
                               </button>
                             </div>
@@ -586,11 +590,11 @@ const Stock: React.FC = () => {
                       <button
                         onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
                         disabled={currentPage === 1}
-                        className={`px-3 py-1 rounded-lg transition-colors text-sm ${
+                        className={`${
                           currentPage === 1
-                            ? theme === 'dark' ? 'bg-slate-600 text-slate-400 cursor-not-allowed' : 'bg-slate-300 text-slate-500 cursor-not-allowed'
-                            : 'btn-glass-secondary'
-                        }`}
+                            ? 'btn-glass-disabled'
+                            : 'btn-glass-secondary-modern'
+                        } px-3 py-1 text-sm`}
                       >
                         Anterior
                       </button>
@@ -602,11 +606,11 @@ const Stock: React.FC = () => {
                       <button
                         onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
                         disabled={currentPage === totalPages}
-                        className={`px-3 py-1 rounded-lg transition-colors text-sm ${
+                        className={`${
                           currentPage === totalPages
-                            ? theme === 'dark' ? 'bg-slate-600 text-slate-400 cursor-not-allowed' : 'bg-slate-300 text-slate-500 cursor-not-allowed'
-                            : 'btn-glass-secondary'
-                        }`}
+                            ? 'btn-glass-disabled'
+                            : 'btn-glass-secondary-modern'
+                        } px-3 py-1 text-sm`}
                       >
                         Siguiente
                       </button>

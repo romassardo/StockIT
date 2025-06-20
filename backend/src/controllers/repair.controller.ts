@@ -13,35 +13,44 @@ export class RepairController {
   public getActiveRepairs = async (req: Request, res: Response): Promise<void> => {
     const { 
       page = 1, 
-      limit = 10,
-      search = ''
+      pageSize = 10,
+      search = '',
+      proveedor = ''
     } = req.query;
 
     const params = {
       PageNumber: { type: sql.Int, value: Number(page) },
-      PageSize: { type: sql.Int, value: Number(limit) },
-      SearchTerm: { type: sql.NVarChar(100), value: search || null }
+      PageSize: { type: sql.Int, value: Number(pageSize) },
+      proveedor: { type: sql.NVarChar(100), value: proveedor || search || null }
     };
 
     try {
       const result = await this.db.executeStoredProcedure('sp_Repair_GetActive', params) as { recordset: any[] };
       
       const totalRows = result.recordset.length > 0 ? result.recordset[0].TotalRows : 0;
-      const totalPages = Math.ceil(totalRows / Number(limit));
+      const totalPages = Math.ceil(totalRows / Number(pageSize));
 
       res.json({
         success: true,
         data: result.recordset,
         pagination: {
           page: Number(page),
-          limit: Number(limit),
+          limit: Number(pageSize),
           totalItems: totalRows,
           totalPages: totalPages,
         }
       });
     } catch (error: any) {
-      logger.error('Error obteniendo reparaciones activas:', { errorMessage: error.message, stack: error.stack });
-      res.status(500).json({ success: false, error: 'Error interno del servidor al obtener reparaciones activas.' });
+      logger.error('Error obteniendo reparaciones activas:', { 
+        errorMessage: error.message, 
+        stack: error.stack,
+        params: req.query
+      });
+      res.status(500).json({ 
+        success: false, 
+        error: 'Error interno del servidor al obtener reparaciones activas.',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
     }
   }
 

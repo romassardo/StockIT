@@ -371,15 +371,19 @@ const Dashboard: React.FC = () => {
         
         {/* ✨ Cabecera moderna */}
         <div className="glass-card p-6 flex flex-col md:flex-row md:justify-between md:items-center">
-          <div className="mb-4 md:mb-0">
-            <h1 className={`text-4xl font-bold mb-2 text-gradient-primary animate-glass-appear`}>
-              Panel de Control
-            </h1>
-            <p className={`text-lg transition-colors duration-300 ${
-              theme === 'dark' ? 'text-slate-300' : 'text-slate-600'
-            }`}>
-              StockIT - Sistema de Inventario Moderno
-            </p>
+          {/* 🎯 HEADER ESTÁNDAR MODERN DESIGN SYSTEM 2025 */}
+          <div className="flex items-center space-x-4 mb-4 md:mb-0">
+            <FiBarChart2 className="w-8 h-8 text-primary-500" strokeWidth={2.5} />
+            <div>
+              <h1 className="text-2xl md:text-5xl font-bold bg-gradient-to-r from-primary-600 via-primary-500 to-secondary-500 bg-clip-text text-transparent">
+                Panel de Control
+              </h1>
+              <p className={`text-lg transition-colors duration-300 ${
+                theme === 'dark' ? 'text-slate-300' : 'text-slate-600'
+              }`}>
+                StockIT - Sistema de Inventario Moderno
+              </p>
+            </div>
           </div>
           
           <div className="flex items-center space-x-4">
@@ -388,7 +392,7 @@ const Dashboard: React.FC = () => {
               onClick={loadDashboardData}
               className="btn-glass-secondary group flex items-center space-x-2"
             >
-              <FiBarChart2 className="w-5 h-5 transition-transform group-hover:rotate-12" /> 
+              <FiBarChart2 className="w-5 h-5 transition-transform group-hover:rotate-12" strokeWidth={2.5} /> 
               <span>Actualizar Datos</span>
             </button>
             

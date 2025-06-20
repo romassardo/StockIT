@@ -46,14 +46,14 @@ const Admin: React.FC = () => {
     {
       id: 'users',
       name: 'Gestión de Usuarios',
-      icon: <FiUsers className="h-6 w-6" />,
+      icon: <FiUsers className="h-6 w-6" strokeWidth={2.5} />,
       description: 'Administrar usuarios, roles y permisos del sistema',
       component: UserManagement
     },
     {
       id: 'products',
       name: 'Gestión de Productos',
-      icon: <FiPackage className="h-6 w-6" />,
+      icon: <FiPackage className="h-6 w-6" strokeWidth={2.5} />,
       description: 'Catálogo de productos, categorías y configuración',
       component: ProductManagement
     },
@@ -67,7 +67,7 @@ const Admin: React.FC = () => {
     {
       id: 'system',
       name: 'Configuración del Sistema',
-      icon: <FiSettings className="h-6 w-6" />,
+      icon: <FiSettings className="h-6 w-6" strokeWidth={2.5} />,
       description: 'Configuraciones generales y mantenimiento'
     }
   ];
@@ -120,21 +120,21 @@ const Admin: React.FC = () => {
       <div className="relative z-10 p-6 max-w-7xl mx-auto">
         {/* 📋 Header de Administración */}
         <div className="mb-8">
-          <h1 className={`
-            text-4xl font-bold mb-4 transition-colors duration-300
-            ${theme === 'dark' 
-              ? 'text-white drop-shadow-lg' 
-              : 'text-slate-900 drop-shadow-md'
-            }
-          `}>
-            ⚙️ Panel de Administración
-          </h1>
-          <p className={`
-            text-lg transition-colors duration-300
-            ${theme === 'dark' ? 'text-slate-300' : 'text-slate-600'}
-          `}>
-            Gestión centralizada del sistema StockIT
-          </p>
+          {/* 🎯 HEADER ESTÁNDAR MODERN DESIGN SYSTEM 2025 */}
+          <div className="flex items-center space-x-4">
+            <FiSettings className="w-8 h-8 text-primary-500" strokeWidth={2.5} />
+            <div>
+              <h1 className="text-2xl md:text-5xl font-bold bg-gradient-to-r from-primary-600 via-primary-500 to-secondary-500 bg-clip-text text-transparent">
+                ⚙️ Panel de Administración
+              </h1>
+              <p className={`
+                text-lg transition-colors duration-300
+                ${theme === 'dark' ? 'text-slate-300' : 'text-slate-600'}
+              `}>
+                Gestión centralizada del sistema StockIT
+              </p>
+            </div>
+          </div>
         </div>
 
         {/* 🎛️ Navegación de secciones administrativas */}

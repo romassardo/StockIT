@@ -47,6 +47,7 @@ const ProductManagement: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [allCategoriesForSelect, setAllCategoriesForSelect] = useState<Category[]>([]);
   
   // Estados de paginación y filtros
   const [currentPage, setCurrentPage] = useState(1);
@@ -70,6 +71,12 @@ const ProductManagement: React.FC = () => {
       loadCategories();
     }
   }, [currentTab, currentPage, searchTerm, filterCategory, filterActive]);
+
+  useEffect(() => {
+    // Cargar todas las categorías para los selectores de los formularios
+    // Se carga una sola vez, independientemente de la pestaña
+    loadAllCategoriesForSelect();
+  }, []);
 
   const loadProducts = async () => {
     try {
@@ -121,6 +128,21 @@ const ProductManagement: React.FC = () => {
       addNotification({ message: error.message || 'Error al cargar categorías', type: 'error' });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadAllCategoriesForSelect = async () => {
+    try {
+      const response = await productService.getAllCategoriesForSelect();
+      
+      if (response.success && response.data) {
+        setAllCategoriesForSelect(response.data);
+      } else {
+        // Notificación silenciosa o de bajo perfil, para no molestar si solo falla el select
+        console.error('No se pudieron cargar las categorías para el selector');
+      }
+    } catch (error) {
+      console.error('Error cargando categorías para selector:', error);
     }
   };
 
@@ -545,6 +567,7 @@ const ProductManagement: React.FC = () => {
       {showCategoryForm && (
         <CategoryForm
           category={editingCategory}
+          categories={allCategoriesForSelect}
           onClose={handleCloseForms}
           onSubmit={editingCategory ? handleUpdateCategory : handleCreateCategory}
         />
