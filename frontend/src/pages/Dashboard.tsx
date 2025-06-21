@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiUsers, FiPackage, FiShoppingCart, FiAlertCircle, FiClock, FiBarChart2, FiArrowUp, FiArrowDown, FiClipboard } from 'react-icons/fi';
+import { FiUsers, FiPackage, FiShoppingCart, FiAlertCircle, FiClock, FiBarChart2, FiArrowUp, FiArrowDown, FiClipboard, FiRefreshCw, FiTool, FiEdit3, FiUser, FiTrendingUp } from 'react-icons/fi';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell } from 'recharts';
 import api from '../services/api';
 import { useNotification } from '../contexts/NotificationContext';
@@ -186,10 +186,28 @@ const Dashboard: React.FC = () => {
   // Determinar el icono y color para la actividad según su tipo - memoizado
   const getActivityIcon = useCallback((activity: RecentActivity) => {
     const actionType = activity.Accion.toLowerCase();
-    if (actionType === 'insert') return <FiArrowUp className="text-[#28A745]" />;
-    if (actionType === 'update') return <FiClipboard className="text-[#17A2B8]" />;
-    if (actionType === 'delete') return <FiArrowDown className="text-[#DC3545]" />;
-    return <FiClock className="text-[#3F51B5]" />;
+    const tableType = activity.TablaAfectada.toLowerCase();
+    
+    // Iconos específicos por tabla y acción
+    if (tableType.includes('asignacion')) {
+      if (actionType === 'insert') return <FiArrowUp className="text-success-500 w-4 h-4" />;
+      if (actionType === 'update') return <FiRefreshCw className="text-info-500 w-4 h-4" />;
+    } else if (tableType.includes('reparacion')) {
+      return <FiTool className="text-warning-500 w-4 h-4" />;
+    } else if (tableType.includes('inventarioindividual')) {
+      if (actionType === 'insert') return <FiPackage className="text-success-500 w-4 h-4" />;
+      if (actionType === 'update') return <FiEdit3 className="text-info-500 w-4 h-4" />;
+    } else if (tableType.includes('usuario')) {
+      return <FiUser className="text-info-500 w-4 h-4" />;
+    } else if (tableType.includes('movimientosstock')) {
+      if (actionType === 'insert') return <FiTrendingUp className="text-primary-500 w-4 h-4" />;
+    }
+    
+    // Iconos por acción general
+    if (actionType === 'insert') return <FiArrowUp className="text-success-500 w-4 h-4" />;
+    if (actionType === 'update') return <FiClipboard className="text-info-500 w-4 h-4" />;
+    if (actionType === 'delete') return <FiArrowDown className="text-danger-500 w-4 h-4" />;
+    return <FiClock className="text-slate-400 w-4 h-4" />;
   }, []);
 
   // Determinar el color del porcentaje de stock - memoizado
@@ -199,6 +217,83 @@ const Dashboard: React.FC = () => {
     if (percentage <= 75) return 'text-[#17A2B8]';
     return 'text-[#28A745]';
   }, []);
+
+  // Función para formatear la descripción de actividad - agregar después de las otras funciones helper
+  const formatActivityDescription = useCallback((activity: RecentActivity): { title: string; subtitle: string } => {
+    let title = `${activity.TablaAfectada} - ${activity.Accion}`;
+    let subtitle = activity.Descripcion;
+
+    // Corregir problemas de codificación UTF-8 comunes
+    subtitle = subtitle
+      .replace(/ActualizaciÃ³n/g, 'Actualización')
+      .replace(/creaciÃ³n/g, 'creación')
+      .replace(/modificaciÃ³n/g, 'modificación')
+      .replace(/AsignaciÃ³n/g, 'Asignación')
+      .replace(/DevoluciÃ³n/g, 'Devolución')
+      .replace(/ReparaciÃ³n/g, 'Reparación')
+      .replace(/EnvÃ­o/g, 'Envío')
+      .replace(/ubicaciÃ³n/g, 'ubicación')
+      .replace(/estÃ¡/g, 'está')
+      .replace(/soluciÃ³n/g, 'solución');
+
+    // Intentar parsear si es JSON
+    try {
+      // Detectar si parece JSON (empieza con { y contiene :)
+      if (subtitle.trim().startsWith('{') && subtitle.includes(':')) {
+        const data = JSON.parse(subtitle);
+        
+        // Formatear según el tipo de actividad
+        if (activity.TablaAfectada === 'Asignaciones') {
+          if (data.estado === 'Devuelta' || data.activa === 0) {
+            title = '📤 Devolución de Asignación';
+            subtitle = `Activo devuelto ${data.fecha_devolucion ? `el ${formatDate(data.fecha_devolucion)}` : 'recientemente'}`;
+          } else if (data.estado === 'Activa' || data.activa === 1) {
+            title = '📥 Nueva Asignación';
+            subtitle = `Activo asignado ${data.fecha_asignacion ? `el ${formatDate(data.fecha_asignacion)}` : 'recientemente'}`;
+          }
+        } else if (activity.TablaAfectada === 'InventarioIndividual') {
+          if (data.estado_nuevo) {
+            title = `🔄 Cambio de Estado`;
+            subtitle = `De "${data.estado_anterior || 'N/A'}" a "${data.estado_nuevo}"`;
+          } else if (data.numero_serie) {
+            title = '📦 Nuevo Activo';
+            subtitle = `Serie: ${data.numero_serie}`;
+          }
+        } else if (activity.TablaAfectada === 'Reparaciones') {
+          if (data.estado_reparacion) {
+            title = '🔧 Retorno de Reparación';
+            subtitle = `Estado: ${data.estado_reparacion} - ${data.solucion || 'Sin detalles'}`;
+          } else if (data.proveedor) {
+            title = '🚚 Envío a Reparación';
+            subtitle = `Proveedor: ${data.proveedor} - ${data.problema || 'Sin detalles'}`;
+          }
+        } else if (activity.TablaAfectada === 'Usuarios') {
+          title = '👤 Actualización de Usuario';
+          if (data.nombre || data.email) {
+            subtitle = `Actualizado: ${[data.nombre, data.email].filter(Boolean).join(', ')}`;
+          }
+        } else if (activity.TablaAfectada === 'MovimientosStock') {
+          if (data.tipo_movimiento === 'Entrada') {
+            title = '📈 Entrada de Stock';
+            subtitle = `+${data.cantidad || 'N/A'} unidades`;
+          } else if (data.tipo_movimiento === 'Salida') {
+            title = '📉 Salida de Stock';
+            subtitle = `-${data.cantidad || 'N/A'} unidades`;
+          }
+        }
+      }
+    } catch (error) {
+      // Si no es JSON válido, usar la descripción tal como está (ya corregida la codificación)
+      console.debug('Descripción no es JSON válido:', subtitle);
+    }
+
+    // Limpiar texto adicional si es muy largo
+    if (subtitle.length > 100) {
+      subtitle = subtitle.substring(0, 100) + '...';
+    }
+
+    return { title, subtitle };
+  }, [formatDate]);
 
   // Columnas para la tabla de alertas de stock - memoizadas
   const stockAlertsColumns = useMemo(() => [
@@ -288,7 +383,7 @@ const Dashboard: React.FC = () => {
     }
   ], [getStockPercentageColor]);
 
-  // Columnas para la tabla de actividad reciente - memoizadas
+  // Columnas para la tabla de actividad reciente - memoizadas - MODIFICAR la definición existente
   const activityColumns = useMemo(() => [
     {
       id: 'tipo',
@@ -299,19 +394,22 @@ const Dashboard: React.FC = () => {
     {
       id: 'descripcion',
       header: 'Descripción',
-      accessor: (activity: RecentActivity) => (
-        <div className="flex flex-col">
-          <span className="font-medium">{activity.TablaAfectada} - {activity.Accion}</span>
-          <span className="text-xs text-[#6C757D]">{activity.Descripcion}</span>
-        </div>
-      ),
+      accessor: (activity: RecentActivity) => {
+        const formatted = formatActivityDescription(activity);
+        return (
+          <div className="flex flex-col">
+            <span className="font-medium text-slate-200">{formatted.title}</span>
+            <span className="text-xs text-slate-400 mt-1">{formatted.subtitle}</span>
+          </div>
+        );
+      },
       width: '60%'
     },
     {
       id: 'usuario',
       header: 'Usuario',
       accessor: (activity: RecentActivity) => (
-        <span>{activity.UsuarioNombre || 'Usuario ' + activity.UsuarioID}</span>
+        <span className="text-slate-300">{activity.UsuarioNombre || 'Usuario ' + activity.UsuarioID}</span>
       ),
       width: '15%'
     },
@@ -319,11 +417,11 @@ const Dashboard: React.FC = () => {
       id: 'fecha',
       header: 'Fecha',
       accessor: (activity: RecentActivity) => (
-        <span>{formatDate(activity.FechaHora)}</span>
+        <span className="text-slate-300">{formatDate(activity.FechaHora)}</span>
       ),
       width: '20%'
     }
-  ], [getActivityIcon, formatDate]);
+  ], [getActivityIcon, formatActivityDescription, formatDate]);
 
   if (loading) {
     return <Loading />;

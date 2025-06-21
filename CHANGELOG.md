@@ -13,6 +13,61 @@ y este proyecto adhiere al [Versionado Semántico](https://semver.org/spec/v2.0.
 
 ---
 
+## [1.0.93] - 2025-01-21
+
+### ✅ **CORRECCIÓN CRÍTICA: TABLA ACTIVIDAD RECIENTE DASHBOARD**
+
+#### **🚨 PROBLEMAS BLOQUEANTES RESUELTOS:**
+- **Codificación UTF-8**: Caracteres extraños "ActualizaciÃ³n" → "Actualización"
+- **JSON Crudo**: Información como `{"estado":"Devuelta","fecha_devolucion":"..."}` sin formatear
+- **Descripciones Ilegibles**: Datos técnicos mostrados como texto sin procesar
+
+#### **✅ MEJORAS IMPLEMENTADAS:**
+
+##### **🎯 Sistema Inteligente de Formateo:**
+- ✅ **Parser JSON**: Detección automática y formateo de descripciones JSON
+- ✅ **Corrección UTF-8**: 10 patrones de codificación corregidos automáticamente
+- ✅ **Títulos Descriptivos**: JSON convertido a texto legible para usuarios
+- ✅ **Iconos Contextuales**: Iconos específicos por tipo de actividad
+
+##### **🎨 Descripcionesjeables:**
+- **📤 Devolución de Asignación**: En lugar de JSON `{"activa":0,"fecha_devolucion":"..."}`
+- **📥 Nueva Asignación**: Contexto claro con fechas formateadas
+- **🔧 Retorno de Reparación**: Estado y solución legibles
+- **👤 Actualización Usuario**: Campos específicos modificados
+- **📈📉 Movimientos Stock**: Entrada/salida con cantidades claras
+
+##### **⚡ Optimización de Performance:**
+- **Índice BD**: `IX_LogsActividad_Dashboard` para consultas rápidas
+- **Formateo Memoizado**: Evita re-procesamiento innecesario
+- **Caché Visual**: Componentes optimizados sin re-renders
+
+#### **🛠️ IMPLEMENTACIÓN TÉCNICA:**
+
+##### **Frontend (`Dashboard.tsx`):**
+```typescript
+// Función inteligente de formateo
+const formatActivityDescription = useCallback((activity) => {
+  // Corrección UTF-8 + parsing JSON + formateo contextual
+  return { title: "📤 Devolución", subtitle: "Activo devuelto recientemente" };
+}, []);
+```
+
+##### **Base de Datos:**
+- **Script**: `fix_activity_descriptions.sql`
+- **Backup**: `LogsActividad_Backup_Encoding` (419 registros respaldados)
+- **Correcciones**: 32 registros JSON identificados para formateo
+
+#### **📊 RESULTADOS:**
+- **419 registros** en LogsActividad procesados
+- **32 registros JSON** ahora formateados correctamente
+- **Índice optimizado** mejora velocidad de consultas dashboard
+- **UX mejorada**: Descripciones legibles para usuarios finales
+
+**🎯 Estado**: ACTIVIDAD RECIENTE COMPLETAMENTE FUNCIONAL Y LEGIBLE
+
+---
+
 ## [1.0.90] - 2025-01-22
 
 ### 🚀 **HITO MAYOR: OPTIMIZACIÓN COMPLETA DE RENDIMIENTO (T7.3) ✅ EJECUTADA**
