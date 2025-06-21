@@ -234,90 +234,131 @@ const Dashboard: React.FC = () => {
       .replace(/EnvÃ­o/g, 'Envío')
       .replace(/ubicaciÃ³n/g, 'ubicación')
       .replace(/estÃ¡/g, 'está')
-      .replace(/soluciÃ³n/g, 'solución');
+      .replace(/soluciÃ³n/g, 'solución')
+      .replace(/contraseÃ±a/g, 'contraseña')
+      .replace(/administraciÃ³n/g, 'administración')
+      .replace(/configuraciÃ³n/g, 'configuración');
 
-    // Intentar parsear si es JSON
-    try {
-      // Detectar si parece JSON (empieza con { y contiene :)
-      if (subtitle.trim().startsWith('{') && subtitle.includes(':')) {
-        const data = JSON.parse(subtitle);
+    // Manejar formato especial "[key: value, key: value]" de usuarios
+    if (subtitle.includes('Valores anteriores:') && subtitle.includes('[') && subtitle.includes(']')) {
+      try {
+        title = '👤 Actualización de Usuario';
         
-        // Formatear según el tipo de actividad
-        if (activity.TablaAfectada === 'Asignaciones') {
-          if (activity.Accion === 'UPDATE' && (data.activa === '0' || data.activa === 0)) {
-            title = '📤 Devolución de Asignación';
-            if (data.fecha_devolucion) {
-              const fecha = new Date(data.fecha_devolucion);
-              subtitle = `Activo devuelto el ${fecha.toLocaleDateString()} a las ${fecha.toLocaleTimeString()}`;
-            } else {
-              subtitle = 'Asignación devuelta';
-            }
-          } else if (activity.Accion === 'INSERT') {
-            title = '📥 Nueva Asignación';
-            subtitle = 'Nuevo activo asignado a empleado';
-          } else if (data.estado === 'Activa' || data.activa === 1) {
-            title = '📥 Nueva Asignación';
-            subtitle = `Activo asignado ${data.fecha_asignacion ? `el ${formatDate(data.fecha_asignacion)}` : 'recientemente'}`;
+        // Extraer información específica del formato [key: value, key: value]
+        const match = subtitle.match(/Valores anteriores:\s*\[([^\]]+)\]/);
+        if (match) {
+          const valoresText = match[1];
+          
+          // Buscar campos específicos
+          const nombreMatch = valoresText.match(/nombre:\s*([^,]+)/);
+          const emailMatch = valoresText.match(/email:\s*([^,]+)/);
+          const passwordMatch = subtitle.includes('password: actualizada');
+          
+          let descripcion = 'Usuario actualizado';
+          if (nombreMatch && emailMatch) {
+            descripcion = `${nombreMatch[1].trim()}${passwordMatch ? ' - contraseña actualizada' : ''}`;
+          } else if (passwordMatch) {
+            descripcion = 'Contraseña actualizada';
           }
-        } else if (activity.TablaAfectada === 'Reparaciones') {
-          if (activity.Accion === 'Retorno' && data.estado_reparacion) {
-            title = '🔧 Retorno de Reparación';
-            const estado = data.estado_reparacion === 'Reparado' ? '✅ Reparado' : '❌ Sin reparar';
-            const solucion = data.solucion && data.solucion.trim() ? `: ${data.solucion}` : '';
-            subtitle = `${estado}${solucion}`;
-          } else if (activity.Accion === 'INSERT' && data.proveedor) {
-            title = '🛠️ Nueva Reparación';
-            const proveedor = data.proveedor ? ` a ${data.proveedor}` : '';
-            const problema = data.problema ? `: ${data.problema}` : '';
-            subtitle = `Enviado${proveedor}${problema}`;
-          } else if (data.accion === 'Retorno de Reparación') {
-            title = '🔧 Retorno de Reparación';
-            const estado = data.estado_reparacion === 'Reparado' ? '✅ Reparado' : '❌ Sin reparar';
-            const solucion = data.solucion && data.solucion.trim() ? `: ${data.solucion}` : '';
-            subtitle = `${estado}${solucion}`;
-          } else if (data.proveedor || data.problema) {
-            title = '🛠️ Nueva Reparación';
-            const proveedor = data.proveedor ? ` a ${data.proveedor}` : '';
-            const problema = data.problema ? `: ${data.problema}` : '';
-            subtitle = `Enviado${proveedor}${problema}`;
-          }
-        } else if (activity.TablaAfectada === 'InventarioIndividual') {
-          if (data.inventario_individual_id && data.producto_id === 0) {
-            title = '🔄 Cambio de Estado';
-            subtitle = `Activo ID: ${data.inventario_individual_id} actualizado`;
-          } else if (data.estado_nuevo) {
-            title = `🔄 Cambio de Estado`;
-            subtitle = `De "${data.estado_anterior || 'N/A'}" a "${data.estado_nuevo}"`;
-          } else if (data.numero_serie) {
-            title = '📦 Nuevo Activo';
-            subtitle = `Serie: ${data.numero_serie}`;
-          }
-        } else if (activity.TablaAfectada === 'Usuarios') {
-          title = '👤 Actualización de Usuario';
-          if (data.nombre || data.email) {
-            subtitle = `Actualizado: ${[data.nombre, data.email].filter(Boolean).join(', ')}`;
-          }
-        } else if (activity.TablaAfectada === 'MovimientosStock') {
-          if (data.tipo_movimiento === 'Entrada') {
-            title = '📈 Entrada de Stock';
-            subtitle = `+${data.cantidad || 'N/A'} unidades`;
-          } else if (data.tipo_movimiento === 'Salida') {
-            title = '📉 Salida de Stock';
-            subtitle = `-${data.cantidad || 'N/A'} unidades`;
-          }
+          
+          subtitle = descripcion;
         } else {
-          // Formateo genérico para otros JSON no reconocidos
-          const entries = Object.entries(data);
-          if (entries.length <= 2) {
-            subtitle = entries.map(([key, value]) => `${key}: ${value}`).join(', ');
+          // Fallback para actualizaciones de usuario sin formato específico
+          if (subtitle.includes('password: actualizada')) {
+            subtitle = 'Contraseña actualizada';
           } else {
-            subtitle = `${entries.length} campos modificados`;
+            subtitle = 'Información de usuario actualizada';
           }
         }
+      } catch (error) {
+        console.debug('Error parseando formato de usuario:', error);
+        subtitle = 'Usuario actualizado';
       }
-    } catch (error) {
-      // Si no es JSON válido, usar la descripción tal como está (ya corregida la codificación)
-      console.debug('Descripción no es JSON válido:', subtitle);
+    }
+    // Intentar parsear si es JSON estándar
+    else {
+      try {
+        // Detectar si parece JSON (empieza con { y contiene :)
+        if (subtitle.trim().startsWith('{') && subtitle.includes(':')) {
+          const data = JSON.parse(subtitle);
+        
+          // Formatear según el tipo de actividad
+          if (activity.TablaAfectada === 'Asignaciones') {
+            if (activity.Accion === 'UPDATE' && (data.activa === '0' || data.activa === 0)) {
+              title = '📤 Devolución de Asignación';
+              if (data.fecha_devolucion) {
+                const fecha = new Date(data.fecha_devolucion);
+                subtitle = `Activo devuelto el ${fecha.toLocaleDateString()} a las ${fecha.toLocaleTimeString()}`;
+              } else {
+                subtitle = 'Asignación devuelta';
+              }
+            } else if (activity.Accion === 'INSERT') {
+              title = '📥 Nueva Asignación';
+              subtitle = 'Nuevo activo asignado a empleado';
+            } else if (data.estado === 'Activa' || data.activa === 1) {
+              title = '📥 Nueva Asignación';
+              subtitle = `Activo asignado ${data.fecha_asignacion ? `el ${formatDate(data.fecha_asignacion)}` : 'recientemente'}`;
+            }
+          } else if (activity.TablaAfectada === 'Reparaciones') {
+            if (activity.Accion === 'Retorno' && data.estado_reparacion) {
+              title = '🔧 Retorno de Reparación';
+              const estado = data.estado_reparacion === 'Reparado' ? '✅ Reparado' : '❌ Sin reparar';
+              const solucion = data.solucion && data.solucion.trim() ? `: ${data.solucion}` : '';
+              subtitle = `${estado}${solucion}`;
+            } else if (activity.Accion === 'INSERT' && data.proveedor) {
+              title = '🛠️ Nueva Reparación';
+              const proveedor = data.proveedor ? ` a ${data.proveedor}` : '';
+              const problema = data.problema ? `: ${data.problema}` : '';
+              subtitle = `Enviado${proveedor}${problema}`;
+            } else if (data.accion === 'Retorno de Reparación') {
+              title = '🔧 Retorno de Reparación';
+              const estado = data.estado_reparacion === 'Reparado' ? '✅ Reparado' : '❌ Sin reparar';
+              const solucion = data.solucion && data.solucion.trim() ? `: ${data.solucion}` : '';
+              subtitle = `${estado}${solucion}`;
+            } else if (data.proveedor || data.problema) {
+              title = '🛠️ Nueva Reparación';
+              const proveedor = data.proveedor ? ` a ${data.proveedor}` : '';
+              const problema = data.problema ? `: ${data.problema}` : '';
+              subtitle = `Enviado${proveedor}${problema}`;
+            }
+          } else if (activity.TablaAfectada === 'InventarioIndividual') {
+            if (data.inventario_individual_id && data.producto_id === 0) {
+              title = '🔄 Cambio de Estado';
+              subtitle = `Activo ID: ${data.inventario_individual_id} actualizado`;
+            } else if (data.estado_nuevo) {
+              title = `🔄 Cambio de Estado`;
+              subtitle = `De "${data.estado_anterior || 'N/A'}" a "${data.estado_nuevo}"`;
+            } else if (data.numero_serie) {
+              title = '📦 Nuevo Activo';
+              subtitle = `Serie: ${data.numero_serie}`;
+            }
+          } else if (activity.TablaAfectada === 'Usuarios') {
+            title = '👤 Actualización de Usuario';
+            if (data.nombre || data.email) {
+              subtitle = `Actualizado: ${[data.nombre, data.email].filter(Boolean).join(', ')}`;
+            }
+          } else if (activity.TablaAfectada === 'MovimientosStock') {
+            if (data.tipo_movimiento === 'Entrada') {
+              title = '📈 Entrada de Stock';
+              subtitle = `+${data.cantidad || 'N/A'} unidades`;
+            } else if (data.tipo_movimiento === 'Salida') {
+              title = '📉 Salida de Stock';
+              subtitle = `-${data.cantidad || 'N/A'} unidades`;
+            }
+          } else {
+            // Formateo genérico para otros JSON no reconocidos
+            const entries = Object.entries(data);
+            if (entries.length <= 2) {
+              subtitle = entries.map(([key, value]) => `${key}: ${value}`).join(', ');
+            } else {
+              subtitle = `${entries.length} campos modificados`;
+            }
+          }
+        }
+      } catch (error) {
+        // Si no es JSON válido, usar la descripción tal como está (ya corregida la codificación)
+        console.debug('Descripción no es JSON válido:', subtitle);
+      }
     }
 
     // Limpiar texto adicional si es muy largo
