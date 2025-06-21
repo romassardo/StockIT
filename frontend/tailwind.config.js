@@ -198,6 +198,69 @@ module.exports = {
         '60': '15rem',      // 240px
         '68': '17rem',      // 272px
         '76': '19rem',      // 304px
+      },
+
+      // 🎬 ANIMACIONES MODERNAS
+      animation: {
+        'float': 'float 6s ease-in-out infinite',
+        'glow': 'glow 4s ease-in-out infinite alternate',
+        'slide-up': 'slideUp 400ms cubic-bezier(0.16, 1, 0.3, 1)',
+        'glass-appear': 'glassAppear 600ms cubic-bezier(0.16, 1, 0.3, 1)',
+        'pulse-glow': 'pulseGlow 2s ease-in-out infinite',
+      },
+
+      // 🎯 KEYFRAMES MODERNOS
+      keyframes: {
+        float: {
+          '0%, 100%': { transform: 'translateY(0px) rotate(0deg)' },
+          '33%': { transform: 'translateY(-30px) rotate(120deg)' },
+          '66%': { transform: 'translateY(-20px) rotate(240deg)' },
+        },
+        glow: {
+          '0%, 100%': { opacity: '0.3', filter: 'blur(80px)' },
+          '50%': { opacity: '0.6', filter: 'blur(100px)' },
+        },
+        slideUp: {
+          from: { opacity: '0', transform: 'translateY(20px) scale(0.95)' },
+          to: { opacity: '1', transform: 'translateY(0) scale(1)' },
+        },
+        glassAppear: {
+          from: { 
+            opacity: '0', 
+            transform: 'translateY(20px) scale(0.95)',
+            backdropFilter: 'blur(0px)',
+          },
+          to: { 
+            opacity: '1', 
+            transform: 'translateY(0) scale(1)',
+            backdropFilter: 'blur(20px)',
+          },
+        },
+        pulseGlow: {
+          '0%, 100%': { boxShadow: '0 0 0 0 rgba(99, 102, 241, 0.7)' },
+          '50%': { boxShadow: '0 0 0 10px rgba(99, 102, 241, 0)' },
+        },
+      },
+
+      // ⏱️ TIMING FUNCTIONS NATURALES
+      transitionTimingFunction: {
+        'ease-out-expo': 'cubic-bezier(0.16, 1, 0.3, 1)',
+        'ease-out-quart': 'cubic-bezier(0.25, 1, 0.5, 1)',
+        'ease-spring': 'cubic-bezier(0.68, -0.55, 0.265, 1.55)',
+        'ease-bounce': 'cubic-bezier(0.68, -0.55, 0.265, 1.35)',
+      },
+
+      // 🎨 BACKDROP BLUR MODERNO
+      backdropBlur: {
+        'xs': '2px',
+        'sm': '4px',
+        'md': '8px',
+        'lg': '12px',
+        'xl': '16px',
+        '2xl': '24px',
+        '3xl': '32px',
+        '20': '20px',
+        '40': '40px',
         '84': '21rem',      // 336px
         '92': '23rem',      // 368px
         '100': '25rem',     // 400px

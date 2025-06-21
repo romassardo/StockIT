@@ -2,7 +2,9 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
+import { FiMail, FiLock, FiArrowRight, FiAlertTriangle, FiLoader } from 'react-icons/fi';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTheme } from '../../contexts/ThemeContext';
 
 // Esquema de validación del formulario
 const LoginSchema = Yup.object().shape({
@@ -18,11 +20,13 @@ const LoginSchema = Yup.object().shape({
  * Componente de formulario de inicio de sesión - Modern Design System 2025
  * Implementa glassmorphism, efectos modernos y microinteracciones
  * Siguiendo estrictamente design-UX-UI-guide.md
+ * 🌙 Optimizado para modo oscuro
  */
 const LoginForm: React.FC = () => {
   const [formError, setFormError] = useState<string | null>(null);
   const navigate = useNavigate();
   const { state, login } = useAuth();
+  const { theme } = useTheme();
   const { isLoading, error: authContextError } = state;
 
   React.useEffect(() => {
@@ -60,145 +64,142 @@ const LoginForm: React.FC = () => {
   });
 
   return (
-    <form className="login-form" onSubmit={formik.handleSubmit}>
-      {/* Mensaje de error global con glassmorphism */}
+    <form className="relative space-y-8" onSubmit={formik.handleSubmit}>
+      
+      {/* Mensaje de error global con glassmorphism moderno modo oscuro */}
       {formError && (
-        <div className="alert-glass alert-danger animate-glass-appear" role="alert">
-          <svg 
-            xmlns="http://www.w3.org/2000/svg" 
-            width="20" 
-            height="20" 
-            fill="currentColor" 
-            viewBox="0 0 16 16"
-            className="alert-icon"
-          >
-            <path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767L8.982 1.566zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5zm.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2z"/>
-          </svg>
-          <span>{formError}</span>
+        <div className={`p-4 backdrop-blur-sm border rounded-xl flex items-center space-x-3 transition-all duration-300 ${
+          theme === 'dark'
+            ? 'bg-danger-500/20 border-danger-500/30 text-danger-300'
+            : 'bg-danger-500/10 border-danger-500/20 text-danger-700'
+        }`}>
+          <FiAlertTriangle className="text-danger-500 flex-shrink-0" />
+          <span className="text-sm font-medium">{formError}</span>
         </div>
       )}
 
-      {/* Campo de email con glassmorphism */}
-      <div className="form-group-glass">
-        <label htmlFor="email" className="form-label-glass">
-          <svg 
-            xmlns="http://www.w3.org/2000/svg" 
-            width="18" 
-            height="18" 
-            fill="currentColor" 
-            viewBox="0 0 16 16"
-            className="label-icon"
-          >
-            <path d="M0 4a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V4Zm2-1a1 1 0 0 0-1 1v.217l7 4.2 7-4.2V4a1 1 0 0 0-1-1H2Zm13 2.383-4.708 2.825L15 11.105V5.383Zm-.034 6.876-5.64-3.471L8 9.583l-1.326-.795-5.64 3.47A1 1 0 0 0 2 13h12a1 1 0 0 0 .966-.741ZM1 11.105l4.708-2.897L1 5.383v5.722Z"/>
-          </svg>
+      {/* Campo de email con glassmorphism moderno modo oscuro */}
+      <div className="space-y-3">
+        <label htmlFor="email" className={`block text-sm font-medium flex items-center space-x-2 transition-colors duration-300 ${
+          theme === 'dark' ? 'text-slate-200' : 'text-slate-700'
+        }`}>
+          <FiMail className="text-primary-500" />
           <span>Correo electrónico</span>
         </label>
         <input
           type="email"
           id="email"
           name="email"
-          className={`input-glass ${formik.touched.email && formik.errors.email ? 'input-glass-error' : ''}`}
-          placeholder="tu@empresa.com"
+          value={formik.values.email}
           onChange={formik.handleChange}
           onBlur={formik.handleBlur}
-          value={formik.values.email}
           disabled={isLoading}
           autoComplete="email"
+          placeholder="admin@stockit.com"
+          className={`
+            w-full px-6 py-4 
+            backdrop-blur-sm border rounded-xl
+            transition-all duration-300 ease-out-expo
+            focus:outline-none focus:ring-4
+            hover:border-slate-400
+            disabled:opacity-50 disabled:cursor-not-allowed
+            ${theme === 'dark' 
+              ? 'bg-slate-800/60 border-slate-600/50 text-slate-100 placeholder:text-slate-400 focus:bg-slate-800/80 hover:bg-slate-800/70' 
+              : 'bg-white/60 border-slate-200 text-slate-800 placeholder:text-slate-400 focus:bg-white/80 hover:bg-white/70'
+            }
+            ${formik.touched.email && formik.errors.email 
+              ? 'border-danger-400 focus:border-danger-500 focus:ring-danger-500/20' 
+              : 'focus:border-primary-500 focus:ring-primary-500/20'
+            }
+          `}
         />
         {formik.touched.email && formik.errors.email && (
-          <div className="error-message-glass animate-glass-appear" role="alert">
-            <svg 
-              xmlns="http://www.w3.org/2000/svg" 
-              width="16" 
-              height="16" 
-              fill="currentColor" 
-              viewBox="0 0 16 16"
-              className="error-icon"
-            >
-              <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zM8 4a.905.905 0 0 0-.9.995l.35 3.507a.552.552 0 0 0 1.1 0l.35-3.507A.905.905 0 0 0 8 4zm.002 6a1 1 0 1 0 0 2 1 1 0 0 0 0-2z"/>
-            </svg>
+          <div className={`flex items-center space-x-2 text-sm transition-colors duration-300 ${
+            theme === 'dark' ? 'text-danger-400' : 'text-danger-600'
+          }`}>
+            <FiAlertTriangle className="text-xs" />
             <span>{formik.errors.email}</span>
           </div>
         )}
       </div>
 
-      {/* Campo de contraseña con glassmorphism */}
-      <div className="form-group-glass">
-        <label htmlFor="password" className="form-label-glass">
-          <svg 
-            xmlns="http://www.w3.org/2000/svg" 
-            width="18" 
-            height="18" 
-            fill="currentColor" 
-            viewBox="0 0 16 16"
-            className="label-icon"
-          >
-            <path d="M8 1a2 2 0 0 1 2 2v4H6V3a2 2 0 0 1 2-2zm3 6V3a3 3 0 0 0-6 0v4a2 2 0 0 0-2 2v5a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/>
-          </svg>
+      {/* Campo de contraseña con glassmorphism moderno modo oscuro */}
+      <div className="space-y-3">
+        <label htmlFor="password" className={`block text-sm font-medium flex items-center space-x-2 transition-colors duration-300 ${
+          theme === 'dark' ? 'text-slate-200' : 'text-slate-700'
+        }`}>
+          <FiLock className="text-primary-500" />
           <span>Contraseña</span>
         </label>
         <input
           type="password"
           id="password"
           name="password"
-          className={`input-glass ${formik.touched.password && formik.errors.password ? 'input-glass-error' : ''}`}
-          placeholder="Tu contraseña"
+          value={formik.values.password}
           onChange={formik.handleChange}
           onBlur={formik.handleBlur}
-          value={formik.values.password}
           disabled={isLoading}
           autoComplete="current-password"
+          placeholder="••••••••"
+          className={`
+            w-full px-6 py-4 
+            backdrop-blur-sm border rounded-xl
+            transition-all duration-300 ease-out-expo
+            focus:outline-none focus:ring-4
+            hover:border-slate-400
+            disabled:opacity-50 disabled:cursor-not-allowed
+            ${theme === 'dark' 
+              ? 'bg-slate-800/60 border-slate-600/50 text-slate-100 placeholder:text-slate-400 focus:bg-slate-800/80 hover:bg-slate-800/70' 
+              : 'bg-white/60 border-slate-200 text-slate-800 placeholder:text-slate-400 focus:bg-white/80 hover:bg-white/70'
+            }
+            ${formik.touched.password && formik.errors.password 
+              ? 'border-danger-400 focus:border-danger-500 focus:ring-danger-500/20' 
+              : 'focus:border-primary-500 focus:ring-primary-500/20'
+            }
+          `}
         />
         {formik.touched.password && formik.errors.password && (
-          <div className="error-message-glass animate-glass-appear" role="alert">
-            <svg 
-              xmlns="http://www.w3.org/2000/svg" 
-              width="16" 
-              height="16" 
-              fill="currentColor" 
-              viewBox="0 0 16 16"
-              className="error-icon"
-            >
-              <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zM8 4a.905.905 0 0 0-.9.995l.35 3.507a.552.552 0 0 0 1.1 0l.35-3.507A.905.905 0 0 0 8 4zm.002 6a1 1 0 1 0 0 2 1 1 0 0 0 0-2z"/>
-            </svg>
+          <div className={`flex items-center space-x-2 text-sm transition-colors duration-300 ${
+            theme === 'dark' ? 'text-danger-400' : 'text-danger-600'
+          }`}>
+            <FiAlertTriangle className="text-xs" />
             <span>{formik.errors.password}</span>
           </div>
         )}
       </div>
 
-      {/* Botón de inicio de sesión con glassmorphism */}
+      {/* Botón de inicio de sesión con glassmorphism y gradientes modernos modo oscuro */}
       <button
         type="submit"
-        className="btn-glass-primary hover-lift"
         disabled={isLoading || !formik.isValid}
+        className={`
+          w-full px-6 py-4
+          bg-gradient-to-r from-primary-500 to-secondary-500
+          hover:from-primary-600 hover:to-secondary-600
+          text-white font-semibold rounded-xl
+          border border-primary-400/20
+          backdrop-blur-sm
+          shadow-lg shadow-primary-500/25
+          transition-all duration-300 ease-out-expo
+          transform hover:scale-[1.02] hover:shadow-xl hover:shadow-primary-500/30
+          focus:outline-none focus:ring-4 focus:ring-primary-500/20
+          disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-lg
+          flex items-center justify-center space-x-3
+          group
+        `}
       >
         {isLoading ? (
           <>
-            <div className="spinner-glass"></div>
+            <FiLoader className="animate-spin text-lg" />
             <span>Iniciando sesión...</span>
           </>
         ) : (
           <>
-            <svg 
-              xmlns="http://www.w3.org/2000/svg" 
-              width="18" 
-              height="18" 
-              fill="currentColor" 
-              viewBox="0 0 16 16"
-              className="button-icon"
-            >
-              <path d="M10 12.5a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 .5.5v2a.5.5 0 0 0 1 0v-2A1.5 1.5 0 0 0 9.5 2h-8A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h8a1.5 1.5 0 0 0 1.5-1.5v-2a.5.5 0 0 0-1 0v2z"/>
-              <path d="M15.854 8.354a.5.5 0 0 0 0-.708l-3-3a.5.5 0 0 0-.708.708L14.293 7.5H5.5a.5.5 0 0 0 0 1h8.793l-2.147 2.146a.5.5 0 0 0 .708.708l3-3z"/>
-            </svg>
             <span>Iniciar sesión</span>
+            <FiArrowRight className="text-lg transition-transform duration-300 group-hover:translate-x-1" />
           </>
         )}
       </button>
-      
-      {/* Footer del formulario con glassmorphism */}
-      <div className="form-footer-glass">
-        <span>¿Olvidaste tu contraseña? Contacta al administrador del sistema.</span>
-      </div>
     </form>
   );
 };
