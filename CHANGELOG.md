@@ -13,9 +13,9 @@ y este proyecto adhiere al [Versionado Semántico](https://semver.org/spec/v2.0.
 
 ---
 
-## [1.0.94] - 2025-01-21
+## [1.0.95] - 2025-01-21
 
-### ✅ **CORRECCIÓN CRÍTICA V2: PARSER JSON ACTIVIDAD RECIENTE MEJORADO**
+### ✅ **CORRECCIÓN CRÍTICA V3: PARSER JSON ACTIVIDAD RECIENTE MEJORADO**
 
 #### **🚨 PROBLEMA IDENTIFICADO POST-ANÁLISIS BD:**
 - **JSON específicos sin formatear**: Registros reales como `{"activa":"0","fecha_devolucion":"2025-06-17 09:26:15.327"}` seguían mostrándose como texto crudo
@@ -69,6 +69,57 @@ y este proyecto adhiere al [Versionado Semántico](https://semver.org/spec/v2.0.
 - **✅ 0 errores de parsing** en logs del frontend
 
 **🎯 Estado**: ACTIVIDAD RECIENTE 100% LEGIBLE - PROBLEMA COMPLETAMENTE RESUELTO
+
+---
+
+## [1.0.94] - 2025-01-21
+
+### 🔧 **CORRECCIÓN INTERMEDIA: OPTIMIZACIÓN CHANGELOG**
+
+#### **✅ MEJORAS MENORES:**
+- **Documentación**: Actualización de estructura del CHANGELOG
+- **Commit**: Limpieza de mensajes de commit duplicados
+- **Organización**: Preparación para corrección V3 del parser JSON
+
+---
+
+## [1.0.93] - 2025-01-21
+
+### ✅ **CORRECCIÓN CRÍTICA V2: TABLA ACTIVIDAD RECIENTE DASHBOARD**
+
+#### **🚨 PROBLEMAS IDENTIFICADOS:**
+- **Índice BD**: Faltaba optimización para consultas de dashboard
+- **Script SQL**: Implementación de `fix_activity_descriptions.sql`
+- **Performance**: Mejoras en consultas de LogsActividad
+
+#### **✅ MEJORAS IMPLEMENTADAS:**
+- **Índice optimizado**: `IX_LogsActividad_Dashboard` para mejor rendimiento
+- **Script corrección**: `fix_activity_descriptions.sql` ejecutado exitosamente
+- **Backup seguridad**: `LogsActividad_Backup_Encoding` con 419 registros
+- **Análisis completo**: Identificados 32 registros JSON para formateo
+
+#### **📊 RESULTADOS:**
+- **419 registros** procesados en LogsActividad
+- **32 registros JSON** identificados para formateo
+- **Índice BD** optimizado para consultas rápidas
+- **Performance mejorada** en carga de dashboard
+
+---
+
+## [1.0.92] - 2025-01-21
+
+### 🔧 **CORRECCIÓN CRÍTICA V1: ICONOS Y FORMATEO INICIAL**
+
+#### **✅ MEJORAS IMPLEMENTADAS:**
+- **Iconos contextuales**: Agregados FiRefreshCw, FiTool, FiEdit3, FiUser, FiTrendingUp
+- **Función formateo**: Primera versión de `formatActivityDescription()`
+- **Corrección UTF-8**: 10 patrones de codificación corregidos
+- **Imports**: Actualización de react-icons/fi
+
+#### **🎯 PRIMERA VERSIÓN:**
+- **Parser básico**: Detección inicial de JSON en descripciones
+- **Iconos específicos**: Por tipo de actividad y tabla
+- **Preparación**: Base para mejoras posteriores
 
 ---
 
