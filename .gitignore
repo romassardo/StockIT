@@ -1,3 +1,115 @@
-
 # YoYo AI version control directory
 .yoyo/
+
+# ========================================
+# 🧹 ARCHIVOS TEMPORALES Y DE DEBUGGING
+# ========================================
+
+# Scripts SQL temporales y de debugging
+debug_*.sql
+test_*.sql
+verificar_*.sql
+crear_*.sql
+analizar_*.sql
+instalar_*.sql
+optimizar_*.sql
+reorganizar_*.sql
+recrear_*.sql
+corregir_*.sql
+fix_*.sql
+backup_*.sql
+restaurar_*.sql
+
+# Archivos de análisis temporal
+*_analysis.txt
+*_list.txt
+real_*.txt
+
+# Scripts PowerShell temporales
+*_verificacion*.ps1
+ejecutar_*.ps1
+
+# Documentación temporal
+EJECUCION_*.md
+*_OPTIMIZACIONES.md
+
+# ========================================
+# 🗂️ ARCHIVOS DE CONFIGURACIÓN ESPECÍFICOS
+# ========================================
+
+# Configuraciones específicas de editor
+.windsurfrules
+.cursor/
+.windsurf/
+.vscode/settings.json
+
+# Configuraciones duplicadas
+.eslintrc.js
+.prettierrc.js
+
+# ========================================
+# 📝 LOGS Y ARCHIVOS TEMPORALES
+# ========================================
+
+# Logs antiguos (más de 7 días)
+backend/logs/*.log.gz
+backend/logs/*-202[0-9]-[0-1][0-9]-[0-3][0-9].log
+
+# Archivos de audit de logs muy antiguos
+backend/logs/*.audit.json.old
+
+# ========================================
+# 🗃️ DIRECTORIOS GENERADOS
+# ========================================
+
+# Node modules
+node_modules/
+*/node_modules/
+**/node_modules/
+
+# Build outputs
+dist/
+build/
+*.tsbuildinfo
+
+# Logs generales
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ========================================
+# 🔧 ARCHIVOS DEL SISTEMA
+# ========================================
+
+# Sistema operativo
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Editores
+*.swp
+*.swo
+*~
+
+# Variables de entorno temporales
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# ========================================
+# 🧪 ARCHIVOS DE TESTING TEMPORAL
+# ========================================
+
+# Archivos de test temporal
+test_*.js
+test_*.ts
+*_temp.*
+*_temporal.*
+*_backup.*
