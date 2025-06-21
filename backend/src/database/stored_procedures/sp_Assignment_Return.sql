@@ -8,41 +8,46 @@ BEGIN
     SET NOCOUNT ON;
     
     DECLARE @inventario_id INT;
-    DECLARE @current_estado NVARCHAR(20);
+    DECLARE @ErrorMessage NVARCHAR(4000);
+    DECLARE @ErrorSeverity INT;
+    DECLARE @ErrorState INT;
     
     BEGIN TRY
         BEGIN TRANSACTION;
         
-        -- Obtener información de la asignación
-        SELECT @inventario_id = inventario_id
+        -- Obtener información de la asignación activa
+        SELECT @inventario_id = inventario_individual_id
         FROM Asignaciones 
-        WHERE id = @assignment_id AND estado = 'Activa';
+        WHERE id = @assignment_id AND activa = 1;
         
         IF @inventario_id IS NULL
         BEGIN
-            THROW 50024, 'Asignación no encontrada o ya devuelta', 1;
+            RAISERROR('Asignación no encontrada o ya devuelta', 16, 1);
+            RETURN;
         END
         
-        -- Actualizar asignación
+        -- Actualizar asignación (marcar como inactiva y registrar devolución)
         UPDATE Asignaciones 
-        SET estado = 'Devuelta',
+        SET activa = 0,
             fecha_devolucion = GETDATE(),
             usuario_recibe_id = @usuario_id,
+            fecha_modificacion = GETDATE(),
             observaciones = CASE 
                 WHEN @observaciones IS NOT NULL THEN CONCAT(ISNULL(observaciones, ''), ' | DEVOLUCIÓN: ', @observaciones)
                 ELSE observaciones
             END
         WHERE id = @assignment_id;
         
-        -- Actualizar estado del inventario
+        -- Actualizar estado del inventario individual
         UPDATE InventarioIndividual 
-        SET estado = 'Disponible', fecha_modificacion = GETDATE()
+        SET estado = 'Disponible', 
+            fecha_modificacion = GETDATE()
         WHERE id = @inventario_id;
         
-        -- Log de actividad
-        INSERT INTO LogsActividad (usuario_id, tabla_afectada, operacion, registro_id, valores_nuevos)
+        -- Log de actividad con formato JSON correcto
+        INSERT INTO LogsActividad (usuario_id, tabla_afectada, accion, registro_id, descripcion)
         VALUES (@usuario_id, 'Asignaciones', 'UPDATE', @assignment_id,
-                '{"estado":"Devuelta","fecha_devolucion":"' + CONVERT(NVARCHAR, GETDATE(), 121) + '"}');
+                '{"activa":0,"fecha_devolucion":"' + CONVERT(NVARCHAR, GETDATE(), 121) + '"}');
         
         COMMIT TRANSACTION;
         
@@ -52,7 +57,12 @@ BEGIN
     BEGIN CATCH
         IF @@TRANCOUNT > 0
             ROLLBACK TRANSACTION;
-        THROW;
+            
+        SELECT @ErrorMessage = ERROR_MESSAGE(),
+               @ErrorSeverity = ERROR_SEVERITY(),
+               @ErrorState = ERROR_STATE();
+               
+        RAISERROR(@ErrorMessage, @ErrorSeverity, @ErrorState);
     END CATCH
 END;
 GO
