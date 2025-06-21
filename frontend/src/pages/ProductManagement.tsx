@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { FiPackage, FiPlus, FiEdit, FiToggleLeft, FiToggleRight, FiGrid, FiSearch, FiFilter } from 'react-icons/fi';
-import DataTable from '../components/common/DataTable';
+import { FiPackage, FiPlus, FiEdit, FiToggleLeft, FiToggleRight, FiGrid, FiSearch } from 'react-icons/fi';
+import DataTable, { type Column } from '../components/common/DataTable';
 import Loading from '../components/common/Loading';
 import { ProductForm } from '../components/ProductForm';
 import { CategoryForm } from '../components/CategoryForm';
@@ -54,7 +54,7 @@ const ProductManagement: React.FC = () => {
   const [totalItems, setTotalItems] = useState(0);
   const [itemsPerPage] = useState(25);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterCategory, setFilterCategory] = useState('');
+  const [filterCategory] = useState('');
   const [filterActive, setFilterActive] = useState('all');
   
   // Estados de formularios
@@ -266,8 +266,8 @@ const ProductManagement: React.FC = () => {
     }
   };
 
-  // Configuración de columnas para productos
-  const productColumns = [
+  // 🔧 CONFIGURACIÓN DE COLUMNAS PARA PRODUCTOS
+  const productColumns: Column<Product>[] = [
     {
       id: 'categoria_nombre',
       accessor: (row: Product) => <span className="text-blue-300">{row.categoria_nombre}</span>,
@@ -327,8 +327,8 @@ const ProductManagement: React.FC = () => {
     }
   ];
 
-  // Configuración de columnas para categorías
-  const categoryColumns = [
+  // 🔧 CONFIGURACIÓN DE COLUMNAS PARA CATEGORÍAS
+  const categoryColumns: Column<Category>[] = [
     {
       id: 'nombre_categoria',
       accessor: (row: Category) => (
@@ -440,11 +440,11 @@ const ProductManagement: React.FC = () => {
   return (
     <div className="min-h-screen relative">
       {/* Orbes de fondo animados */}
-      <div className="fixed inset-0 pointer-events-none transition-all duration-300 bg-gradient-to-br from-slate-900/95 via-slate-800/90 to-slate-900/95">
-        <div className="absolute top-20 left-10 w-32 h-32 rounded-full blur-xl animate-float transition-all duration-300 bg-primary-500/20"></div>
-        <div className="absolute top-40 right-20 w-24 h-24 rounded-full blur-lg animate-float transition-all duration-300 bg-secondary-500/20" style={{animationDelay: '2s'}}></div>
-        <div className="absolute bottom-32 left-1/4 w-20 h-20 rounded-full blur-lg animate-float transition-all duration-300 bg-success-500/20" style={{animationDelay: '4s'}}></div>
-        <div className="absolute bottom-20 right-1/3 w-28 h-28 rounded-full blur-xl animate-float transition-all duration-300 bg-info-500/20" style={{animationDelay: '1s'}}></div>
+      <div className="fixed inset-0 pointer-events-none bg-gradient-to-br from-slate-900/95 via-slate-800/90 to-slate-900/95">
+        <div className="absolute top-20 left-10 w-32 h-32 rounded-full blur-xl animate-float bg-primary-500/20"></div>
+        <div className="absolute top-40 right-20 w-24 h-24 rounded-full blur-lg animate-float bg-secondary-500/20" style={{animationDelay: '2s'}}></div>
+        <div className="absolute bottom-32 left-1/4 w-20 h-20 rounded-full blur-lg animate-float bg-success-500/20" style={{animationDelay: '4s'}}></div>
+        <div className="absolute bottom-20 right-1/3 w-28 h-28 rounded-full blur-xl animate-float bg-info-500/20" style={{animationDelay: '1s'}}></div>
       </div>
 
       {/* Contenido principal */}
@@ -539,18 +539,36 @@ const ProductManagement: React.FC = () => {
               <Loading />
             </div>
           ) : (
-            <DataTable
-              data={currentTab === 'products' ? products : categories}
-              columns={currentTab === 'products' ? productColumns : categoryColumns}
-              pagination={{
-                currentPage: currentPage,
-                pageSize: itemsPerPage,
-                total: totalItems
-              }}
-              onPageChange={setCurrentPage}
-              keyExtractor={(row: any) => row.id}
-              emptyMessage={`No se encontraron ${currentTab === 'products' ? 'productos' : 'categorías'}`}
-            />
+            <>
+              {/* 🔧 TABLAS SEPARADAS POR TIPO */}
+              {currentTab === 'products' ? (
+                <DataTable<Product>
+                  data={products}
+                  columns={productColumns}
+                  pagination={{
+                    currentPage: currentPage,
+                    pageSize: itemsPerPage,
+                    total: totalItems
+                  }}
+                  onPageChange={setCurrentPage}
+                  keyExtractor={(row: Product) => row.id.toString()}
+                  emptyMessage="No se encontraron productos"
+                />
+              ) : (
+                <DataTable<Category>
+                  data={categories}
+                  columns={categoryColumns}
+                  pagination={{
+                    currentPage: currentPage,
+                    pageSize: itemsPerPage,
+                    total: totalItems
+                  }}
+                  onPageChange={setCurrentPage}
+                  keyExtractor={(row: Category) => row.id.toString()}
+                  emptyMessage="No se encontraron categorías"
+                />
+              )}
+            </>
           )}
         </div>
       </div>

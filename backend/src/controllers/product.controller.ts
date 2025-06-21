@@ -525,17 +525,35 @@ export class ProductController {
         activo_filter: incluir_inactivas === 'true' ? 2 : 1,
         PageNumber: pageNum,
         PageSize: limitNum,
-        SortBy: 'nombre',
+        SortBy: 'ruta_completa',
         SortOrder: 'ASC'
       });
 
-      const data = result.recordset || [];
-      const totalItems = data.length > 0 ? (data[0] as any).TotalRows : 0;
+      const rawData = result.recordset || [];
+      
+      // 🔧 MAPEAR CORRECTAMENTE los datos del SP a la interface Category del frontend
+      const mappedCategories = rawData.map((row: any) => ({
+        id: row.id,
+        nombre: row.nombre,
+        categoria_padre_id: row.categoria_padre_id,
+        requiere_serie: row.requiere_serie === 1 || row.requiere_serie === true,
+        permite_asignacion: row.permite_asignacion === 1 || row.permite_asignacion === true,
+        permite_reparacion: row.permite_reparacion === 1 || row.permite_reparacion === true,
+        activo: row.activo === 1 || row.activo === true,
+        nivel: row.nivel || 0,
+        ruta_completa: row.ruta_completa || row.nombre,
+        fecha_creacion: row.fecha_creacion,
+        fecha_modificacion: row.fecha_modificacion
+      }));
+
+      const totalItems = rawData.length > 0 ? (rawData[0] as any).TotalRows : 0;
       const totalPages = Math.ceil(totalItems / limitNum);
+
+      logger.info(`✅ Categorías mapeadas correctamente: ${mappedCategories.length} items`);
 
       res.status(200).json({
         success: true,
-        data: data,
+        data: mappedCategories,
         pagination: {
           page: pageNum,
           limit: limitNum,

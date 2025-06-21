@@ -34,7 +34,7 @@ const StockMovementsReport: React.FC = () => {
   const [usuario, setUsuario] = useState<string>('');
   const [showFilters, setShowFilters] = useState(false);
 
-  const { showNotification } = useNotification();
+  const { addNotification } = useNotification();
 
   // Función para obtener icono según tipo de movimiento
   const getTipoMovimientoIcon = (tipo: string) => {
@@ -73,11 +73,11 @@ const StockMovementsReport: React.FC = () => {
       };
 
       await exportStockMovementsToExcel(filters);
-      showNotification('Reporte exportado exitosamente', 'success');
+      addNotification({ message: 'Reporte exportado exitosamente', type: 'success' });
 
     } catch (error) {
       console.error('Error al exportar:', error);
-      showNotification('Error al exportar el reporte', 'error');
+      addNotification({ message: 'Error al exportar el reporte', type: 'error' });
     } finally {
       setIsExporting(false);
     }
@@ -105,11 +105,11 @@ const StockMovementsReport: React.FC = () => {
     } catch (error) {
       console.error('Error loading data:', error);
       setError('Error al cargar el reporte. Por favor, intente nuevamente.');
-      showNotification('Error al cargar el reporte', 'error');
+      addNotification({ message: 'Error al cargar el reporte', type: 'error' });
     } finally {
       setLoading(false);
     }
-  }, [currentPage, pageSize, fechaDesde, fechaHasta, tipoMovimiento, producto, usuario, showNotification]);
+  }, [currentPage, pageSize, fechaDesde, fechaHasta, tipoMovimiento, producto, usuario, addNotification]);
 
   // Cargar datos iniciales y cuando cambien los filtros (con debounce)
   useEffect(() => {
@@ -207,11 +207,13 @@ const StockMovementsReport: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                 {/* Fecha Desde */}
                 <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                  <label htmlFor="fechaDesde" className="block text-sm font-medium text-slate-300 mb-2">
                     <FiCalendar className="inline mr-1" />
                     Fecha Desde
                   </label>
                   <input
+                    id="fechaDesde"
+                    name="fechaDesde"
                     type="date"
                     value={fechaDesde}
                     onChange={(e) => setFechaDesde(e.target.value)}
@@ -221,11 +223,13 @@ const StockMovementsReport: React.FC = () => {
 
                 {/* Fecha Hasta */}
                 <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                  <label htmlFor="fechaHasta" className="block text-sm font-medium text-slate-300 mb-2">
                     <FiCalendar className="inline mr-1" />
                     Fecha Hasta
                   </label>
                   <input
+                    id="fechaHasta"
+                    name="fechaHasta"
                     type="date"
                     value={fechaHasta}
                     onChange={(e) => setFechaHasta(e.target.value)}
@@ -252,11 +256,13 @@ const StockMovementsReport: React.FC = () => {
 
                 {/* Producto */}
                 <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                  <label htmlFor="producto" className="block text-sm font-medium text-slate-300 mb-2">
                     <FiPackage className="inline mr-1" />
                     Producto
                   </label>
                   <input
+                    id="producto"
+                    name="producto"
                     type="text"
                     value={producto}
                     onChange={(e) => setProducto(e.target.value)}
@@ -267,11 +273,13 @@ const StockMovementsReport: React.FC = () => {
 
                 {/* Usuario */}
                 <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">
+                  <label htmlFor="usuario" className="block text-sm font-medium text-slate-300 mb-2">
                     <FiUser className="inline mr-1" />
                     Usuario
                   </label>
                   <input
+                    id="usuario"
+                    name="usuario"
                     type="text"
                     value={usuario}
                     onChange={(e) => setUsuario(e.target.value)}

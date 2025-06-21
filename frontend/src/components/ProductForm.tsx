@@ -1,10 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { FiX, FiPackage, FiSave, FiGrid } from 'react-icons/fi';
-import Loading from './common/Loading';
+import { FiX, FiPackage, FiSave } from 'react-icons/fi';
 import { productService, ProductCreateData } from '../services/product.service';
 import { useNotification } from '../contexts/NotificationContext';
-import { useTheme } from '../contexts/ThemeContext';
 
 interface Product {
   id: number;
@@ -43,7 +41,6 @@ export const ProductForm: React.FC<ProductFormProps> = ({
 }) => {
   const { addNotification } = useNotification();
   const [loading, setLoading] = useState(false);
-  const [loadingCategories, setLoadingCategories] = useState(true);
   const [categories, setCategories] = useState<Category[]>([]);
   
   // Estados del formulario
@@ -55,8 +52,6 @@ export const ProductForm: React.FC<ProductFormProps> = ({
     stock_minimo: 0,
     usa_numero_serie: false
   });
-
-  const [errors, setErrors] = useState<Record<string, string>>({});
 
   // Cargar categorías al montar el componente
   useEffect(() => {
@@ -79,50 +74,83 @@ export const ProductForm: React.FC<ProductFormProps> = ({
 
   const loadCategories = async () => {
     try {
-      setLoadingCategories(true);
+      console.log('🔍 Cargando categorías...');
       const response = await productService.getAllCategoriesForSelect();
       
+      console.log('📊 Respuesta completa del servicio:', response);
+      
       if (response.success) {
-        setCategories(response.data || []);
+        console.log('✅ Categorías obtenidas exitosamente:', response.data);
+        console.log('📝 Número de categorías:', response.data?.length || 0);
+        
+        if (response.data && Array.isArray(response.data) && response.data.length > 0) {
+          // 🔧 FILTRAR: Solo mostrar subcategorías (que tienen categoria_padre_id)
+          // Los productos se asignan a subcategorías específicas, no a categorías padre
+          const subcategorias = response.data.filter(cat => cat.categoria_padre_id !== null);
+          
+          setCategories(subcategorias);
+          console.log('✅ Subcategorías cargadas para productos:', subcategorias.length);
+          console.log('🔍 Estructura de la primera subcategoría:', subcategorias[0]);
+          console.log('🔍 Propiedades disponibles:', Object.keys(subcategorias[0] || {}));
+          
+          // Para debugging global
+          (window as any).lastLoadedCategories = subcategorias;
+          (window as any).allCategories = response.data;
+          
+          if (subcategorias.length === 0) {
+            console.warn('⚠️ No se encontraron subcategorías disponibles');
+            addNotification({ 
+              message: 'No hay subcategorías disponibles. Debe crear subcategorías antes de agregar productos.', 
+              type: 'warning' 
+            });
+          }
+        } else {
+          console.warn('⚠️ No se encontraron categorías en la respuesta');
+          addNotification({ 
+            message: 'No se encontraron categorías disponibles. Contacte al administrador.', 
+            type: 'warning' 
+          });
+        }
       } else {
-        addNotification({ message: 'Error al cargar categorías', type: 'error' });
+        console.error('❌ Error en respuesta del servicio:', response.message);
+        addNotification({ message: response.message || 'Error al cargar categorías', type: 'error' });
       }
     } catch (error: any) {
-      console.error('Error cargando categorías:', error);
+      console.error('💥 Error completo cargando categorías:', error);
+      console.error('💥 Mensaje del error:', error.message);
+      console.error('💥 Stack del error:', error.stack);
       addNotification({ message: error.message || 'Error al cargar categorías', type: 'error' });
-    } finally {
-      setLoadingCategories(false);
     }
   };
 
   const validateForm = (): boolean => {
-    const newErrors: Record<string, string> = {};
-
     if (!formData.categoria_id || formData.categoria_id === 0) {
-      newErrors.categoria_id = 'La categoría es obligatoria';
+      addNotification({ message: 'La categoría es obligatoria', type: 'error' });
+      return false;
     }
 
     if (!formData.marca?.trim()) {
-      newErrors.marca = 'La marca es obligatoria';
+      addNotification({ message: 'La marca es obligatoria', type: 'error' });
+      return false;
     }
 
     if (!formData.modelo?.trim()) {
-      newErrors.modelo = 'El modelo es obligatorio';
+      addNotification({ message: 'El modelo es obligatorio', type: 'error' });
+      return false;
     }
 
     if ((formData.stock_minimo || 0) < 0) {
-      newErrors.stock_minimo = 'El stock mínimo no puede ser negativo';
+      addNotification({ message: 'El stock mínimo no puede ser negativo', type: 'error' });
+      return false;
     }
 
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    return true;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!validateForm()) {
-      addNotification({ message: 'Por favor, corrige los errores en el formulario', type: 'error' });
       return;
     }
 
@@ -143,21 +171,6 @@ export const ProductForm: React.FC<ProductFormProps> = ({
       addNotification({ message: error.message || 'Error al procesar producto', type: 'error' });
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleChange = (field: keyof ProductCreateData, value: any) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
-
-    // Limpiar error del campo modificado
-    if (errors[field]) {
-      setErrors(prev => ({
-        ...prev,
-        [field]: ''
-      }));
     }
   };
 
@@ -206,29 +219,20 @@ export const ProductForm: React.FC<ProductFormProps> = ({
             <select
               value={formData.categoria_id}
               onChange={(e) => setFormData({ ...formData, categoria_id: parseInt(e.target.value) })}
-              disabled={loadingCategories}
               className="w-full px-4 py-3 bg-slate-800/60 backdrop-blur-sm border border-slate-600/50 rounded-xl text-slate-100 
                        focus:border-indigo-400 focus:ring-4 focus:ring-indigo-400/20 focus:bg-slate-800/80
-                       transition-all duration-200 hover:border-slate-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                       transition-all duration-200 hover:border-slate-500"
               required
             >
               <option value="">
-                {loadingCategories ? 'Cargando categorías...' : 'Selecciona una categoría'}
+                {categories.length === 0 ? 'Cargando categorías...' : `Selecciona una categoría (${categories.length} disponibles)`}
               </option>
-              {!loadingCategories && categories
-                .filter(cat => cat.categoria_padre_id !== null) // 🎯 SOLO subcategorías específicas
-                .map(cat => (
-                  <option key={cat.id} value={cat.id} className="bg-slate-800 text-slate-100">
-                    {cat.ruta_completa}
-                  </option>
-                ))}
+              {categories.map(cat => (
+                <option key={cat.id} value={cat.id} className="bg-slate-800 text-slate-100">
+                  {cat.ruta_completa || cat.nombre}
+                </option>
+              ))}
             </select>
-            <p className="text-xs text-slate-400">
-              {loadingCategories 
-                ? 'Cargando lista de categorías disponibles...' 
-                : 'Los productos se asignan a categorías específicas, no a categorías padre'
-              }
-            </p>
           </div>
 
           {/* Marca */}

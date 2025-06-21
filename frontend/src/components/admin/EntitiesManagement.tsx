@@ -205,8 +205,26 @@ const EntitiesManagement: React.FC = () => {
                     <td className="px-6 py-3 whitespace-nowrap">
                         {editing.id === item.id ? (
                             <div className="flex gap-2">
-                                <input type="text" value={editing.data.nombre || ''} onChange={e => handleInputChange(e, 'nombre')} className="w-full px-3 py-1 rounded-md bg-white/10" placeholder="Nombre" />
-                                {activeTab === 'employees' && <input type="text" value={(editing.data as Partial<Employee>).apellido || ''} onChange={e => handleInputChange(e, 'apellido')} className="w-full px-3 py-1 rounded-md bg-white/10" placeholder="Apellido" />}
+                                <input 
+                                    id={`edit-nombre-${item.id}`}
+                                    name={`edit-nombre-${item.id}`}
+                                    type="text" 
+                                    value={editing.data.nombre || ''} 
+                                    onChange={e => handleInputChange(e, 'nombre')} 
+                                    className="w-full px-3 py-1 rounded-md bg-white/10" 
+                                    placeholder="Nombre" 
+                                />
+                                {activeTab === 'employees' && 
+                                    <input 
+                                        id={`edit-apellido-${item.id}`}
+                                        name={`edit-apellido-${item.id}`}
+                                        type="text" 
+                                        value={(editing.data as Partial<Employee>).apellido || ''} 
+                                        onChange={e => handleInputChange(e, 'apellido')} 
+                                        className="w-full px-3 py-1 rounded-md bg-white/10" 
+                                        placeholder="Apellido" 
+                                    />
+                                }
                             </div>
                         ) : (
                             <span className="font-medium text-white">{item.nombre} {activeTab === 'employees' && (item as Employee).apellido}</span>
@@ -313,8 +331,32 @@ const EntitiesManagement: React.FC = () => {
             <div className="p-4 mb-4 rounded-lg bg-slate-800/50 flex flex-col gap-3">
                 <h3 className="text-lg font-semibold text-white">Crear Nuevo {activeTab.slice(0, -1)}</h3>
                 <div className="flex gap-4">
-                    <input type="text" value={newItemData.nombre || ''} onChange={(e) => handleInputChange(e, 'nombre')} placeholder="Nombre" className="w-full px-3 py-2 rounded-md bg-white/10" />
-                    {activeTab === 'employees' && <input type="text" value={(newItemData as Partial<Employee>).apellido || ''} onChange={(e) => handleInputChange(e, 'apellido')} placeholder="Apellido" className="w-full px-3 py-2 rounded-md bg-white/10" />}
+                    <div className="flex-1">
+                        <label htmlFor="new-nombre" className="block text-sm font-medium text-slate-300 mb-1">Nombre</label>
+                        <input 
+                            id="new-nombre"
+                            name="new-nombre"
+                            type="text" 
+                            value={newItemData.nombre || ''} 
+                            onChange={(e) => handleInputChange(e, 'nombre')} 
+                            placeholder="Nombre" 
+                            className="w-full px-3 py-2 rounded-md bg-white/10" 
+                        />
+                    </div>
+                    {activeTab === 'employees' && 
+                        <div className="flex-1">
+                            <label htmlFor="new-apellido" className="block text-sm font-medium text-slate-300 mb-1">Apellido</label>
+                            <input 
+                                id="new-apellido"
+                                name="new-apellido"
+                                type="text" 
+                                value={(newItemData as Partial<Employee>).apellido || ''} 
+                                onChange={(e) => handleInputChange(e, 'apellido')} 
+                                placeholder="Apellido" 
+                                className="w-full px-3 py-2 rounded-md bg-white/10" 
+                            />
+                        </div>
+                    }
                 </div>
                 <div className="flex justify-end gap-3">
                     <button onClick={() => setIsCreating(false)} className="btn-glass-secondary">Cancelar</button>
@@ -325,8 +367,13 @@ const EntitiesManagement: React.FC = () => {
 
         <div className="mb-4">
           <div className="relative">
+            <label htmlFor="search-entities" className="sr-only">
+              Buscar en {activeTab}
+            </label>
             <FiSearch className="absolute h-5 w-5 text-slate-400 pointer-events-none top-3.5 left-4" />
             <input
+              id="search-entities"
+              name="search-entities"
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}

@@ -60,8 +60,8 @@ export const CategoryForm: React.FC<CategoryFormProps> = ({
   }, [category]);
 
   const parentCategories = category
-    ? categories.filter(c => c.id !== category.id)
-    : categories;
+    ? categories.filter(c => c.id !== category.id && c.categoria_padre_id === null)
+    : categories.filter(c => c.categoria_padre_id === null);
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};

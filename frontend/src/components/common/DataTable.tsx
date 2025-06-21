@@ -37,7 +37,8 @@ export interface DataTableProps<T = any> {
   emptyMessage?: string;
 }
 
-const DataTable = <T extends object>({
+// 🔧 COMPONENTE GENÉRICO CORREGIDO
+function DataTable<T extends Record<string, any>>({
   columns,
   data,
   isLoading = false,
@@ -49,7 +50,7 @@ const DataTable = <T extends object>({
   actionColumn,
   keyExtractor,
   emptyMessage = "No hay datos disponibles"
-}: DataTableProps<T>) => {
+}: DataTableProps<T>) {
   const { theme } = useTheme();
   const [sortConfig, setSortConfig] = useState<SortConfig | null>(initialSort || null);
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -80,6 +81,10 @@ const DataTable = <T extends object>({
       onPageChange(page);
     }
   };
+
+  // 🔧 CÁLCULO SEGURO DE PÁGINAS
+  const totalPages = pagination ? Math.ceil((pagination.total || 0) / (pagination.pageSize || 1)) : 1;
+  const safeCurrentPage = pagination?.currentPage || 1;
 
   return (
     <div className="w-full">
@@ -113,7 +118,6 @@ const DataTable = <T extends object>({
               theme === 'dark' ? 'text-dark-text-muted' : 'text-[#6C757D]'
             }`} />
           </div>
-          {/* Aquí se pueden agregar más filtros si es necesario */}
         </div>
       )}
 
@@ -225,10 +229,10 @@ const DataTable = <T extends object>({
             <div>
               <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px">
                 <button
-                  onClick={() => handlePageChange(pagination.currentPage - 1)}
-                  disabled={pagination.currentPage === 1}
+                  onClick={() => handlePageChange(safeCurrentPage - 1)}
+                  disabled={safeCurrentPage === 1}
                   className={`relative inline-flex items-center px-2 py-2 rounded-l-md border text-sm font-medium transition-all duration-300 ${
-                    pagination.currentPage === 1
+                    safeCurrentPage === 1
                       ? theme === 'dark'
                         ? 'text-dark-text-muted cursor-not-allowed bg-dark-bg-surface border-dark-border'
                         : 'text-[#6C757D] cursor-not-allowed bg-white border-[#DEE2E6]'
@@ -241,14 +245,14 @@ const DataTable = <T extends object>({
                 </button>
                 
                 {/* Números de página */}
-                {Array.from({ length: Math.ceil((pagination.total || 0) / (pagination.pageSize || 1)) }, (_, i) => i + 1)
-                  .slice(Math.max(0, pagination.currentPage - 3), pagination.currentPage + 2)
+                {Array.from({ length: Math.max(1, totalPages) }, (_, i) => i + 1)
+                  .slice(Math.max(0, safeCurrentPage - 3), safeCurrentPage + 2)
                   .map((page) => (
                     <button
                       key={page}
                       onClick={() => handlePageChange(page)}
                       className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium transition-all duration-300 ${
-                        page === pagination.currentPage
+                        page === safeCurrentPage
                           ? theme === 'dark'
                             ? 'bg-primary text-white border-primary'
                             : 'bg-[#3F51B5] text-white border-[#3F51B5]'
@@ -262,10 +266,10 @@ const DataTable = <T extends object>({
                   ))}
 
                 <button
-                  onClick={() => handlePageChange(pagination.currentPage + 1)}
-                  disabled={pagination.currentPage === Math.ceil(pagination.total / pagination.pageSize)}
+                  onClick={() => handlePageChange(safeCurrentPage + 1)}
+                  disabled={safeCurrentPage === totalPages}
                   className={`relative inline-flex items-center px-2 py-2 rounded-r-md border text-sm font-medium transition-all duration-300 ${
-                    pagination.currentPage === Math.ceil(pagination.total / pagination.pageSize)
+                    safeCurrentPage === totalPages
                       ? theme === 'dark'
                         ? 'text-dark-text-muted cursor-not-allowed bg-dark-bg-surface border-dark-border'
                         : 'text-[#6C757D] cursor-not-allowed bg-white border-[#DEE2E6]'
@@ -283,6 +287,6 @@ const DataTable = <T extends object>({
       )}
     </div>
   );
-};
+}
 
 export default DataTable;
