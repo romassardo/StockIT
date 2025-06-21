@@ -1,244 +1,224 @@
 # 🚀 GUÍA COMPLETA DE MIGRACIÓN STOCKIT
 
-## 📋 **Resumen del Proceso**
+## 📋 **Dos Métodos de Migración Disponibles**
 
-Esta guía te permitirá migrar el proyecto StockIT de tu PC de casa a la PC de la oficina de manera completamente automatizada.
+Ahora tienes **DOS OPCIONES** para migrar StockIT entre PCs:
 
 ---
 
-## 🏠 **PARTE 1: PREPARACIÓN EN PC DE CASA**
+## 🏠 **OPCIÓN 1: MIGRACIÓN LOCAL COMPLETA**
+### *(Con todos tus datos actuales)*
 
-### 📦 **Paso 1: Ejecutar Migración Automática**
+### 📦 **Ventajas:**
+- ✅ **Backup completo de BD** con todos tus datos reales
+- ✅ **Configuraciones específicas** de tu entorno actual
+- ✅ **Estado exacto** del proyecto funcionando
+- ✅ **Archivos personalizados** y modificaciones locales
 
-1. **Abre una terminal en la carpeta raíz de StockIT**
-2. **Ejecuta el script de migración:**
+### 🔧 **Ejecución:**
+1. **En tu PC de casa:**
+   ```cmd
+   migrar_proyecto.bat
+   ```
+
+### 📁 **Qué incluye:**
+- Código completo desde tu PC actual
+- Backup automático de la base de datos
+- Todas las configuraciones personalizadas
+- Scripts de instalación automática
+
+---
+
+## 🌐 **OPCIÓN 2: MIGRACIÓN DESDE GITHUB**
+### *(Código limpio más reciente)*
+
+### 📦 **Ventajas:**
+- ✅ **Código más reciente** desde GitHub
+- ✅ **Versión limpia** sin archivos temporales
+- ✅ **Fácil transporte** (más liviano)
+- ✅ **Sin dependencias** entre PCs
+
+### ⚠️ **Consideraciones:**
+- ❌ Requiere **configuración manual de BD**
+- ❌ No incluye **datos actuales** de tu sistema
+
+### 🔧 **Ejecución:**
+1. **En tu PC de casa:**
+   ```cmd
+   migrar_desde_github.bat
+   ```
+
+### 📁 **Qué incluye:**
+- Código descargado desde GitHub
+- Scripts para crear BD desde cero
+- Backup de BD local (si existe)
+- Instrucciones paso a paso
+
+---
+
+## 🤔 **¿CUÁL ELEGIR?**
+
+### 👍 **Elige MIGRACIÓN LOCAL si:**
+- Tienes **datos importantes** en StockIT que quieres conservar
+- Quieres **exactamente el mismo estado** en la PC de oficina
+- Prefieres **instalación automática** sin configuración manual
+
+### 👍 **Elige MIGRACIÓN GITHUB si:**
+- Quieres la **versión más reciente** del código
+- No tienes datos importantes o puedes crearlos de nuevo
+- Prefieres **empezar limpio** en la PC de oficina
+- Tu internet es **más rápido** que transferir archivos
+
+---
+
+# 🏠 **PARTE 1: MIGRACIÓN LOCAL COMPLETA**
+
+### 📦 **Paso 1: Ejecutar Migración Local**
+
+1. **Abre terminal en la carpeta raíz de StockIT**
+2. **Ejecuta:**
    ```cmd
    migrar_proyecto.bat
    ```
 
 ### 🎯 **Qué hace este script:**
-- ✅ Verifica la integridad del proyecto
-- ✅ Crea backup automático de la base de datos
-- ✅ Copia todos los archivos necesarios (excluyendo temporales)
+- ✅ Verifica integridad del proyecto
+- ✅ Crea backup automático de BD con timestamp
+- ✅ Copia archivos necesarios (excluyendo temporales)
 - ✅ Genera scripts de instalación automática
-- ✅ Crea instrucciones detalladas paso a paso
-- ✅ Organiza todo en una estructura limpia
+- ✅ Crea instrucciones detalladas
+- ✅ Organiza todo en estructura para transporte
 
 ### 📁 **Resultado:**
-Se creará una carpeta con todo lo necesario en:
-```
-C:\Temp\StockIT_Migracion_YYYYMMDD_HHMM\
-├── StockIT\                          (Código fuente limpio)
-├── Database\                         (Backup de BD)
-│   └── StockIT_Backup_YYYYMMDD.bak
-├── Scripts\                          (Scripts automáticos)
-│   ├── instalar_en_oficina.bat      (Instalación automática)
-│   └── crear_backup.sql             (Script de backup)
-├── Config\                           (Configuraciones)
-│   ├── configuracion_trabajo.md     (Configuración detallada)
-│   ├── design-UX-UI-guide.md        (Guía de diseño)
-│   └── docs\                        (Documentación)
-└── 🚀_INSTRUCCIONES_INSTALACION.txt  (Guía paso a paso)
-```
+Carpeta: `C:\Temp\StockIT_Local_[timestamp]`
 
-### 💾 **Paso 2: Copiar a USB o Enviar por Correo**
-- Copia toda la carpeta `StockIT_Migracion_YYYYMMDD_HHMM` a USB
-- O comprímela y envíala por correo/OneDrive
+### 🚛 **Paso 2: Transportar**
+- **USB:** Copia toda la carpeta
+- **Correo:** Comprime y envía
+- **Red local:** Copia directamente
+
+### 🏢 **Paso 3: Instalar en PC Oficina**
+1. **Copia la carpeta** al PC de oficina
+2. **Ejecuta:** `Scripts\instalar_en_oficina.bat`
+3. **¡Listo!** StockIT funcionando idéntico
 
 ---
 
-## 🏢 **PARTE 2: INSTALACIÓN EN PC DE LA OFICINA**
+# 🌐 **PARTE 2: MIGRACIÓN DESDE GITHUB**
 
-### 🔧 **Requisitos Previos:**
-- [ ] Windows 10/11
-- [ ] Conexión a Internet (para descargar Node.js y SQL Server)
+### 📦 **Paso 1: Ejecutar Migración GitHub**
 
-### 📋 **Paso 1: Instalar Dependencias**
-
-#### **Node.js:**
-1. Descargar desde: https://nodejs.org
-2. Instalar con configuración por defecto
-3. Verificar: abrir cmd y ejecutar `node --version`
-
-#### **SQL Server Express:**
-1. Descargar desde Microsoft
-2. Instalar con configuración por defecto
-3. Instancia: `.\SQLEXPRESS` o `NOMBREPC\SQLEXPRESS`
-
-#### **SQL Server Management Studio (Opcional pero recomendado):**
-1. Descargar desde Microsoft
-2. Para gestionar la base de datos fácilmente
-
-### 🚀 **Paso 2: Instalación Automática**
-
-1. **Copia la carpeta de migración a la PC de destino**
-2. **Ejecuta el instalador automático:**
+1. **Verifica que tengas Git instalado**
+2. **Abre terminal en cualquier carpeta**
+3. **Ejecuta:**
    ```cmd
-   Scripts\instalar_en_oficina.bat
+   migrar_desde_github.bat
    ```
 
-### 🎯 **Qué hace el instalador:**
-- ✅ Verifica que Node.js esté instalado
-- ✅ Crea el directorio `C:\Proyectos\`
-- ✅ Copia todos los archivos del proyecto
-- ✅ Instala automáticamente las dependencias del backend
-- ✅ Instala automáticamente las dependencias del frontend
-- ✅ Te guía para los pasos finales
+### 🎯 **Qué hace este script:**
+- ✅ Descarga código más reciente desde GitHub
+- ✅ Intenta crear backup de BD local (si existe)
+- ✅ Genera scripts de instalación específicos
+- ✅ Crea instrucciones para configuración manual
+- ✅ Prepara estructura optimizada
 
-### 🗄️ **Paso 3: Restaurar Base de Datos**
+### 📁 **Resultado:**
+Carpeta: `C:\Temp\StockIT_GitHub_[timestamp]`
 
-#### **Opción A: Con SQL Server Management Studio**
-1. Abrir SSMS
-2. Conectar a `.\SQLEXPRESS`
-3. Clic derecho en "Bases de datos" → "Restaurar base de datos"
-4. Seleccionar "Dispositivo" → Buscar archivo `Database\StockIT_Backup_YYYYMMDD.bak`
-5. Cambiar nombre a `StockIT`
-6. Clic en "Aceptar"
+### 🚛 **Paso 2: Transportar**
+- **USB:** Copia toda la carpeta (más liviana)
+- **Correo:** Comprime y envía (tamaño menor)
+- **Red local:** Transferencia más rápida
 
-#### **Opción B: Con línea de comandos**
+### 🏢 **Paso 3: Instalar en PC Oficina**
+
+#### **A. Instalación Automática de Código:**
+1. **Ejecuta:** `Scripts\instalar_desde_github.bat`
+2. **Instala automáticamente:** Node.js dependencies
+
+#### **B. Configuración Manual de BD:**
+
+**OPCIÓN B1 - BD Nueva (Recomendado):**
+1. **Instala SQL Server Express**
+2. **Ejecuta en SSMS:** `Scripts\crear_bd_inicial.sql`
+3. **Ejecuta migraciones:** `backend\src\database\migrations\`
+4. **Ejecuta SPs:** `backend\src\database\stored_procedures\`
+
+**OPCIÓN B2 - Restaurar Backup (Si existe):**
+1. **Restaura en SSMS:** `Database\StockIT_Local_Backup_*.bak`
+
+#### **C. Configurar .env:**
+1. **backend\.env:** Configuración de BD
+2. **frontend\.env:** URL del backend
+
+#### **D. Ejecutar Aplicación:**
 ```cmd
-sqlcmd -S .\SQLEXPRESS -E -Q "RESTORE DATABASE StockIT FROM DISK='RUTA_COMPLETA\Database\StockIT_Backup_YYYYMMDD.bak'"
-```
-
-### ⚙️ **Paso 4: Configurar Variables de Entorno**
-
-#### **Crear archivo `backend\.env`:**
-```env
-# Configuración Base de Datos SQL Server
-DB_HOST=NOMBREPC\SQLEXPRESS
-DB_PORT=1433
-DB_NAME=StockIT
-DB_USER=tu_usuario_sql
-DB_PASSWORD=tu_password_sql
-DB_INTEGRATED=true
-
-# Configuración del Servidor
-PORT=8000
-NODE_ENV=development
-
-# JWT para autenticación
-JWT_SECRET=StockIT_Oficina_2024_ClaveSegura123
-JWT_EXPIRES_IN=8h
-JWT_REFRESH_EXPIRES_IN=7d
-```
-
-#### **Crear archivo `frontend\.env`:**
-```env
-VITE_API_URL=http://localhost:8000/api
-VITE_APP_TITLE=StockIT - Sistema de Inventario
-```
-
-### 🚀 **Paso 5: Ejecutar StockIT**
-
-#### **Terminal 1 - Backend:**
-```cmd
+# Terminal 1 - Backend
 cd C:\Proyectos\StockIT\backend
 npm run dev
-```
 
-#### **Terminal 2 - Frontend:**
-```cmd
+# Terminal 2 - Frontend  
 cd C:\Proyectos\StockIT\frontend
 npm run dev
 ```
 
-### 🌐 **Paso 6: Verificar Funcionamiento**
-- Backend: http://localhost:8000/api/dashboard/stats
-- Frontend: http://localhost:3000
+---
+
+## 📊 **COMPARACIÓN DE MÉTODOS**
+
+| Aspecto | Migración Local | Migración GitHub |
+|---------|----------------|------------------|
+| **Datos** | ✅ Conserva todo | ❌ BD desde cero |
+| **Configuración** | ✅ Automática | ⚠️ Manual |
+| **Código** | Estado actual | ✅ Más reciente |
+| **Tamaño** | Mayor | ✅ Menor |
+| **Tiempo Setup** | ✅ Mínimo | Mayor |
+| **Limpieza** | Actual | ✅ Completamente limpio |
+| **Internet** | No requerido | ✅ Requerido |
 
 ---
 
-## 🔍 **PARTE 3: VERIFICACIÓN AUTOMÁTICA**
+## 🔧 **TROUBLESHOOTING**
 
-### ✅ **Script de Verificación**
-Para verificar que todo funciona correctamente:
-```cmd
-verificar_migracion.bat
-```
+### **Problemas Comunes - Migración Local:**
+- **Error backup BD:** Verifica SQL Server corriendo
+- **Archivos grandes:** USA USB en lugar de correo
+- **Permisos:** Ejecuta como administrador
 
-### 🎯 **Qué verifica:**
-- ✅ Estructura de directorios
-- ✅ Node.js instalado
-- ✅ Dependencias instaladas
-- ✅ Archivos .env creados
-- ✅ SQL Server funcionando
-- ✅ Base de datos StockIT disponible
-- ✅ Backend respondiendo
-- ✅ Frontend respondiendo
+### **Problemas Comunes - Migración GitHub:**
+- **Git no encontrado:** Instala desde git-scm.com
+- **Error clone:** Verifica conexión internet
+- **BD no conecta:** Revisa connection string en .env
 
 ---
 
-## 🆘 **SOLUCIÓN DE PROBLEMAS COMUNES**
+## 🆘 **SOPORTE ADICIONAL**
 
-### ❌ **Error: No se puede conectar a la base de datos**
-**Solución:**
-1. Verificar que SQL Server Express esté ejecutándose
-2. Verificar el nombre de la PC en `DB_HOST`
-3. Para obtener el nombre: cmd → `hostname`
-4. Cambiar `DB_HOST=NOMBREPC\SQLEXPRESS`
+### 📚 **Documentación:**
+- `docs\README.md` - Documentación técnica
+- `docs\MANUAL_USUARIO.md` - Manual de usuario
+- `CHANGELOG.md` - Historial de cambios
 
-### ❌ **Error: Puerto ocupado**
-**Solución:**
-1. Cambiar `PORT=8001` en `backend\.env`
-2. Cambiar `VITE_API_URL=http://localhost:8001/api` en `frontend\.env`
+### 🛠️ **Logs y Debug:**
+- `backend\logs\` - Logs de aplicación
+- Console de navegador - Errores frontend
+- SQL Server logs - Errores de BD
 
-### ❌ **Error: Módulos no encontrados**
-**Solución:**
-```cmd
-cd C:\Proyectos\StockIT\backend
-npm install
-
-cd C:\Proyectos\StockIT\frontend  
-npm install
-```
-
-### ❌ **Error: Login no funciona**
-**Solución:**
-1. Verificar `JWT_SECRET` en `backend\.env`
-2. Usar una clave única y segura
+### 📞 **Canales de Ayuda:**
+- GitHub Issues para reportar problemas
+- Documentación en `docs\` para referencias
+- Logs detallados para diagnóstico
 
 ---
 
-## 📊 **CHECKLIST DE MIGRACIÓN COMPLETA**
+## ✅ **VERIFICACIÓN FINAL**
 
-### 🏠 **En PC de Casa:**
-- [ ] Ejecutado `migrar_proyecto.bat`
-- [ ] Verificado backup de base de datos
-- [ ] Copiado carpeta de migración a USB/correo
+Independientemente del método elegido, verifica que:
 
-### 🏢 **En PC de Oficina:**
-- [ ] Node.js instalado
-- [ ] SQL Server Express instalado
-- [ ] Ejecutado `Scripts\instalar_en_oficina.bat`
-- [ ] Base de datos restaurada
-- [ ] Archivos `.env` creados
-- [ ] Backend ejecutándose en puerto 8000
-- [ ] Frontend ejecutándose en puerto 3000
-- [ ] Login funcionando correctamente
-- [ ] Ejecutado `verificar_migracion.bat` con éxito
+1. **✅ Backend corriendo** en puerto 3001
+2. **✅ Frontend corriendo** en puerto 3000  
+3. **✅ Base de datos conectada** y respondiendo
+4. **✅ Login funcionando** con usuario de prueba
+5. **✅ Dashboard cargando** datos correctamente
 
----
-
-## 🎉 **¡MIGRACIÓN COMPLETADA!**
-
-Una vez completados todos los pasos, StockIT estará funcionando completamente en la PC de la oficina con:
-
-- ✅ **Toda la funcionalidad**: Inventario, Asignaciones, Reparaciones, Reportes
-- ✅ **Todos los datos**: Usuarios, productos, historial
-- ✅ **Configuración optimizada**: Para el entorno de oficina
-- ✅ **Documentación completa**: Manuales y guías disponibles
-
-### 🌐 **URLs de Acceso:**
-- **Frontend Principal:** http://localhost:3000
-- **API Backend:** http://localhost:8000/api
-
----
-
-## 📞 **Soporte**
-
-Si necesitas ayuda durante la migración:
-1. Revisa los archivos de log en `backend\logs\`
-2. Ejecuta `verificar_migracion.bat` para diagnóstico
-3. Consulta `Config\configuracion_trabajo.md` para configuración detallada
-
-**¡StockIT listo para usar en tu oficina!** 🚀 
+¡Tu migración de StockIT estará **100% completa**! 
