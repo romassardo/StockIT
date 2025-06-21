@@ -244,28 +244,53 @@ const Dashboard: React.FC = () => {
         
         // Formatear según el tipo de actividad
         if (activity.TablaAfectada === 'Asignaciones') {
-          if (data.estado === 'Devuelta' || data.activa === 0) {
+          if (activity.Accion === 'UPDATE' && (data.activa === '0' || data.activa === 0)) {
             title = '📤 Devolución de Asignación';
-            subtitle = `Activo devuelto ${data.fecha_devolucion ? `el ${formatDate(data.fecha_devolucion)}` : 'recientemente'}`;
+            if (data.fecha_devolucion) {
+              const fecha = new Date(data.fecha_devolucion);
+              subtitle = `Activo devuelto el ${fecha.toLocaleDateString()} a las ${fecha.toLocaleTimeString()}`;
+            } else {
+              subtitle = 'Asignación devuelta';
+            }
+          } else if (activity.Accion === 'INSERT') {
+            title = '📥 Nueva Asignación';
+            subtitle = 'Nuevo activo asignado a empleado';
           } else if (data.estado === 'Activa' || data.activa === 1) {
             title = '📥 Nueva Asignación';
             subtitle = `Activo asignado ${data.fecha_asignacion ? `el ${formatDate(data.fecha_asignacion)}` : 'recientemente'}`;
           }
+        } else if (activity.TablaAfectada === 'Reparaciones') {
+          if (activity.Accion === 'Retorno' && data.estado_reparacion) {
+            title = '🔧 Retorno de Reparación';
+            const estado = data.estado_reparacion === 'Reparado' ? '✅ Reparado' : '❌ Sin reparar';
+            const solucion = data.solucion && data.solucion.trim() ? `: ${data.solucion}` : '';
+            subtitle = `${estado}${solucion}`;
+          } else if (activity.Accion === 'INSERT' && data.proveedor) {
+            title = '🛠️ Nueva Reparación';
+            const proveedor = data.proveedor ? ` a ${data.proveedor}` : '';
+            const problema = data.problema ? `: ${data.problema}` : '';
+            subtitle = `Enviado${proveedor}${problema}`;
+          } else if (data.accion === 'Retorno de Reparación') {
+            title = '🔧 Retorno de Reparación';
+            const estado = data.estado_reparacion === 'Reparado' ? '✅ Reparado' : '❌ Sin reparar';
+            const solucion = data.solucion && data.solucion.trim() ? `: ${data.solucion}` : '';
+            subtitle = `${estado}${solucion}`;
+          } else if (data.proveedor || data.problema) {
+            title = '🛠️ Nueva Reparación';
+            const proveedor = data.proveedor ? ` a ${data.proveedor}` : '';
+            const problema = data.problema ? `: ${data.problema}` : '';
+            subtitle = `Enviado${proveedor}${problema}`;
+          }
         } else if (activity.TablaAfectada === 'InventarioIndividual') {
-          if (data.estado_nuevo) {
+          if (data.inventario_individual_id && data.producto_id === 0) {
+            title = '🔄 Cambio de Estado';
+            subtitle = `Activo ID: ${data.inventario_individual_id} actualizado`;
+          } else if (data.estado_nuevo) {
             title = `🔄 Cambio de Estado`;
             subtitle = `De "${data.estado_anterior || 'N/A'}" a "${data.estado_nuevo}"`;
           } else if (data.numero_serie) {
             title = '📦 Nuevo Activo';
             subtitle = `Serie: ${data.numero_serie}`;
-          }
-        } else if (activity.TablaAfectada === 'Reparaciones') {
-          if (data.estado_reparacion) {
-            title = '🔧 Retorno de Reparación';
-            subtitle = `Estado: ${data.estado_reparacion} - ${data.solucion || 'Sin detalles'}`;
-          } else if (data.proveedor) {
-            title = '🚚 Envío a Reparación';
-            subtitle = `Proveedor: ${data.proveedor} - ${data.problema || 'Sin detalles'}`;
           }
         } else if (activity.TablaAfectada === 'Usuarios') {
           title = '👤 Actualización de Usuario';
@@ -279,6 +304,14 @@ const Dashboard: React.FC = () => {
           } else if (data.tipo_movimiento === 'Salida') {
             title = '📉 Salida de Stock';
             subtitle = `-${data.cantidad || 'N/A'} unidades`;
+          }
+        } else {
+          // Formateo genérico para otros JSON no reconocidos
+          const entries = Object.entries(data);
+          if (entries.length <= 2) {
+            subtitle = entries.map(([key, value]) => `${key}: ${value}`).join(', ');
+          } else {
+            subtitle = `${entries.length} campos modificados`;
           }
         }
       }
