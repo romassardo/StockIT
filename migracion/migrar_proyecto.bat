@@ -9,16 +9,16 @@ echo ================================================
 echo.
 
 REM Verificar que estamos en el directorio correcto
-if not exist "frontend" (
+if not exist "..\frontend" (
     echo ❌ ERROR: No se encuentra la carpeta 'frontend'
-    echo    Ejecuta este script desde la carpeta raíz de StockIT
+    echo    Ejecuta este script desde la carpeta migracion\ dentro de StockIT
     pause
     exit /b 1
 )
 
-if not exist "backend" (
+if not exist "..\backend" (
     echo ❌ ERROR: No se encuentra la carpeta 'backend'
-    echo    Ejecuta este script desde la carpeta raíz de StockIT
+    echo    Ejecuta este script desde la carpeta migracion\ dentro de StockIT
     pause
     exit /b 1
 )
@@ -51,7 +51,7 @@ echo.
 REM Copiar archivos del proyecto
 echo 📋 Copiando archivos del proyecto...
 echo    (Excluyendo node_modules, logs, y archivos temporales)
-xcopy /E /I /Y "%~dp0" "%MIGRATION_DIR%\StockIT" /EXCLUDE:archivos_excluir.txt
+xcopy /E /I /Y "%~dp0.." "%MIGRATION_DIR%\StockIT" /EXCLUDE:"%~dp0archivos_excluir.txt"
 
 if errorlevel 1 (
     echo ⚠️  Algunos archivos no se pudieron copiar (normal)
@@ -92,12 +92,12 @@ echo.
 
 REM Copiar archivos de configuración
 echo 📝 Copiando archivos de configuración...
-copy "configuracion_trabajo.md" "%MIGRATION_DIR%\Config\"
-copy "design-UX-UI-guide.md" "%MIGRATION_DIR%\Config\"
-copy "proyecto-inventario-it.md" "%MIGRATION_DIR%\Config\"
+copy "%~dp0configuracion_trabajo.md" "%MIGRATION_DIR%\Config\"
+copy "%~dp0..\design-UX-UI-guide.md" "%MIGRATION_DIR%\Config\"
+copy "%~dp0..\proyecto-inventario-it.md" "%MIGRATION_DIR%\Config\"
 
-if exist "docs" (
-    xcopy /E /I /Y "docs" "%MIGRATION_DIR%\Config\docs"
+if exist "%~dp0..\docs" (
+    xcopy /E /I /Y "%~dp0..\docs" "%MIGRATION_DIR%\Config\docs"
 )
 
 echo ✅ Archivos de configuración copiados
