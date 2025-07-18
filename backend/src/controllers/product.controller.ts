@@ -3,7 +3,7 @@ import { AuthRequest } from '../middleware/auth.middleware';
 import { DatabaseConnection } from '../utils/database';
 import { logger } from '../utils/logger';
 import { cacheService } from '../services/cache.service';
-import * as sql from 'mssql';
+import mysql from 'mysql2/promise';
 
 // Definir el tipo de datos del SP sp_StockGeneral_GetAll
 interface StockGeneralRow {
@@ -75,19 +75,19 @@ export class ProductController {
       }
 
       // Usar stored procedure para obtener productos
-      const result = await this.db.executeStoredProcedure<any>(
+      const result = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>(
         'sp_Producto_GetAll',
-        {
-          categoria_id: categoria_id ? parseInt(categoria_id as string) : null,
-          categoria_nombre: categoria_nombre ? (categoria_nombre as string).trim() : null,
-          usa_numero_serie: usa_numero_serie !== undefined ? usa_numero_serie === 'true' : null,
-          activo: activo === 'true',
-          PageNumber: pageNum,
-          PageSize: limitNum
-        }
+        [
+          categoria_id ? parseInt(categoria_id as string) : null,
+          categoria_nombre ? (categoria_nombre as string).trim() : null,
+          usa_numero_serie !== undefined ? usa_numero_serie === 'true' : null,
+          activo === 'true',
+          pageNum,
+          limitNum
+        ]
       );
 
-      const data = result.recordset || [];
+      const [data] = result;
       
       // Si el SP no incluye paginación, calculamos básica
       const totalItems = data.length;
@@ -136,14 +136,18 @@ export class ProductController {
       });
 
       // Ejecutar el stored procedure real
-      const result = await this.db.executeStoredProcedure('sp_StockGeneral_GetAll', {
-        categoria_id: categoriaIdParam,
-        solo_bajo_stock: soloBajoStockParam,
-        producto_id: productoIdParam
-      });
+      const result = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>(
+        'sp_StockGeneral_GetAll',
+        [
+          categoriaIdParam,
+          soloBajoStockParam,
+          productoIdParam
+        ]
+      );
 
       // Mapear los resultados al formato esperado por el frontend
-      const productos = (result.recordset as StockGeneralRow[]).map((row) => ({
+      const [productos_raw] = result;
+      const productos = (productos_raw as StockGeneralRow[]).map((row) => ({
         id: row.producto_id,
         nombre: row.nombre_producto,
         descripcion: row.descripcion_producto,
@@ -209,13 +213,17 @@ export class ProductController {
       });
 
       // Usar el SP existente con filtro por producto_id
-      const result = await this.db.executeStoredProcedure('sp_StockGeneral_GetAll', {
-        categoria_id: null,
-        solo_bajo_stock: 0,
-        producto_id: productoId
-      });
+      const result = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>(
+        'sp_StockGeneral_GetAll',
+        [
+          null,
+          0,
+          productoId
+        ]
+      );
 
-      if (result.recordset.length === 0) {
+      const [rows] = result;
+      if (rows.length === 0) {
         res.status(404).json({
           success: false,
           message: 'Producto no encontrado'
@@ -223,7 +231,7 @@ export class ProductController {
         return;
       }
 
-      const row = (result.recordset as StockGeneralRow[])[0];
+      const row = (rows as StockGeneralRow[])[0];
       const producto = {
         id: row.producto_id,
         nombre: row.nombre_producto,
@@ -256,14 +264,15 @@ export class ProductController {
 
   public getSerialNumberProducts = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-      const result = await this.db.executeStoredProcedure<any>(
+      const result = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>(
         'sp_Productos_GetByUsaNumeroSerie',
-        { usa_numero_serie: 1 }
+        [1]
       );
 
+      const [data] = result;
       res.status(200).json({
         success: true,
-        data: result.recordset || []
+        data: data || []
       });
 
     } catch (error: any) {
@@ -303,20 +312,24 @@ export class ProductController {
         usuario: req.user?.id
       });
 
-      const result = await this.db.executeStoredProcedure('sp_Producto_Create', {
-        categoria_id: parseInt(categoria_id),
-        marca: marca.trim(),
-        modelo: modelo.trim(),
-        descripcion: descripcion ? descripcion.trim() : null,
-        stock_minimo: parseInt(stock_minimo) || 0,
-        usa_numero_serie: usa_numero_serie ? 1 : 0,
-        usuario_id: req.user?.id
-      });
+      const result = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>(
+        'sp_Producto_Create',
+        [
+          parseInt(categoria_id),
+          marca.trim(),
+          modelo.trim(),
+          descripcion ? descripcion.trim() : null,
+          parseInt(stock_minimo) || 0,
+          usa_numero_serie ? 1 : 0,
+          req.user?.id
+        ]
+      );
 
+      const [data] = result;
       res.status(201).json({
         success: true,
         message: 'Producto creado exitosamente',
-        data: result.recordset[0]
+        data: data[0]
       });
 
     } catch (error: any) {
@@ -384,18 +397,22 @@ export class ProductController {
         usuario: req.user?.id
       });
 
-      const result = await this.db.executeStoredProcedure('sp_Producto_Update', {
-        id: productoId,
-        categoria_id: parseInt(categoria_id),
-        marca: marca.trim(),
-        modelo: modelo.trim(),
-        descripcion: descripcion ? descripcion.trim() : null,
-        stock_minimo: parseInt(stock_minimo) || 0,
-        usa_numero_serie: usa_numero_serie ? 1 : 0,
-        usuario_id: req.user?.id
-      });
+      const result = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>(
+        'sp_Producto_Update',
+        [
+          productoId,
+          parseInt(categoria_id),
+          marca.trim(),
+          modelo.trim(),
+          descripcion ? descripcion.trim() : null,
+          parseInt(stock_minimo) || 0,
+          usa_numero_serie ? 1 : 0,
+          req.user?.id
+        ]
+      );
 
-      if (!result.recordset || result.recordset.length === 0) {
+      const [data] = result;
+      if (!data || data.length === 0) {
         res.status(404).json({
           success: false,
           message: 'Producto no encontrado'
@@ -406,7 +423,7 @@ export class ProductController {
       res.status(200).json({
         success: true,
         message: 'Producto actualizado exitosamente',
-        data: result.recordset[0]
+        data: data[0]
       });
 
     } catch (error: any) {
@@ -453,12 +470,16 @@ export class ProductController {
         usuario: req.user?.id
       });
 
-      const result = await this.db.executeStoredProcedure('sp_Producto_ToggleActive', {
-        id: productoId,
-        usuario_id: req.user?.id
-      });
+      const result = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>(
+        'sp_Producto_ToggleActive',
+        [
+          productoId,
+          req.user?.id
+        ]
+      );
 
-      if (!result.recordset || result.recordset.length === 0) {
+      const [data] = result;
+      if (!data || data.length === 0) {
         res.status(404).json({
           success: false,
           message: 'Producto no encontrado'
@@ -466,7 +487,7 @@ export class ProductController {
         return;
       }
 
-      const producto = result.recordset[0] as ProductRow;
+      const producto = data[0] as ProductRow;
 
       res.status(200).json({
         success: true,
@@ -521,15 +542,18 @@ export class ProductController {
         usuario: req.user?.id
       });
 
-      const result = await this.db.executeStoredProcedure('sp_Categoria_GetAll', {
-        activo_filter: incluir_inactivas === 'true' ? 2 : 1,
-        PageNumber: pageNum,
-        PageSize: limitNum,
-        SortBy: 'ruta_completa',
-        SortOrder: 'ASC'
-      });
+      const result = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>(
+        'sp_Categoria_GetAll',
+        [
+          incluir_inactivas === 'true' ? 2 : 1,
+          pageNum,
+          limitNum,
+          'ruta_completa',
+          'ASC'
+        ]
+      );
 
-      const rawData = result.recordset || [];
+      const [rawData] = result;
       
       // 🔧 MAPEAR CORRECTAMENTE los datos del SP a la interface Category del frontend
       const mappedCategories = rawData.map((row: any) => ({
@@ -599,19 +623,23 @@ export class ProductController {
         usuario: req.user?.id
       });
 
-      const result = await this.db.executeStoredProcedure('sp_Categoria_Create', {
-        nombre: nombre.trim(),
-        categoria_padre_id: categoria_padre_id ? parseInt(categoria_padre_id) : null,
-        requiere_serie: requiere_serie ? 1 : 0,
-        permite_asignacion: permite_asignacion ? 1 : 0,
-        permite_reparacion: permite_reparacion ? 1 : 0,
-        usuario_id: req.user?.id
-      });
+      const result = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>(
+        'sp_Categoria_Create',
+        [
+          nombre.trim(),
+          categoria_padre_id ? parseInt(categoria_padre_id) : null,
+          requiere_serie ? 1 : 0,
+          permite_asignacion ? 1 : 0,
+          permite_reparacion ? 1 : 0,
+          req.user?.id
+        ]
+      );
 
+      const [data] = result;
       res.status(201).json({
         success: true,
         message: 'Categoría creada exitosamente',
-        data: result.recordset[0]
+        data: data[0]
       });
 
     } catch (error: any) {
@@ -670,17 +698,21 @@ export class ProductController {
         usuario: req.user?.id
       });
 
-      const result = await this.db.executeStoredProcedure('sp_Categoria_Update', {
-        id: categoriaId,
-        nombre: nombre.trim(),
-        categoria_padre_id: categoria_padre_id ? parseInt(categoria_padre_id) : null,
-        requiere_serie: requiere_serie ? 1 : 0,
-        permite_asignacion: permite_asignacion ? 1 : 0,
-        permite_reparacion: permite_reparacion ? 1 : 0,
-        usuario_id: req.user?.id
-      });
+      const result = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>(
+        'sp_Categoria_Update',
+        [
+          categoriaId,
+          nombre.trim(),
+          categoria_padre_id ? parseInt(categoria_padre_id) : null,
+          requiere_serie ? 1 : 0,
+          permite_asignacion ? 1 : 0,
+          permite_reparacion ? 1 : 0,
+          req.user?.id
+        ]
+      );
 
-      if (!result.recordset || result.recordset.length === 0) {
+      const [data] = result;
+      if (!data || data.length === 0) {
         res.status(404).json({
           success: false,
           message: 'Categoría no encontrada'
@@ -691,7 +723,7 @@ export class ProductController {
       res.status(200).json({
         success: true,
         message: 'Categoría actualizada exitosamente',
-        data: result.recordset[0]
+        data: data[0]
       });
 
     } catch (error: any) {
@@ -733,12 +765,16 @@ export class ProductController {
         usuario: req.user?.id
       });
 
-      const result = await this.db.executeStoredProcedure('sp_Categoria_ToggleActive', {
-        id: categoriaId,
-        usuario_id: req.user?.id
-      });
+      const result = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>(
+        'sp_Categoria_ToggleActive',
+        [
+          categoriaId,
+          req.user?.id
+        ]
+      );
 
-      if (!result.recordset || result.recordset.length === 0) {
+      const [data] = result;
+      if (!data || data.length === 0) {
         res.status(404).json({
           success: false,
           message: 'Categoría no encontrada'
@@ -746,7 +782,7 @@ export class ProductController {
         return;
       }
 
-      const categoria = result.recordset[0] as CategoryRow;
+      const categoria = data[0] as CategoryRow;
 
       res.status(200).json({
         success: true,

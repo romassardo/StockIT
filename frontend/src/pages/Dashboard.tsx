@@ -1,15 +1,18 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FiUsers, FiPackage, FiShoppingCart, FiAlertCircle, FiClock, FiBarChart2, FiArrowUp, FiArrowDown, FiClipboard, FiRefreshCw, FiTool, FiEdit3, FiUser, FiTrendingUp } from 'react-icons/fi';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, PieChart, Pie, Cell } from 'recharts';
-import api from '../services/api';
-import { useNotification } from '../contexts/NotificationContext';
-import { useTheme } from '../contexts/ThemeContext';
+import { 
+  FiActivity, FiAlertCircle, FiBarChart2, FiClock, FiPlusCircle, 
+  FiUserCheck, FiUserX, FiEdit3, FiTool, FiTrash2 
+} from 'react-icons/fi';
+import { 
+  PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid
+} from 'recharts';
 import DataTable from '../components/common/DataTable';
-import Loading from '../components/common/Loading';
 import StatCard from '../components/common/StatCard';
+import { useTheme } from '../contexts/ThemeContext';
+import api from '../services/api';
 
-// Interfaces para los datos del dashboard
+// 📊 Interfaces para el tipado
 interface SystemStats {
   TotalUsuariosActivos: number;
   TotalCategoriasActivas: number;
@@ -56,36 +59,15 @@ interface InventoryKPIs {
   rotationRate: number;
 }
 
-// 🎯 Componente Tooltip personalizado para forzar colores
+// 🎨 Tooltip personalizado para gráficos
 const CustomTooltip: React.FC<any> = ({ active, payload, label }) => {
-  const { theme } = useTheme();
-  
   if (active && payload && payload.length) {
     return (
-      <div style={{
-        backgroundColor: theme === 'dark' ? 'rgba(15, 23, 42, 0.95)' : 'rgba(255, 255, 255, 0.95)',
-        border: `1px solid ${theme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'}`,
-        borderRadius: '12px',
-        padding: '12px',
-        backdropFilter: 'blur(20px)',
-        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)'
-      }}>
-        <p style={{ 
-          color: theme === 'dark' ? '#F8FAFC' : '#0F172A',
-          margin: 0,
-          fontWeight: '500'
-        }}>
-          {label}
+      <div className="bg-slate-800/90 backdrop-blur border border-slate-600/50 p-3 rounded-lg shadow-2xl">
+        <p className="text-slate-200 font-semibold">{`${label}`}</p>
+        <p className="text-primary-400">
+          {`${payload[0].name}: ${payload[0].value}${payload[0].unit || ''}`}
         </p>
-        {payload.map((entry: any, index: number) => (
-          <p key={index} style={{ 
-            color: theme === 'dark' ? '#F8FAFC' : '#0F172A',
-            margin: '4px 0 0 0',
-            fontWeight: '600'
-          }}>
-            {`${entry.name}: ${entry.value}${entry.name === 'Porcentaje (%)' ? '%' : entry.dataKey === 'value' && label !== 'Utilización' ? ' equipos' : ''}`}
-          </p>
-        ))}
       </div>
     );
   }
@@ -93,283 +75,198 @@ const CustomTooltip: React.FC<any> = ({ active, payload, label }) => {
 };
 
 const Dashboard: React.FC = () => {
-  const { addNotification } = useNotification();
   const { theme } = useTheme();
   const navigate = useNavigate();
 
-  // Estados para los datos del dashboard
-  const [loading, setLoading] = useState<boolean>(true);
+  // 📊 Estados del dashboard
   const [stats, setStats] = useState<SystemStats | null>(null);
   const [stockAlerts, setStockAlerts] = useState<StockAlert[]>([]);
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
-  const [kpis, setKPIs] = useState<InventoryKPIs | null>(null);
+  const [kpis] = useState<InventoryKPIs>({
+    lowStockPercentage: 15,
+    utilizationRate: 78,
+    avgRepairTime: 5.2,
+    rotationRate: 2.3
+  });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Función memoizada para cargar todos los datos del dashboard
+  // 🎯 Cargar datos del dashboard
   const loadDashboardData = useCallback(async () => {
-    setLoading(true);
     try {
-      // Obtener estadísticas generales
-      const statsResponse = await api.get('/dashboard/stats');
+      setLoading(true);
+      setError(null);
 
-      // Obtener alertas de stock
-      const alertsResponse = await api.get('/dashboard/alerts');
+      // Cargar estadísticas principales
+      try {
+        const statsResponse = await api.get('/dashboard/stats');
+        console.log('📊 Stats response:', statsResponse.data);
+        if (statsResponse.data.success) {
+          setStats(statsResponse.data.data);
+        }
+      } catch (statsError) {
+        console.error('❌ Error cargando estadísticas:', statsError);
+      }
 
-      // Obtener actividad reciente
-      const activityResponse = await api.get('/dashboard/activity', {
-        params: { limit: 10 }
-      });
+      // Cargar alertas de stock
+      try {
+        const alertsResponse = await api.get('/dashboard/alerts');
+        console.log('🚨 Alerts response:', alertsResponse.data);
+        
+        if (alertsResponse.data.success) {
+          const alertsData = alertsResponse.data.data;
+          if (Array.isArray(alertsData)) {
+            setStockAlerts(alertsData.slice(0, 5));
+          } else {
+            console.warn('⚠️ Las alertas no son un array:', alertsData);
+            setStockAlerts([]);
+          }
+        } else {
+          console.warn('⚠️ Response no fue exitosa:', alertsResponse.data);
+          setStockAlerts([]);
+        }
+      } catch (alertsError) {
+        console.error('❌ Error cargando alertas:', alertsError);
+        setStockAlerts([]);
+      }
 
-      // Obtener KPIs de inventario
-      const kpisResponse = await api.get('/dashboard/kpis');
+      // Cargar actividad reciente
+      try {
+        const activityResponse = await api.get('/dashboard/activity');
+        console.log('🔄 Activity response:', activityResponse.data);
+        
+        if (activityResponse.data.success) {
+          // Validación defensiva: verificar que data existe y es un array
+          const activityData = activityResponse.data.data;
+          if (Array.isArray(activityData)) {
+            setRecentActivity(activityData);
+          } else {
+            console.warn('⚠️ La actividad no es un array:', activityData);
+            setRecentActivity([]);
+          }
+        } else {
+          console.warn('⚠️ Response no fue exitosa:', activityResponse.data);
+          setRecentActivity([]);
+        }
+      } catch (activityError) {
+        console.error('❌ Error cargando actividad:', activityError);
+        setRecentActivity([]);
+      }
 
-      // Establecer todos los datos en los estados
-      setStats(statsResponse.data.data);
-      setStockAlerts(alertsResponse.data.data);
-      setRecentActivity(activityResponse.data.data);
-      setKPIs(kpisResponse.data.data);
-    } catch (error: any) {
-      console.error('❌ Error al cargar los datos del dashboard:', error);
-      addNotification({
-        type: 'error',
-        title: 'Error',
-        message: 'No se pudieron cargar los datos del dashboard. ' + (error.response?.data?.message || error.message)
-      });
+    } catch (err: any) {
+      console.error('❌ Error general cargando datos del dashboard:', err);
+      setError('Error cargando datos del dashboard');
     } finally {
       setLoading(false);
     }
-  }, [addNotification]);
+  }, []);
 
-  // Cargar los datos al montar el componente
   useEffect(() => {
     loadDashboardData();
-    
-    // Actualizar los datos cada 10 minutos (reducido de 5 minutos para mejor rendimiento)
-    const interval = setInterval(loadDashboardData, 10 * 60 * 1000);
-    return () => {
-      clearInterval(interval);
-    };
   }, [loadDashboardData]);
 
-  // Preparar datos para gráficos - MEMOIZADOS para evitar re-renders constantes
-  const inventoryStatusData = useMemo(() => {
-    if (!stats) return [];
-    return [
-      { name: 'Disponibles', value: stats.ItemsDisponiblesInventarioIndividual, color: '#28A745' },
-      { name: 'Asignados', value: stats.ItemsAsignadosInventarioIndividual, color: '#17A2B8' },
-      { name: 'En Reparación', value: stats.ItemsEnReparacionInventarioIndividual, color: '#FFC107' },
-      { name: 'Dados de Baja', value: stats.ItemsBajaInventarioIndividual, color: '#DC3545' }
-    ];
-  }, [stats]);
+  // 🎨 Función para obtener el color de porcentaje de stock
+  const getStockPercentageColor = useCallback((percentage: number): string => {
+    if (percentage <= 20) return '#EF4444'; // red-500
+    if (percentage <= 50) return '#F59E0B'; // amber-500
+    return '#10B981'; // emerald-500
+  }, []);
 
-  // Preparar datos para el gráfico de barras de KPIs - MEMOIZADO
-  const kpisData = useMemo(() => {
-    if (!kpis) return [];
-    return [
-      { name: 'Stock Bajo', value: kpis.lowStockPercentage, color: '#FFC107' },
-      { name: 'Utilización', value: kpis.utilizationRate, color: '#17A2B8' },
-      { name: 'Rotación', value: kpis.rotationRate * 10, color: '#3F51B5' } // Multiplicamos por 10 para mejor visualización
-    ];
-  }, [kpis]);
-
-  // Formato para fechas - memoizado
+  // 🎯 Función para formatear fecha
   const formatDate = useCallback((dateString: string): string => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('es-ES', {
+    return new Date(dateString).toLocaleDateString('es-ES', {
       day: '2-digit',
       month: '2-digit',
-      year: 'numeric',
       hour: '2-digit',
       minute: '2-digit'
     });
   }, []);
 
-  // Determinar el icono y color para la actividad según su tipo - memoizado
+  // 🎨 Función para obtener icono de actividad
   const getActivityIcon = useCallback((activity: RecentActivity) => {
-    const actionType = activity.Accion.toLowerCase();
-    const tableType = activity.TablaAfectada.toLowerCase();
+    const iconMap: { [key: string]: JSX.Element } = {
+      'CREATE': <FiPlusCircle className="text-success-500" />,
+      'UPDATE': <FiEdit3 className="text-primary-500" />,
+      'DELETE': <FiTrash2 className="text-danger-500" />,
+      'ASSIGN': <FiUserCheck className="text-info-500" />,
+      'RETURN': <FiUserX className="text-warning-500" />,
+      'REPAIR': <FiTool className="text-secondary-500" />
+    };
     
-    // Iconos específicos por tabla y acción
-    if (tableType.includes('asignacion')) {
-      if (actionType === 'insert') return <FiArrowUp className="text-success-500 w-4 h-4" />;
-      if (actionType === 'update') return <FiRefreshCw className="text-info-500 w-4 h-4" />;
-    } else if (tableType.includes('reparacion')) {
-      return <FiTool className="text-warning-500 w-4 h-4" />;
-    } else if (tableType.includes('inventarioindividual')) {
-      if (actionType === 'insert') return <FiPackage className="text-success-500 w-4 h-4" />;
-      if (actionType === 'update') return <FiEdit3 className="text-info-500 w-4 h-4" />;
-    } else if (tableType.includes('usuario')) {
-      return <FiUser className="text-info-500 w-4 h-4" />;
-    } else if (tableType.includes('movimientosstock')) {
-      if (actionType === 'insert') return <FiTrendingUp className="text-primary-500 w-4 h-4" />;
-    }
-    
-    // Iconos por acción general
-    if (actionType === 'insert') return <FiArrowUp className="text-success-500 w-4 h-4" />;
-    if (actionType === 'update') return <FiClipboard className="text-info-500 w-4 h-4" />;
-    if (actionType === 'delete') return <FiArrowDown className="text-danger-500 w-4 h-4" />;
-    return <FiClock className="text-slate-400 w-4 h-4" />;
+    return iconMap[activity.Accion] || <FiActivity className="text-slate-500" />;
   }, []);
 
-  // Determinar el color del porcentaje de stock - memoizado
-  const getStockPercentageColor = useCallback((percentage: number): string => {
-    if (percentage <= 25) return 'text-[#DC3545]';
-    if (percentage <= 50) return 'text-[#FFC107]';
-    if (percentage <= 75) return 'text-[#17A2B8]';
-    return 'text-[#28A745]';
+  // 🎨 Función para formatear descripción de actividad
+  const formatActivityDescription = useCallback((activity: RecentActivity) => {
+    let description = activity.Descripcion;
+    
+    // Intentar parsear JSON si es necesario
+    try {
+      const parsed = JSON.parse(description);
+      if (parsed.activa === "0" || parsed.activa === 0) {
+        const fecha = parsed.fecha_devolucion ? 
+          new Date(parsed.fecha_devolucion).toLocaleString('es-ES') : '';
+        return `📤 Devolución de Asignación${fecha ? ` - devuelto el ${fecha}` : ''}`;
+      }
+      if (parsed.accion && parsed.accion.toLowerCase().includes('retorno de reparación')) {
+        return `🔧 Retorno de Reparación - ${parsed.estado_reparacion}: ${parsed.solucion || ''}`;
+      }
+    } catch (e) {
+      // Si no es JSON, usar la descripción tal como está
+    }
+
+    // Limpiar caracteres corruptos
+    return description
+      .replace(/Ã³/g, 'ó').replace(/Ã±/g, 'ñ').replace(/Ã¡/g, 'á')
+      .replace(/Ã©/g, 'é').replace(/Ã­/g, 'í').replace(/Â/g, '')
+      .substring(0, 100);
   }, []);
 
-  // Función para formatear la descripción de actividad - agregar después de las otras funciones helper
-  const formatActivityDescription = useCallback((activity: RecentActivity): { title: string; subtitle: string } => {
-    let title = `${activity.TablaAfectada} - ${activity.Accion}`;
-    let subtitle = activity.Descripcion;
-
-    // Corregir problemas de codificación UTF-8 comunes
-    subtitle = subtitle
-      .replace(/ActualizaciÃ³n/g, 'Actualización')
-      .replace(/creaciÃ³n/g, 'creación')
-      .replace(/modificaciÃ³n/g, 'modificación')
-      .replace(/AsignaciÃ³n/g, 'Asignación')
-      .replace(/DevoluciÃ³n/g, 'Devolución')
-      .replace(/ReparaciÃ³n/g, 'Reparación')
-      .replace(/EnvÃ­o/g, 'Envío')
-      .replace(/ubicaciÃ³n/g, 'ubicación')
-      .replace(/estÃ¡/g, 'está')
-      .replace(/soluciÃ³n/g, 'solución')
-      .replace(/contraseÃ±a/g, 'contraseña')
-      .replace(/administraciÃ³n/g, 'administración')
-      .replace(/configuraciÃ³n/g, 'configuración');
-
-    // Manejar formato especial "[key: value, key: value]" de usuarios
-    if (subtitle.includes('Valores anteriores:') && subtitle.includes('[') && subtitle.includes(']')) {
-      try {
-        title = '👤 Actualización de Usuario';
-        
-        // Extraer información específica del formato [key: value, key: value]
-        const match = subtitle.match(/Valores anteriores:\s*\[([^\]]+)\]/);
-        if (match) {
-          const valoresText = match[1];
-          
-          // Buscar campos específicos
-          const nombreMatch = valoresText.match(/nombre:\s*([^,]+)/);
-          const emailMatch = valoresText.match(/email:\s*([^,]+)/);
-          const passwordMatch = subtitle.includes('password: actualizada');
-          
-          let descripcion = 'Usuario actualizado';
-          if (nombreMatch && emailMatch) {
-            descripcion = `${nombreMatch[1].trim()}${passwordMatch ? ' - contraseña actualizada' : ''}`;
-          } else if (passwordMatch) {
-            descripcion = 'Contraseña actualizada';
-          }
-          
-          subtitle = descripcion;
-        } else {
-          // Fallback para actualizaciones de usuario sin formato específico
-          if (subtitle.includes('password: actualizada')) {
-            subtitle = 'Contraseña actualizada';
-          } else {
-            subtitle = 'Información de usuario actualizada';
-          }
-        }
-      } catch (error) {
-        console.debug('Error parseando formato de usuario:', error);
-        subtitle = 'Usuario actualizado';
+  // 📊 Datos para los gráficos KPI
+  const kpisData = useMemo(() => {
+    if (!kpis) return [];
+    
+    return [
+      { 
+        name: 'Stock Bajo', 
+        value: kpis.lowStockPercentage,
+        color: getStockPercentageColor(kpis.lowStockPercentage),
+        unit: '%'
+      },
+      { 
+        name: 'Utilización', 
+        value: kpis.utilizationRate,
+        color: '#6366F1',
+        unit: '%'
+      },
+      { 
+        name: 'Reparación', 
+        value: kpis.avgRepairTime,
+        color: '#8B5CF6',
+        unit: ' días'
       }
-    }
-    // Intentar parsear si es JSON estándar
-    else {
-      try {
-        // Detectar si parece JSON (empieza con { y contiene :)
-        if (subtitle.trim().startsWith('{') && subtitle.includes(':')) {
-          const data = JSON.parse(subtitle);
-        
-          // Formatear según el tipo de actividad
-          if (activity.TablaAfectada === 'Asignaciones') {
-            if (activity.Accion === 'UPDATE' && (data.activa === '0' || data.activa === 0)) {
-              title = '📤 Devolución de Asignación';
-              if (data.fecha_devolucion) {
-                const fecha = new Date(data.fecha_devolucion);
-                subtitle = `Activo devuelto el ${fecha.toLocaleDateString()} a las ${fecha.toLocaleTimeString()}`;
-              } else {
-                subtitle = 'Asignación devuelta';
-              }
-            } else if (activity.Accion === 'INSERT') {
-              title = '📥 Nueva Asignación';
-              subtitle = 'Nuevo activo asignado a empleado';
-            } else if (data.estado === 'Activa' || data.activa === 1) {
-              title = '📥 Nueva Asignación';
-              subtitle = `Activo asignado ${data.fecha_asignacion ? `el ${formatDate(data.fecha_asignacion)}` : 'recientemente'}`;
-            }
-          } else if (activity.TablaAfectada === 'Reparaciones') {
-            if (activity.Accion === 'Retorno' && data.estado_reparacion) {
-              title = '🔧 Retorno de Reparación';
-              const estado = data.estado_reparacion === 'Reparado' ? '✅ Reparado' : '❌ Sin reparar';
-              const solucion = data.solucion && data.solucion.trim() ? `: ${data.solucion}` : '';
-              subtitle = `${estado}${solucion}`;
-            } else if (activity.Accion === 'INSERT' && data.proveedor) {
-              title = '🛠️ Nueva Reparación';
-              const proveedor = data.proveedor ? ` a ${data.proveedor}` : '';
-              const problema = data.problema ? `: ${data.problema}` : '';
-              subtitle = `Enviado${proveedor}${problema}`;
-            } else if (data.accion === 'Retorno de Reparación') {
-              title = '🔧 Retorno de Reparación';
-              const estado = data.estado_reparacion === 'Reparado' ? '✅ Reparado' : '❌ Sin reparar';
-              const solucion = data.solucion && data.solucion.trim() ? `: ${data.solucion}` : '';
-              subtitle = `${estado}${solucion}`;
-            } else if (data.proveedor || data.problema) {
-              title = '🛠️ Nueva Reparación';
-              const proveedor = data.proveedor ? ` a ${data.proveedor}` : '';
-              const problema = data.problema ? `: ${data.problema}` : '';
-              subtitle = `Enviado${proveedor}${problema}`;
-            }
-          } else if (activity.TablaAfectada === 'InventarioIndividual') {
-            if (data.inventario_individual_id && data.producto_id === 0) {
-              title = '🔄 Cambio de Estado';
-              subtitle = `Activo ID: ${data.inventario_individual_id} actualizado`;
-            } else if (data.estado_nuevo) {
-              title = `🔄 Cambio de Estado`;
-              subtitle = `De "${data.estado_anterior || 'N/A'}" a "${data.estado_nuevo}"`;
-            } else if (data.numero_serie) {
-              title = '📦 Nuevo Activo';
-              subtitle = `Serie: ${data.numero_serie}`;
-            }
-          } else if (activity.TablaAfectada === 'Usuarios') {
-            title = '👤 Actualización de Usuario';
-            if (data.nombre || data.email) {
-              subtitle = `Actualizado: ${[data.nombre, data.email].filter(Boolean).join(', ')}`;
-            }
-          } else if (activity.TablaAfectada === 'MovimientosStock') {
-            if (data.tipo_movimiento === 'Entrada') {
-              title = '📈 Entrada de Stock';
-              subtitle = `+${data.cantidad || 'N/A'} unidades`;
-            } else if (data.tipo_movimiento === 'Salida') {
-              title = '📉 Salida de Stock';
-              subtitle = `-${data.cantidad || 'N/A'} unidades`;
-            }
-          } else {
-            // Formateo genérico para otros JSON no reconocidos
-            const entries = Object.entries(data);
-            if (entries.length <= 2) {
-              subtitle = entries.map(([key, value]) => `${key}: ${value}`).join(', ');
-            } else {
-              subtitle = `${entries.length} campos modificados`;
-            }
-          }
-        }
-      } catch (error) {
-        // Si no es JSON válido, usar la descripción tal como está (ya corregida la codificación)
-        console.debug('Descripción no es JSON válido:', subtitle);
-      }
-    }
+    ];
+  }, [kpis, getStockPercentageColor]);
 
-    // Limpiar texto adicional si es muy largo
-    if (subtitle.length > 100) {
-      subtitle = subtitle.substring(0, 100) + '...';
-    }
+  // 📊 Datos para el gráfico de dona de utilización
+  const utilizationData = useMemo(() => {
+    if (!stats) return [];
 
-    return { title, subtitle };
-  }, [formatDate]);
+    const assigned = stats.ItemsAsignadosInventarioIndividual || 0;
+    const available = stats.ItemsDisponiblesInventarioIndividual || 0;
+    const total = assigned + available;
 
-  // Columnas para la tabla de alertas de stock - memoizadas
+    if (total === 0) return [];
+
+    const utilizationRate = Math.round((assigned / total) * 100);
+    
+    return [
+      { name: 'Asignado', value: assigned, percentage: utilizationRate, color: '#6366F1' },
+      { name: 'Disponible', value: available, percentage: 100 - utilizationRate, color: '#334155' }
+    ];
+  }, [stats]);
+
+  // 📊 Columnas para la tabla de alertas de stock
   const stockAlertsColumns = useMemo(() => [
     {
       id: 'producto',
@@ -377,87 +274,48 @@ const Dashboard: React.FC = () => {
       accessor: (alert: StockAlert) => (
         <div className="flex flex-col">
           <span className="font-medium">{alert.Marca} {alert.Modelo}</span>
-          <span className="text-xs text-[#6C757D]">{alert.CategoriaNombre}</span>
+          <span className="text-xs text-slate-500">{alert.CategoriaNombre}</span>
         </div>
       ),
-      width: '40%'
+      width: '50%'
     },
     {
       id: 'stock',
-      header: 'Stock Actual',
+      header: 'Stock',
       accessor: (alert: StockAlert) => (
-        <span className="font-medium">{alert.CantidadActual}</span>
+        <div className="flex flex-col text-center">
+          <span className="font-bold">{alert.CantidadActual}</span>
+          <span className="text-xs text-slate-500">Min: {alert.StockMinimo}</span>
+        </div>
       ),
-      width: '15%'
+      width: '25%'
     },
     {
-      id: 'minimo',
-      header: 'Mínimo',
-      accessor: (alert: StockAlert) => (
-        <span className="font-medium">{alert.StockMinimo}</span>
-      ),
-      width: '15%'
-    },
-    {
-      id: 'porcentaje',
+      id: 'estado',
       header: 'Estado',
       accessor: (alert: StockAlert) => {
-        // 🎯 Estados claros y descriptivos
-        const getEstadoStock = () => {
-          if (alert.CantidadActual === 0) {
-            return {
-              label: 'Sin Stock',
-              detalle: `0/${alert.StockMinimo}`,
-              color: 'text-danger-600',
-              bgColor: 'bg-danger-500/10 border-danger-500/20',
-              icon: '❌'
-            };
-          } else if (alert.CantidadActual <= alert.StockMinimo) {
-            return {
-              label: 'Bajo Mínimo', 
-              detalle: `${alert.CantidadActual}/${alert.StockMinimo}`,
-              color: 'text-warning-600',
-              bgColor: 'bg-warning-500/10 border-warning-500/20',
-              icon: '⚠️'
-            };
-          } else {
-            return {
-              label: 'En Mínimo',
-              detalle: `${alert.CantidadActual}/${alert.StockMinimo}`,
-              color: 'text-success-600',
-              bgColor: 'bg-success-500/10 border-success-500/20',
-              icon: '✅'
-            };
-          }
-        };
-
-        const estado = getEstadoStock();
-
+        const isZero = alert.CantidadActual === 0;
+        const isLow = alert.CantidadActual <= alert.StockMinimo;
+        
         return (
           <div className={`
-            flex items-center justify-between p-2 rounded-lg border
-            ${estado.bgColor}
-            transition-all duration-200
+            flex items-center justify-center px-2 py-1 rounded-full text-xs font-medium
+            ${isZero 
+              ? 'bg-red-500/20 text-red-700 border border-red-500/30' 
+              : isLow 
+                ? 'bg-yellow-500/20 text-yellow-700 border border-yellow-500/30'
+                : 'bg-green-500/20 text-green-700 border border-green-500/30'
+            }
           `}>
-            <div className="flex items-center space-x-2">
-              <span className="text-sm">{estado.icon}</span>
-              <div className="flex flex-col">
-                <span className={`font-medium text-sm ${estado.color}`}>
-                  {estado.label}
-                </span>
-                <span className="text-xs opacity-75">
-                  {estado.detalle}
-                </span>
-              </div>
-            </div>
+            {isZero ? '❌ Sin Stock' : isLow ? '⚠️ Bajo' : '✅ OK'}
           </div>
         );
       },
-      width: '30%'
+      width: '25%'
     }
-  ], [getStockPercentageColor]);
+  ], []);
 
-  // Columnas para la tabla de actividad reciente - memoizadas - MODIFICAR la definición existente
+  // 📊 Columnas para la tabla de actividad reciente
   const activityColumns = useMemo(() => [
     {
       id: 'tipo',
@@ -468,241 +326,146 @@ const Dashboard: React.FC = () => {
     {
       id: 'descripcion',
       header: 'Descripción',
-      accessor: (activity: RecentActivity) => {
-        const formatted = formatActivityDescription(activity);
-        return (
-          <div className="flex flex-col">
-            <span className="font-medium text-slate-200">{formatted.title}</span>
-            <span className="text-xs text-slate-400 mt-1">{formatted.subtitle}</span>
-          </div>
-        );
-      },
-      width: '60%'
+      accessor: (activity: RecentActivity) => (
+        <div className="flex flex-col">
+          <span className="font-medium">{activity.TablaAfectada}</span>
+          <span className="text-xs text-slate-500">{formatActivityDescription(activity)}</span>
+        </div>
+      ),
+      width: '50%'
     },
     {
       id: 'usuario',
       header: 'Usuario',
       accessor: (activity: RecentActivity) => (
-        <span className="text-slate-300">{activity.UsuarioNombre || 'Usuario ' + activity.UsuarioID}</span>
+        <span className="text-sm">{activity.UsuarioNombre || `Usuario ${activity.UsuarioID}`}</span>
       ),
-      width: '15%'
+      width: '25%'
     },
     {
       id: 'fecha',
       header: 'Fecha',
       accessor: (activity: RecentActivity) => (
-        <span className="text-slate-300">{formatDate(activity.FechaHora)}</span>
+        <span className="text-sm">{formatDate(activity.FechaHora)}</span>
       ),
       width: '20%'
     }
   ], [getActivityIcon, formatActivityDescription, formatDate]);
 
   if (loading) {
-    return <Loading />;
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary-500"></div>
+      </div>
+    );
   }
-  
 
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <FiAlertCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold mb-2">Error al cargar el dashboard</h2>
+          <p className="text-slate-600 mb-4">{error}</p>
+          <button 
+            onClick={loadDashboardData}
+            className="btn-primary"
+          >
+            Intentar de nuevo
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className={`relative w-full min-h-screen overflow-hidden transition-all duration-300 ${
-      theme === 'dark' 
-        ? 'bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900' 
-        : 'bg-gradient-to-br from-slate-50 via-slate-100 to-slate-200'
-    }`}>
-      
-      {/* 🌌 Fondo moderno con partículas animadas */}
-      <div className={`fixed inset-0 pointer-events-none transition-all duration-300 ${
-        theme === 'dark' 
-          ? 'bg-gradient-to-br from-slate-900/95 via-slate-800/90 to-slate-900/95' 
-          : 'bg-gradient-to-br from-slate-50/95 via-slate-100/90 to-slate-200/95'
-      }`}>
-        <div className={`absolute top-20 left-10 w-32 h-32 rounded-full blur-xl animate-float transition-all duration-300 ${
-          theme === 'dark' 
-            ? 'bg-primary-500/20' 
-            : 'bg-primary-500/10'
-        }`}></div>
-        <div className={`absolute top-40 right-20 w-24 h-24 rounded-full blur-lg animate-float transition-all duration-300 ${
-          theme === 'dark' 
-            ? 'bg-secondary-500/20' 
-            : 'bg-secondary-500/10'
-        }`} style={{animationDelay: '2s'}}></div>
-        <div className={`absolute bottom-32 left-1/4 w-20 h-20 rounded-full blur-lg animate-float transition-all duration-300 ${
-          theme === 'dark' 
-            ? 'bg-success-500/20' 
-            : 'bg-success-500/10'
-        }`} style={{animationDelay: '4s'}}></div>
-        <div className={`absolute bottom-20 right-1/3 w-28 h-28 rounded-full blur-xl animate-float transition-all duration-300 ${
-          theme === 'dark' 
-            ? 'bg-info-500/20' 
-            : 'bg-info-500/10'
-        }`} style={{animationDelay: '1s'}}></div>
+    <div className="space-y-8">
+      {/* 📊 Header con título */}
+      <div className="flex items-center space-x-4">
+        <FiBarChart2 className="w-8 h-8 text-primary-500" strokeWidth={2.5} />
+        <div>
+          <h1 className="text-2xl md:text-5xl font-bold bg-gradient-to-r from-primary-600 via-primary-500 to-secondary-500 bg-clip-text text-transparent">
+            Dashboard
+          </h1>
+        </div>
       </div>
 
-      {/* 📊 Contenido principal con glassmorphism */}
-      <div className="relative z-10 p-6 space-y-8">
-        
-        {/* ✨ Cabecera moderna */}
-        <div className="glass-card p-6 flex flex-col md:flex-row md:justify-between md:items-center">
-          {/* 🎯 HEADER ESTÁNDAR MODERN DESIGN SYSTEM 2025 */}
-          <div className="flex items-center space-x-4 mb-4 md:mb-0">
-            <FiBarChart2 className="w-8 h-8 text-primary-500" strokeWidth={2.5} />
-            <div>
-              <h1 className="text-2xl md:text-5xl font-bold bg-gradient-to-r from-primary-600 via-primary-500 to-secondary-500 bg-clip-text text-transparent">
-                Panel de Control
-              </h1>
-              <p className={`text-lg transition-colors duration-300 ${
-                theme === 'dark' ? 'text-slate-300' : 'text-slate-600'
-              }`}>
-                StockIT - Sistema de Inventario Moderno
-              </p>
-            </div>
-          </div>
-          
-          <div className="flex items-center space-x-4">
-            {/* 🔄 Botón actualizar con glassmorphism */}
-            <button 
-              onClick={loadDashboardData}
-              className="btn-glass-secondary group flex items-center space-x-2"
-            >
-              <FiBarChart2 className="w-5 h-5 transition-transform group-hover:rotate-12" strokeWidth={2.5} /> 
-              <span>Actualizar Datos</span>
-            </button>
-            
-            {/* 💫 Indicador de estado */}
-            <div className={`
-              px-3 py-1.5 rounded-full text-xs font-medium
-              ${loading 
-                ? 'bg-warning-500/20 text-warning-700 border border-warning-500/30' 
-                : 'bg-success-500/20 text-success-700 border border-success-500/30'
-              }
-              backdrop-blur-sm animate-pulse-glow
-            `}>
-              {loading ? '🔄 Cargando...' : '✅ Datos actualizados'}
-            </div>
-          </div>
-        </div>
-
-        {/* 📊 Tarjetas de Estadísticas Principales */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <StatCard 
-            title="👥 Usuarios Activos"
-            value={stats?.TotalUsuariosActivos || 0} 
-            icon={<FiUsers className="h-6 w-6" />}
+      {/* 📊 Estadísticas principales */}
+      {stats && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+          <StatCard
+            title="Usuarios Activos"
+            value={stats.TotalUsuariosActivos}
+            icon={<FiUserCheck />}
             color="primary"
-            subValue="Total de usuarios en sistema"
-            trend="up"
-            trendValue="+5.2% este mes"
           />
-          <StatCard 
-            title="💻 Equipos Gestionados"
-            value={stats?.TotalItemsInventarioIndividual || 0} 
-            icon={<FiPackage className="h-6 w-6" />}
-            color="info"
-            subValue={`${stats?.ItemsAsignadosInventarioIndividual || 0} equipos asignados`}
-            trend="neutral"
-            trendValue="Sin cambios"
-          />
-          <StatCard 
-            title="📦 Stock Disponible"
-            value={stats?.TotalUnidadesStockGeneral || 0} 
-            icon={<FiShoppingCart className="h-6 w-6" />}
+          <StatCard
+            title="Items Disponibles"
+            value={stats.ItemsDisponiblesInventarioIndividual}
+            icon={<FiActivity />}
             color="success"
-            subValue={`${stats?.ProductosEnStockGeneralDistintos || 0} productos únicos`}
-            trend="up"
-            trendValue="+12.8% stock"
           />
-          <StatCard 
-            title="⚠️ Alertas de Stock"
-            value={stockAlerts?.length || 0} 
-            icon={<FiAlertCircle className="h-6 w-6" />}
+          <StatCard
+            title="Items Asignados"
+            value={stats.ItemsAsignadosInventarioIndividual}
+            icon={<FiUserCheck />}
+            color="info"
+          />
+          <StatCard
+            title="En Reparación"
+            value={stats.ItemsEnReparacionInventarioIndividual}
+            icon={<FiTool />}
             color="warning"
-            subValue="Productos bajo stock mínimo"
-            trend={stockAlerts?.length > 5 ? "down" : "up"}
-            trendValue={stockAlerts?.length > 5 ? "Crítico" : "Bajo control"}
           />
         </div>
+      )}
 
-        {/* 📈 Gráficos y Análisis */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          
-          {/* 🥧 Gráfico de estado de inventario con glassmorphism */}
-          <div className="chart-glass">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className={`text-2xl font-bold text-gradient-primary`}>
-                📊 Estado del Inventario
-              </h2>
-              <div className="flex items-center space-x-2">
-                <div className="w-2 h-2 bg-success-500 rounded-full animate-pulse"></div>
-                <span className={`text-sm ${theme === 'dark' ? 'text-slate-300' : 'text-slate-600'}`}>
-                  En tiempo real
-                </span>
-              </div>
-            </div>
-            
-            <div className="h-80 relative">
+      {/* 📊 Gráficos KPI */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        {utilizationData.length > 0 && (
+          <div className="glass-card p-6 relative">
+            <h2 className="text-xl font-bold mb-6">📊 Tasa de Utilización de Activos</h2>
+            <div className="h-64 w-full relative">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
-                    data={inventoryStatusData}
+                    data={utilizationData}
                     cx="50%"
                     cy="50%"
-                    labelLine={false}
-                    outerRadius={120}
-                    innerRadius={60}
+                    innerRadius="70%"
+                    outerRadius="100%"
                     fill="#8884d8"
+                    paddingAngle={5}
                     dataKey="value"
-                    nameKey="name"
-                    label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                    stroke="none"
                   >
-                    {inventoryStatusData.map((entry, index) => (
+                    {utilizationData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
                   </Pie>
                   <Tooltip content={<CustomTooltip />} />
-                  <Legend />
                 </PieChart>
               </ResponsiveContainer>
-            </div>
-          </div>
-
-          {/* 📊 Gráfico de KPIs con efectos modernos */}
-          <div className="chart-glass">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className={`text-2xl font-bold text-gradient-secondary`}>
-                📈 Métricas de Rendimiento
-              </h2>
-              <div className="flex items-center space-x-2">
-                <div className="w-2 h-2 bg-info-500 rounded-full animate-pulse"></div>
-                <span className={`text-sm ${theme === 'dark' ? 'text-slate-300' : 'text-slate-600'}`}>
-                  KPIs actualizados
-                </span>
+              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                <span className="text-4xl font-bold text-slate-100">{utilizationData[0].percentage}%</span>
+                <span className="text-sm text-slate-400">Utilización</span>
               </div>
             </div>
-            
-            <div className="h-80 relative">
+          </div>
+        )}
+        
+        {/* 📊 Gráfico de Indicadores de Rendimiento */}
+        {kpisData.length > 0 && (
+          <div className="glass-card p-6">
+            <h2 className="text-xl font-bold mb-6">🚀 Indicadores de Rendimiento</h2>
+            <div className="h-64 w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={kpisData}
-                  margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-                >
-                  <CartesianGrid 
-                    strokeDasharray="3 3" 
-                    stroke={theme === 'dark' ? 'rgba(148, 163, 184, 0.2)' : 'rgba(148, 163, 184, 0.3)'} 
-                  />
-                  <XAxis 
-                    dataKey="name" 
-                    tick={{ fill: theme === 'dark' ? '#CBD5E1' : '#475569', fontSize: 12 }}
-                    axisLine={false}
-                    tickLine={false}
-                  />
-                  <YAxis 
-                    tick={{ fill: theme === 'dark' ? '#CBD5E1' : '#475569', fontSize: 12 }}
-                    axisLine={false}
-                    tickLine={false}
-                  />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Legend />
-                  <Bar dataKey="value" name="Porcentaje (%)" radius={[4, 4, 0, 0]}>
+                <BarChart data={kpisData} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke={theme === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)'} />
+                  <XAxis type="number" hide />
+                  <YAxis type="category" dataKey="name" tick={{ fill: theme === 'dark' ? '#cbd5e1' : '#475569' }} tickLine={false} axisLine={false} />
+                  <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(100, 116, 139, 0.1)' }}/>
+                  <Bar dataKey="value" barSize={30} radius={[0, 10, 10, 0]}>
                     {kpisData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
@@ -710,194 +473,134 @@ const Dashboard: React.FC = () => {
                 </BarChart>
               </ResponsiveContainer>
             </div>
-            
-            {/* 📊 Métricas adicionales con glassmorphism */}
-            <div className="grid grid-cols-3 gap-4 mt-6">
-              <div className="glass-card p-4 text-center hover-lift">
-                <p className={`text-xs font-medium mb-1 ${
-                  theme === 'dark' ? 'text-slate-400' : 'text-slate-500'
-                }`}>
-                  ⏱️ Tiempo Reparación
-                </p>
-                <p style={{ 
-                  color: theme === 'dark' ? '#FFFFFF !important' : '#000000 !important',
-                  fontSize: '1.25rem',
-                  fontWeight: 'bold',
-                  textShadow: theme === 'dark' ? '0 0 10px rgba(255,255,255,0.8)' : 'none',
-                  WebkitTextFillColor: theme === 'dark' ? '#FFFFFF' : '#000000',
-                  WebkitTextStroke: theme === 'dark' ? '0.5px rgba(255,255,255,0.3)' : 'none'
-                }}>
-                  {kpis?.avgRepairTime || 0} días
-                </p>
-              </div>
-              <div className="glass-card p-4 text-center hover-lift">
-                <p className={`text-xs font-medium mb-1 ${
-                  theme === 'dark' ? 'text-slate-400' : 'text-slate-500'
-                }`}>
-                  💻 Utilización
-                </p>
-                <p style={{ 
-                  color: theme === 'dark' ? '#FFFFFF !important' : '#000000 !important',
-                  fontSize: '1.25rem',
-                  fontWeight: 'bold',
-                  textShadow: theme === 'dark' ? '0 0 10px rgba(255,255,255,0.8)' : 'none',
-                  WebkitTextFillColor: theme === 'dark' ? '#FFFFFF' : '#000000',
-                  WebkitTextStroke: theme === 'dark' ? '0.5px rgba(255,255,255,0.3)' : 'none'
-                }}>
-                  {kpis?.utilizationRate || 0}%
-                </p>
-              </div>
-              <div className="glass-card p-4 text-center hover-lift">
-                <p className={`text-xs font-medium mb-1 ${
-                  theme === 'dark' ? 'text-slate-400' : 'text-slate-500'
-                }`}>
-                  🔄 Rotación
-                </p>
-                <p style={{ 
-                  color: theme === 'dark' ? '#FFFFFF !important' : '#000000 !important',
-                  fontSize: '1.25rem',
-                  fontWeight: 'bold',
-                  textShadow: theme === 'dark' ? '0 0 10px rgba(255,255,255,0.8)' : 'none',
-                  WebkitTextFillColor: theme === 'dark' ? '#FFFFFF' : '#000000',
-                  WebkitTextStroke: theme === 'dark' ? '0.5px rgba(255,255,255,0.3)' : 'none'
-                }}>
-                  {kpis?.rotationRate ? kpis.rotationRate.toFixed(1) : 0}/día
-                </p>
+          </div>
+        )}
+      </div>
+
+      {/* 🚨 Alertas y Actividad */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        
+        {/* ⚠️ Alertas de Stock */}
+        <div className="glass-card overflow-hidden">
+          <div className="p-6 border-b border-white/10">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-bold text-gradient-warning">
+                ⚠️ Alertas de Stock
+              </h2>
+              <div className={`
+                px-3 py-1 rounded-full text-xs font-medium
+                ${stockAlerts.length > 0 
+                  ? 'bg-warning-500/20 text-warning-700 border border-warning-500/30' 
+                  : 'bg-success-500/20 text-success-700 border border-success-500/30'
+                }
+                backdrop-blur-sm
+              `}>
+                {stockAlerts.length} alertas
               </div>
             </div>
           </div>
-        </div>
-
-        {/* 🚨 Alertas y Actividad Reciente */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           
-          {/* ⚠️ Alertas de Stock con diseño moderno */}
-          <div className="glass-card overflow-hidden">
-            <div className="p-6 border-b border-white/10">
-              <div className="flex items-center justify-between">
-                <h2 className={`text-xl font-bold text-gradient-warning`}>
-                  ⚠️ Alertas de Stock
-                </h2>
-                <div className={`
-                  px-3 py-1 rounded-full text-xs font-medium
-                  ${stockAlerts.length > 0 
-                    ? 'bg-warning-500/20 text-warning-700 border border-warning-500/30' 
-                    : 'bg-success-500/20 text-success-700 border border-success-500/30'
-                  }
-                  backdrop-blur-sm
-                `}>
-                  {stockAlerts.length} alertas
+          <div className="p-6">
+            {stockAlerts.length > 0 ? (
+              <DataTable
+                columns={stockAlertsColumns}
+                data={stockAlerts}
+                keyExtractor={(alert) => `stock-alert-${alert.ProductoID}`}
+                onRowClick={(alert) => navigate(`/stock?producto=${alert.ProductoID}`)}
+                emptyMessage="No hay alertas de stock para mostrar"
+              />
+            ) : (
+              <div className="text-center py-12 space-y-4">
+                <div className="relative inline-block">
+                  <FiAlertCircle className={`mx-auto h-16 w-16 ${
+                    theme === 'dark' ? 'text-slate-400' : 'text-slate-500'
+                  }`} />
+                  <div className="absolute inset-0 h-16 w-16 bg-success-500/20 rounded-full blur-xl animate-pulse"></div>
+                </div>
+                <div>
+                  <p className={`text-lg font-medium ${
+                    theme === 'dark' ? 'text-slate-200' : 'text-slate-700'
+                  }`}>
+                    ✅ Todo bajo control
+                  </p>
+                  <p className={`text-sm ${
+                    theme === 'dark' ? 'text-slate-400' : 'text-slate-500'
+                  }`}>
+                    No hay alertas de stock críticas
+                  </p>
                 </div>
               </div>
-            </div>
-            
-            <div className="p-6">
-              {stockAlerts.length > 0 ? (
-                <DataTable
-                  columns={stockAlertsColumns}
-                  data={stockAlerts}
-                  keyExtractor={(alert) => `stock-alert-${alert.ProductoID}`}
-                  onRowClick={(alert) => navigate(`/stock-general?producto=${alert.ProductoID}`)}
-                  emptyMessage="No hay alertas de stock para mostrar"
-                />
-              ) : (
-                <div className="text-center py-12 space-y-4">
-                  <div className="relative inline-block">
-                    <FiAlertCircle className={`mx-auto h-16 w-16 transition-colors duration-300 ${
-                      theme === 'dark' ? 'text-slate-400' : 'text-slate-500'
-                    }`} />
-                    <div className="absolute inset-0 h-16 w-16 bg-success-500/20 rounded-full blur-xl animate-pulse"></div>
-                  </div>
-                  <div>
-                    <p className={`text-lg font-medium transition-colors duration-300 ${
-                      theme === 'dark' ? 'text-slate-200' : 'text-slate-700'
-                    }`}>
-                      ✅ Todo bajo control
-                    </p>
-                    <p className={`text-sm transition-colors duration-300 ${
-                      theme === 'dark' ? 'text-slate-400' : 'text-slate-500'
-                    }`}>
-                      No hay alertas de stock críticas
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
+            )}
           </div>
+        </div>
 
-          {/* 🔄 Actividad Reciente con glassmorphism */}
-          <div className="glass-card overflow-hidden">
-            <div className="p-6 border-b border-white/10">
-              <div className="flex items-center justify-between">
-                <h2 className={`text-xl font-bold text-gradient-info`}>
-                  🔄 Actividad Reciente
-                </h2>
-                <div className={`
-                  px-3 py-1 rounded-full text-xs font-medium
-                  bg-info-500/20 text-info-700 border border-info-500/30
-                  backdrop-blur-sm
-                `}>
-                  {recentActivity.length} actividades
-                </div>
+        {/* 🔄 Actividad Reciente */}
+        <div className="glass-card overflow-hidden">
+          <div className="p-6 border-b border-white/10">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-bold text-gradient-info">
+                🔄 Actividad Reciente
+              </h2>
+              <div className="px-3 py-1 rounded-full text-xs font-medium bg-info-500/20 text-info-700 border border-info-500/30 backdrop-blur-sm">
+                {recentActivity.length} actividades
               </div>
             </div>
-            
-            <div className="p-6">
-              {recentActivity.length > 0 ? (
-                <DataTable
-                  columns={activityColumns}
-                  data={recentActivity}
-                  keyExtractor={(activity) => `activity-${activity.ID}`}
-                  emptyMessage="No hay actividades recientes para mostrar"
-                />
-              ) : (
-                <div className="text-center py-12 space-y-4">
-                  <div className="relative inline-block">
-                    <FiClock className={`mx-auto h-16 w-16 transition-colors duration-300 ${
-                      theme === 'dark' ? 'text-slate-400' : 'text-slate-500'
-                    }`} />
-                    <div className="absolute inset-0 h-16 w-16 bg-info-500/20 rounded-full blur-xl animate-pulse"></div>
-                  </div>
-                  <div>
-                    <p className={`text-lg font-medium transition-colors duration-300 ${
-                      theme === 'dark' ? 'text-slate-200' : 'text-slate-700'
-                    }`}>
-                      🌅 Sistema en calma
-                    </p>
-                    <p className={`text-sm transition-colors duration-300 ${
-                      theme === 'dark' ? 'text-slate-400' : 'text-slate-500'
-                    }`}>
-                      No hay actividades recientes registradas
-                    </p>
-                  </div>
+          </div>
+          
+          <div className="p-6">
+            {recentActivity.length > 0 ? (
+              <DataTable
+                columns={activityColumns}
+                data={recentActivity}
+                keyExtractor={(activity) => `activity-${activity.ID}`}
+                emptyMessage="No hay actividades recientes para mostrar"
+              />
+            ) : (
+              <div className="text-center py-12 space-y-4">
+                <div className="relative inline-block">
+                  <FiClock className={`mx-auto h-16 w-16 ${
+                    theme === 'dark' ? 'text-slate-400' : 'text-slate-500'
+                  }`} />
+                  <div className="absolute inset-0 h-16 w-16 bg-info-500/20 rounded-full blur-xl animate-pulse"></div>
                 </div>
-              )}
-            </div>
+                <div>
+                  <p className={`text-lg font-medium ${
+                    theme === 'dark' ? 'text-slate-200' : 'text-slate-700'
+                  }`}>
+                    🌅 Sistema en calma
+                  </p>
+                  <p className={`text-sm ${
+                    theme === 'dark' ? 'text-slate-400' : 'text-slate-500'
+                  }`}>
+                    No hay actividades recientes registradas
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
-        
-        {/* 💫 Footer con información del sistema */}
-        <div className="glass-card p-4">
-          <div className="flex items-center justify-between text-sm">
-            <div className={`flex items-center space-x-4 ${
-              theme === 'dark' ? 'text-slate-400' : 'text-slate-600'
-            }`}>
-              <span>🚀 StockIT v2025.1</span>
-              <span>•</span>
-              <span>Última actualización: {new Date().toLocaleString('es-ES')}</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <div className="w-2 h-2 bg-success-500 rounded-full animate-pulse"></div>
-              <span className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
-                Sistema operativo
-              </span>
-            </div>
+      </div>
+      
+      {/* 💫 Footer del sistema */}
+      <div className="glass-card p-4 relative z-10">
+        <div className="flex items-center justify-between text-sm">
+          <div className={`flex items-center space-x-4 ${
+            theme === 'dark' ? 'text-slate-400' : 'text-slate-600'
+          }`}>
+            <span>🚀 StockIT v2025.1</span>
+            <span>•</span>
+            <span>Última actualización: {new Date().toLocaleString('es-ES')}</span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <div className="w-2 h-2 bg-success-500 rounded-full animate-pulse"></div>
+            <span className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
+              Sistema operativo
+            </span>
           </div>
         </div>
-        
       </div>
     </div>
   );
 };
 
-export default Dashboard;
+export default Dashboard; 

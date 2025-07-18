@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
+import mysql from 'mysql2/promise';
 import { DatabaseConnection } from '../utils/database';
 import { logger } from '../utils/logger';
-import * as sql from 'mssql';
 import { AuthRequest } from '../types/auth.types';
 
 export class RepairController {
@@ -18,21 +18,23 @@ export class RepairController {
       proveedor = ''
     } = req.query;
 
-    const params = {
-      PageNumber: { type: sql.Int, value: Number(page) },
-      PageSize: { type: sql.Int, value: Number(pageSize) },
-      proveedor: { type: sql.NVarChar(100), value: proveedor || search || null }
-    };
+    const params = [
+      Number(page),
+      Number(pageSize),
+      proveedor || search || null
+    ];
 
     try {
-      const result = await this.db.executeStoredProcedure('sp_Repair_GetActive', params) as { recordset: any[] };
+      const result = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>('sp_Repair_GetActive', params);
       
-      const totalRows = result.recordset.length > 0 ? result.recordset[0].TotalRows : 0;
+      const [data] = result;
+      const repairs = data || [];
+      const totalRows = repairs.length > 0 ? repairs[0].TotalRows || repairs.length : 0;
       const totalPages = Math.ceil(totalRows / Number(pageSize));
 
       res.json({
         success: true,
-        data: result.recordset,
+        data: repairs,
         pagination: {
           page: Number(page),
           limit: Number(pageSize),
@@ -67,30 +69,37 @@ export class RepairController {
       return;
     }
 
-    const params = {
-      inventario_individual_id: { type: sql.Int, value: inventario_individual_id },
-      proveedor: { type: sql.NVarChar(100), value: proveedor },
-      descripcion_problema: { type: sql.Text, value: problema_descripcion },
-      usuario_envia_id: { type: sql.Int, value: usuario_id },
-      NuevaReparacionID: { type: sql.Int, value: null, isOutput: true }
-    };
+    const params = [
+      inventario_individual_id,
+      proveedor,
+      problema_descripcion,
+      usuario_id
+    ];
 
     try {
-      const result = await this.db.executeStoredProcedure('sp_Repair_Create', params) as any;
+      const result = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>('sp_Repair_Create', params);
       
-      if (result.output && result.output.NuevaReparacionID) {
+      const [data] = result;
+      if (data && data.length > 0 && data[0].id) {
         res.status(201).json({ 
           success: true, 
           message: 'Reparación registrada y activo actualizado.',
-          repairId: result.output.NuevaReparacionID
+          repairId: data[0].id
         });
       } else {
-        // Fallback en caso de que el ID de salida no se retorne correctamente
+        // Fallback en caso de que el ID no se retorne correctamente
         res.status(201).json({ success: true, message: 'Reparación registrada y activo actualizado.' });
       }
     } catch (error: any) {
       logger.error('Error creando reparación:', { errorMessage: error.message, stack: error.stack, body: req.body });
-      res.status(500).json({ success: false, error: 'Error interno del servidor al crear la reparación.' });
+      
+      if (error.message?.includes('no está disponible')) {
+        res.status(409).json({ success: false, error: 'El activo no está disponible para enviar a reparación.' });
+      } else if (error.message?.includes('no encontrado')) {
+        res.status(404).json({ success: false, error: 'Activo de inventario no encontrado.' });
+      } else {
+        res.status(500).json({ success: false, error: 'Error interno del servidor al crear la reparación.' });
+      }
     }
   }
 
@@ -108,19 +117,26 @@ export class RepairController {
       return;
     }
 
-    const params = {
-      reparacion_id: { type: sql.Int, value: Number(id) },
-      solucion_descripcion: { type: sql.Text, value: solucion_descripcion },
-      estado_final_reparacion: { type: sql.NVarChar(20), value: estado_final },
-      usuario_recibe_id: { type: sql.Int, value: usuario_recibe_id }
-    };
+    const params = [
+      Number(id),
+      solucion_descripcion,
+      estado_final,
+      usuario_recibe_id
+    ];
 
     try {
-      await this.db.executeStoredProcedure('sp_Repair_Return', params);
+      await this.db.executeStoredProcedure<mysql.RowDataPacket[]>('sp_Repair_Return', params);
       res.json({ success: true, message: 'Retorno de reparación procesado exitosamente.' });
     } catch (error: any) {
       logger.error('Error procesando retorno de reparación:', { errorMessage: error.message, stack: error.stack, params: req.params, body: req.body });
-      res.status(500).json({ success: false, error: 'Error interno del servidor al procesar el retorno.' });
+      
+      if (error.message?.includes('no encontrada')) {
+        res.status(404).json({ success: false, error: 'Reparación no encontrada.' });
+      } else if (error.message?.includes('ya procesada')) {
+        res.status(409).json({ success: false, error: 'La reparación ya fue procesada anteriormente.' });
+      } else {
+        res.status(500).json({ success: false, error: 'Error interno del servidor al procesar el retorno.' });
+      }
     }
   }
 } 

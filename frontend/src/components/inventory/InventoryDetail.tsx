@@ -7,7 +7,16 @@ import {
   FiTag,
   FiPackage,
   FiHash,
-  FiRefreshCw
+  FiRefreshCw,
+  FiCheckCircle,
+  FiUserCheck,
+  FiTool,
+  FiXCircle,
+  FiHelpCircle,
+  FiZap,
+  FiCornerUpLeft,
+  FiUserPlus,
+  FiCheckSquare
 } from 'react-icons/fi';
 import { InventoryItem } from '../../types';
 import * as inventoryService from '../../services/inventory.service';
@@ -38,8 +47,8 @@ interface ActivityLog {
 }
 
 const parseLogToAction = (log: ActivityLog): TimelineEvent => {
-  let accion = `${log.tabla_afectada} - ${log.accion}`;
-  let observaciones = log.descripcion;
+  let accion = 'Actividad';
+  let observaciones = '';
 
   try {
     const desc = JSON.parse(log.descripcion);

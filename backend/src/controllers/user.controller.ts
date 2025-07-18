@@ -3,6 +3,7 @@ import { AuthRequest } from '../types/auth.types';
 import { DatabaseConnection } from '../utils/database';
 import { logger } from '../utils/logger';
 import bcrypt from 'bcryptjs';
+import mysql from 'mysql2/promise';
 
 export class UserController {
   private db = DatabaseConnection.getInstance();
@@ -17,18 +18,18 @@ export class UserController {
         activo = ''
       } = req.query;
 
-      const result = await this.db.executeStoredProcedure<any>(
+      const result = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>(
         'sp_User_GetAll',
-        { 
-          page: parseInt(page as string),
-          pageSize: parseInt(pageSize as string),
-          search: search as string,
-          rol: rol as string,
-          activo: activo ? activo === 'true' : null
-        }
+        [
+          parseInt(page as string),
+          parseInt(pageSize as string),
+          search as string,
+          rol as string,
+          activo ? activo === 'true' : null
+        ]
       );
 
-      const users = result.recordset || [];
+      const [users] = result;
       const totalItems = users.length > 0 ? users[0].TotalRecords || 0 : 0;
       const totalPages = Math.ceil(totalItems / parseInt(pageSize as string));
 
@@ -58,19 +59,20 @@ export class UserController {
         return;
       }
 
-      const result = await this.db.executeStoredProcedure<any>(
+      const result = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>(
         'sp_User_Get',
-        { user_id: userId }
+        [userId]
       );
 
-      if (!result.recordset || result.recordset.length === 0) {
+      const [data] = result;
+      if (!data || data.length === 0) {
         res.status(404).json({ error: 'Usuario no encontrado' });
         return;
       }
 
       res.json({
         success: true,
-        data: result.recordset[0]
+        data: data[0]
       });
 
     } catch (error) {
@@ -81,12 +83,13 @@ export class UserController {
 
   public getStats = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-      const result = await this.db.executeStoredProcedure<any>(
+      const result = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>(
         'sp_User_GetStats',
-        {}
+        []
       );
 
-      const stats = result.recordset[0] || {
+      const [data] = result;
+      const stats = data[0] || {
         total: 0,
         admins: 0,
         usuarios: 0,
@@ -114,15 +117,16 @@ export class UserController {
         return;
       }
 
-      const result = await this.db.executeStoredProcedure<any>(
+      const result = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>(
         'sp_User_ValidateEmail',
-        { 
-          email: email as string,
-          exclude_id: excludeId ? parseInt(excludeId as string) : null
-        }
+        [
+          email as string,
+          excludeId ? parseInt(excludeId as string) : null
+        ]
       );
 
-      const available = result.recordset[0]?.available || false;
+      const [data] = result;
+      const available = data[0]?.available || false;
 
       res.json({
         success: true,
@@ -159,23 +163,24 @@ export class UserController {
       const saltRounds = 12;
       const passwordHash = await bcrypt.hash(password, saltRounds);
 
-      const result = await this.db.executeStoredProcedure<any>(
+      const result = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>(
         'sp_User_Create',
-        {
+        [
           nombre,
           email,
-          password_hash: passwordHash,
+          passwordHash,
           rol,
           activo,
-          usuario_ejecutor_id: req.user!.id
-        }
+          req.user!.id
+        ]
       );
 
       logger.info(`Usuario ${nombre} creado por ${req.user!.username}`);
 
+      const [data] = result;
       res.status(201).json({
         success: true,
-        data: result.recordset[0]
+        data: data[0]
       });
 
     } catch (error) {
@@ -228,24 +233,25 @@ export class UserController {
         passwordHash = await bcrypt.hash(password, saltRounds);
       }
 
-      const result = await this.db.executeStoredProcedure<any>(
+      const result = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>(
         'sp_User_Update',
-        {
-          user_id: userId,
-          nombre: nombre || null,
-          email: email || null,
-          password_hash: passwordHash,
-          rol: rol || null,
-          activo: activo !== undefined ? activo : null,
-          usuario_ejecutor_id: req.user!.id
-        }
+        [
+          userId,
+          nombre || null,
+          email || null,
+          passwordHash,
+          rol || null,
+          activo !== undefined ? activo : null,
+          req.user!.id
+        ]
       );
 
       logger.info(`Usuario ${userId} actualizado por ${req.user!.username}`);
 
+      const [data] = result;
       res.json({
         success: true,
-        data: result.recordset[0]
+        data: data[0]
       });
 
     } catch (error) {
@@ -277,20 +283,21 @@ export class UserController {
         return;
       }
 
-      const result = await this.db.executeStoredProcedure<any>(
+      const result = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>(
         'sp_User_ToggleActive',
-        {
-          user_id: userId,
-          usuario_ejecutor_id: req.user!.id
-        }
+        [
+          userId,
+          req.user!.id
+        ]
       );
 
       logger.info(`Estado de usuario ${userId} cambiado por ${req.user!.username}`);
 
+      const [data] = result;
       res.json({ 
         success: true, 
         message: 'Estado actualizado exitosamente',
-        data: result.recordset[0]
+        data: data[0]
       });
 
     } catch (error) {
@@ -326,17 +333,18 @@ export class UserController {
       }
 
       // Obtener usuario actual
-      const userResult = await this.db.executeStoredProcedure<any>(
+      const userResult = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>(
         'sp_User_Get',
-        { user_id: userId }
+        [userId]
       );
 
-      if (!userResult.recordset || userResult.recordset.length === 0) {
+      const [userData] = userResult;
+      if (!userData || userData.length === 0) {
         res.status(404).json({ error: 'Usuario no encontrado' });
         return;
       }
 
-      const user = userResult.recordset[0];
+      const user = userData[0];
 
       // Verificar contraseña actual
       const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password_hash);
@@ -351,11 +359,11 @@ export class UserController {
 
       await this.db.executeStoredProcedure(
         'sp_User_ChangePassword',
-        {
-          user_id: userId,
-          new_password_hash: newPasswordHash,
-          usuario_ejecutor_id: req.user!.id
-        }
+        [
+          userId,
+          newPasswordHash,
+          req.user!.id
+        ]
       );
 
       logger.info(`Contraseña cambiada para usuario ${userId} por ${req.user!.username}`);

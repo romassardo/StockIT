@@ -8,7 +8,7 @@ function createApiInstance(): AxiosInstance {
   }
 
   const instance = axios.create({
-    baseURL: '/api',
+    baseURL: 'http://localhost:3002/api',
     headers: {
       'Content-Type': 'application/json',
     },
@@ -30,11 +30,18 @@ function createApiInstance(): AxiosInstance {
   instance.interceptors.response.use(
     (response: AxiosResponse) => response,
     (error: AxiosError) => {
+      // Solo redirigir por 401 si NO es una petición de login
       if (error.response && error.response.status === 401) {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        // Usamos replace para no añadir al historial de navegación
-        window.location.replace('/login?session_expired=true');
+        // Verificar si la petición es al endpoint de login
+        const isLoginRequest = error.config?.url?.includes('/auth/login');
+        
+        if (!isLoginRequest) {
+          // Solo limpiar y redirigir si NO es un intento de login
+          localStorage.removeItem('token');
+          localStorage.removeItem('user');
+          // Usamos replace para no añadir al historial de navegación
+          window.location.replace('/login?session_expired=true');
+        }
       }
       return Promise.reject(error);
     }

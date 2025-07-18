@@ -1,17 +1,18 @@
 import { DatabaseConnection } from '../utils/database';
 import { logger } from '../utils/logger';
 import { config } from 'dotenv';
+import mysql from 'mysql2/promise';
 
 // Cargar variables de entorno
 config();
 
 /**
- * Script para verificar el esquema de la base de datos
+ * Script para verificar el esquema de la base de datos MySQL
  * Se puede ejecutar desde la línea de comandos con:
  * npx ts-node src/database/verify-schema.ts
  */
 async function verifyDatabaseSchema(): Promise<void> {
-  console.log('\n=== Verificación de Esquema de Base de Datos ===\n');
+  console.log('\n=== Verificación de Esquema de Base de Datos MySQL ===\n');
   
   const db = DatabaseConnection.getInstance();
   
@@ -25,13 +26,15 @@ async function verifyDatabaseSchema(): Promise<void> {
     console.log('Verificando tablas existentes...');
     
     const tablesQuery = `
-      SELECT t.name as TableName
-      FROM sys.tables t
-      ORDER BY t.name
+      SELECT TABLE_NAME as TableName
+      FROM INFORMATION_SCHEMA.TABLES
+      WHERE TABLE_SCHEMA = DATABASE()
+      ORDER BY TABLE_NAME
     `;
     
-    const tablesResult = await db.executeQuery<{ TableName: string }>(tablesQuery);
-    const existingTables = tablesResult.recordset.map(r => r.TableName);
+    const tablesResult = await db.executeQuery<mysql.RowDataPacket[]>(tablesQuery);
+    const [tablesData] = tablesResult;
+    const existingTables = tablesData.map((r: any) => r.TableName);
     
     console.log('\nTablas encontradas:');
     existingTables.forEach(table => {
@@ -52,32 +55,26 @@ async function verifyDatabaseSchema(): Promise<void> {
     
     const indexesQuery = `
       SELECT 
-          t.name as TableName, 
-          i.name as IndexName,
-          i.type_desc as IndexType,
-          STRING_AGG(c.name, ', ') WITHIN GROUP (ORDER BY ic.key_ordinal) as Columns
-      FROM sys.indexes i
-      INNER JOIN sys.tables t ON i.object_id = t.object_id
-      INNER JOIN sys.index_columns ic ON i.object_id = ic.object_id AND i.index_id = ic.index_id
-      INNER JOIN sys.columns c ON ic.object_id = c.object_id AND ic.column_id = c.column_id
-      WHERE i.name IS NOT NULL AND t.name IN (${requiredTables.map(t => `'${t}'`).join(',')})
-      GROUP BY t.name, i.name, i.type_desc
-      ORDER BY t.name, i.name
+          TABLE_NAME as TableName, 
+          INDEX_NAME as IndexName,
+          INDEX_TYPE as IndexType,
+          GROUP_CONCAT(COLUMN_NAME ORDER BY SEQ_IN_INDEX SEPARATOR ', ') as Columns
+      FROM INFORMATION_SCHEMA.STATISTICS
+      WHERE TABLE_SCHEMA = DATABASE() 
+        AND TABLE_NAME IN (${requiredTables.map(t => `'${t}'`).join(',')})
+      GROUP BY TABLE_NAME, INDEX_NAME, INDEX_TYPE
+      ORDER BY TABLE_NAME, INDEX_NAME
     `;
     
-    const indexesResult = await db.executeQuery<{ 
-      TableName: string; 
-      IndexName: string;
-      IndexType: string;
-      Columns: string;
-    }>(indexesQuery);
+    const indexesResult = await db.executeQuery<mysql.RowDataPacket[]>(indexesQuery);
+    const [indexesData] = indexesResult;
     
     console.log('\nÍndices encontrados:');
     
     let currentTable = '';
     let indexCount = 0;
     
-    indexesResult.recordset.forEach(idx => {
+    indexesData.forEach((idx: any) => {
       if (currentTable !== idx.TableName) {
         if (currentTable !== '') {
           console.log(`  Total índices: ${indexCount}`);
@@ -95,38 +92,34 @@ async function verifyDatabaseSchema(): Promise<void> {
       console.log(`  Total índices: ${indexCount}`);
     }
     
-    console.log(`\n✅ Total de índices encontrados: ${indexesResult.recordset.length}`);
+    console.log(`\n✅ Total de índices encontrados: ${indexesData.length}`);
     
     // Verificar foreign keys
     console.log('\nVerificando foreign keys...');
     
     const foreignKeysQuery = `
       SELECT 
-          fk.name as FKName,
-          OBJECT_NAME(fk.parent_object_id) as TableName,
-          COL_NAME(fkc.parent_object_id, fkc.parent_column_id) as ColumnName,
-          OBJECT_NAME(fk.referenced_object_id) as ReferencedTable,
-          COL_NAME(fkc.referenced_object_id, fkc.referenced_column_id) as ReferencedColumn
-      FROM sys.foreign_keys fk
-      INNER JOIN sys.foreign_key_columns fkc ON fk.object_id = fkc.constraint_object_id
-      WHERE OBJECT_NAME(fk.parent_object_id) IN (${requiredTables.map(t => `'${t}'`).join(',')})
-      ORDER BY TableName, FKName
+          CONSTRAINT_NAME as FKName,
+          TABLE_NAME as TableName,
+          COLUMN_NAME as ColumnName,
+          REFERENCED_TABLE_NAME as ReferencedTable,
+          REFERENCED_COLUMN_NAME as ReferencedColumn
+      FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE
+      WHERE TABLE_SCHEMA = DATABASE()
+        AND REFERENCED_TABLE_NAME IS NOT NULL
+        AND TABLE_NAME IN (${requiredTables.map(t => `'${t}'`).join(',')})
+      ORDER BY TABLE_NAME, CONSTRAINT_NAME
     `;
     
-    const foreignKeysResult = await db.executeQuery<{ 
-      FKName: string; 
-      TableName: string;
-      ColumnName: string;
-      ReferencedTable: string;
-      ReferencedColumn: string;
-    }>(foreignKeysQuery);
+    const foreignKeysResult = await db.executeQuery<mysql.RowDataPacket[]>(foreignKeysQuery);
+    const [foreignKeysData] = foreignKeysResult;
     
     console.log('\nForeign Keys encontradas:');
     
     currentTable = '';
     let fkCount = 0;
     
-    foreignKeysResult.recordset.forEach(fk => {
+    foreignKeysData.forEach((fk: any) => {
       if (currentTable !== fk.TableName) {
         if (currentTable !== '') {
           console.log(`  Total foreign keys: ${fkCount}`);
@@ -144,31 +137,49 @@ async function verifyDatabaseSchema(): Promise<void> {
       console.log(`  Total foreign keys: ${fkCount}`);
     }
     
-    console.log(`\n✅ Total de foreign keys encontradas: ${foreignKeysResult.recordset.length}`);
+    console.log(`\n✅ Total de foreign keys encontradas: ${foreignKeysData.length}`);
+    
+    // Verificar stored procedures
+    console.log('\nVerificando stored procedures...');
+    
+    const spQuery = `
+      SELECT ROUTINE_NAME as ProcedureName
+      FROM INFORMATION_SCHEMA.ROUTINES
+      WHERE ROUTINE_SCHEMA = DATABASE()
+        AND ROUTINE_TYPE = 'PROCEDURE'
+      ORDER BY ROUTINE_NAME
+    `;
+    
+    const spResult = await db.executeQuery<mysql.RowDataPacket[]>(spQuery);
+    const [spData] = spResult;
+    
+    console.log(`\nStored Procedures encontrados: ${spData.length}`);
+    if (spData.length > 0) {
+      console.log('Lista de procedimientos (primeros 15):');
+      spData.slice(0, 15).forEach((sp: any) => {
+        console.log(`  • ${sp.ProcedureName}`);
+      });
+      if (spData.length > 15) {
+        console.log(`  ... y ${spData.length - 15} más`);
+      }
+    }
     
     // Resumen final
     console.log('\n=== Resumen de Verificación ===');
     console.log(`Tablas: ${existingTables.length}/${requiredTables.length}`);
-    console.log(`Índices: ${indexesResult.recordset.length}`);
-    console.log(`Foreign Keys: ${foreignKeysResult.recordset.length}`);
+    console.log(`Índices: ${indexesData.length}`);
+    console.log(`Foreign Keys: ${foreignKeysData.length}`);
+    console.log(`Stored Procedures: ${spData.length}`);
     
     if (missingTables.length === 0) {
-      console.log('\n✅ El esquema de base de datos está correctamente configurado');
+      console.log('\n✅ El esquema de base de datos MySQL está correctamente configurado');
     } else {
-      console.log('\n⚠️ El esquema de base de datos está incompleto');
+      console.log('\n⚠️ El esquema de base de datos MySQL está incompleto');
     }
     
   } catch (error) {
     console.error('\n❌ Error durante la verificación:', (error as Error).message);
     logger.error(`Error en verificación de esquema: ${(error as Error).message}`);
-  } finally {
-    // Cerrar la conexión
-    try {
-      await db.close();
-      console.log('\nConexión cerrada correctamente.');
-    } catch (error) {
-      console.error('Error al cerrar la conexión:', (error as Error).message);
-    }
   }
   
   console.log('\n=== Fin de la verificación ===\n');

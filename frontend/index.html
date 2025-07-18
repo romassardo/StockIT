@@ -9,8 +9,9 @@
       Permite 'unsafe-eval' y 'unsafe-inline' que son necesarios para Vite HMR y estilos.
       Permite conexiones WebSocket (ws:) para Vite HMR.
       Para PRODUCCIÓN, esta política DEBE ser más restrictiva (sin unsafe-eval, y hashes/nonces para scripts/styles si es posible).
+      Nota: frame-ancestors se removió porque se ignora en meta tags (solo funciona como HTTP header).
     -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' http://localhost:3002 ws://localhost:3000 ws://127.0.0.1:3000; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none';">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' http://localhost:3002 ws://localhost:3000 ws://127.0.0.1:3000; object-src 'none'; base-uri 'self'; form-action 'self';">
     <title>StockIT - Sistema de Inventario</title>
   </head>
   <body>

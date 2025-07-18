@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import * as sql from 'mssql';
+import mysql from 'mysql2/promise';
 import { DatabaseConnection } from '../utils/database';
 import { logger } from '../utils/logger';
 import { AuthRequest } from '../types/auth.types'; // Asumiendo que AuthRequest define req.user
@@ -50,23 +50,29 @@ export class EmployeeController {
     }
 
     try {
-      const params = {
+      const params = [
         nombre,
         apellido,
-        email, // Puede ser null
-        telefono, // Puede ser null
-        sector_id, // Puede ser null
-        sucursal_id, // Puede ser null
-        fecha_ingreso, // Puede ser null
-        activo: activo !== undefined ? activo : true, // Valor por defecto si no se envía
+        email || null,
+        telefono || null,
+        sector_id || null,
+        sucursal_id || null,
+        fecha_ingreso || null,
+        activo !== undefined ? activo : true,
         usuario_id
-      };
-      logger.info(`Creando empleado con params: ${JSON.stringify(params)}`);
-      const result = await this.db.executeStoredProcedure<ProcedureResult>('sp_Employee_Create', params);
+      ];
       
-      if (result.recordset && result.recordset.length > 0 && result.recordset[0].id) {
-        logger.info(`Empleado creado con ID: ${result.recordset[0].id} por usuario ID: ${usuario_id}`);
-        res.status(201).json({ success: true, message: result.recordset[0].mensaje || 'Empleado creado exitosamente.', data: result.recordset[0] });
+      logger.info(`Creando empleado con params: ${JSON.stringify(params)}`);
+      const result = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>('sp_Employee_Create', params);
+      
+      const [data] = result;
+      if (data && data.length > 0 && data[0].id) {
+        logger.info(`Empleado creado con ID: ${data[0].id} por usuario ID: ${usuario_id}`);
+        res.status(201).json({ 
+          success: true, 
+          message: data[0].mensaje || 'Empleado creado exitosamente.', 
+          data: data[0] 
+        });
       } else {
         logger.error('sp_Employee_Create no devolvió el resultado esperado (ID).', { result });
         res.status(500).json({ success: false, message: 'Error al crear el empleado: SP no devolvió ID.' });
@@ -74,10 +80,11 @@ export class EmployeeController {
     } catch (error) {
       const err = error as Error & { number?: number };
       logger.error(`Error al crear empleado: ${err.message}`, { error: err });
-      // Revisar si el error viene de una validación del SP (ej. RAISERROR con severidad < 10)
-      // o un error de SQL Server (ej. clave duplicada, FK constraint)
-      if (err.message.includes('El empleado ya existe') || err.message.includes('Error de validación del SP')) { // Ajustar según mensajes reales del SP
-        res.status(409).json({ success: false, message: err.message }); // 409 Conflict o 400 Bad Request
+      
+      if (err.message?.includes('ya existe')) {
+        res.status(409).json({ success: false, message: 'El empleado ya existe.' });
+      } else if (err.message?.includes('validación')) {
+        res.status(400).json({ success: false, message: err.message });
       } else {
         res.status(500).json({ success: false, message: 'Error interno del servidor al crear el empleado.' });
       }
@@ -86,39 +93,39 @@ export class EmployeeController {
 
   // GET /employees
   public getAllEmployees = async (req: Request, res: Response): Promise<void> => {
-    // Los parámetros de paginación de la query se ignoran aquí porque el SP no los soporta,
-    // pero se mantienen para que la firma de la llamada desde el frontend no falle.
-    const { activo_only } = req.query;
+    const { activo_only, page, pageSize } = req.query;
 
     // Por defecto, mostramos TODOS los empleados (activos e inactivos).
     // El SP usa @activo_only = 1 para solo activos, y @activo_only = 0 para todos.
     const activoOnlyBit = activo_only === 'true' ? 1 : 0;
+    const pageNumber = parseInt(page as string) || 1;
+    const pageSizeNumber = parseInt(pageSize as string) || 100; // 100 por defecto para obtener todos
     
     try {
-      const params = {
-        activo_only: { type: sql.Bit, value: activoOnlyBit }
-      };
+      const params = [
+        activoOnlyBit,
+        pageNumber,
+        pageSizeNumber
+      ];
       
-      logger.info(`Obteniendo empleados con filtro activo_only: ${activoOnlyBit}`);
+      logger.info(`Obteniendo empleados con filtro activo_only: ${activoOnlyBit}, página: ${pageNumber}, tamaño: ${pageSizeNumber}`);
       
-      const result = await this.db.executeStoredProcedure<EmployeeData>(
-        'sp_Employee_GetAll', 
-        params
-      );
+      const result = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>('sp_Employee_GetAll', params);
       
-      const employees = result.recordset || [];
-      const totalItems = employees.length;
+      const [data] = result;
+      const employees = data || [];
+      const totalItems = employees.length > 0 ? employees[0].TotalItems || employees.length : 0;
+      const totalPages = Math.ceil(totalItems / pageSizeNumber);
 
-      // Como el SP no pagina, devolvemos todos los resultados en una sola página
-      // para mantener la compatibilidad con la estructura que espera el frontend.
+      // Devolvemos los resultados con la estructura que espera el frontend
       res.status(200).json({
         success: true,
         message: 'Empleados obtenidos exitosamente.',
         data: {
           employees: employees,
           totalItems,
-          totalPages: 1,
-          currentPage: 1
+          totalPages,
+          currentPage: pageNumber
         }
       });
     } catch (error) {
@@ -141,15 +148,12 @@ export class EmployeeController {
 
     try {
       logger.info(`Obteniendo empleado por ID: ${employeeId}`);
-      const result = await this.db.executeStoredProcedure<EmployeeData>('sp_Employee_Get', { id: employeeId });
+      const result = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>('sp_Employee_Get', [employeeId]);
       
-      // El SP sp_Employee_Get arroja un error si no se encuentra el empleado.
-      // Por lo tanto, si llegamos aquí, es porque se encontró.
-      // La comprobación de result.recordset.length > 0 es una capa extra de seguridad.
-      if (result.recordset && result.recordset.length > 0) {
-        res.status(200).json({ success: true, message: 'Empleado encontrado.', data: result.recordset[0] });
+      const [data] = result;
+      if (data && data.length > 0) {
+        res.status(200).json({ success: true, message: 'Empleado encontrado.', data: data[0] });
       } else {
-        // Este caso es muy improbable si el SP funciona como se espera, pero es un buen fallback.
         logger.warn(`SP sp_Employee_Get para ID ${employeeId} no arrojó error pero no devolvió datos.`);
         res.status(404).json({ success: false, message: 'Empleado no encontrado.' });
       }
@@ -157,9 +161,8 @@ export class EmployeeController {
       const err = error as Error & { number?: number };
       logger.error(`Error al obtener empleado por ID ${employeeId}: ${err.message}`, { error: err });
       
-      // El SP lanza un error específico (50002) que podemos atrapar por su mensaje.
-      if (err.message.includes('Empleado no encontrado')) {
-        res.status(404).json({ success: false, message: err.message });
+      if (err.message?.includes('no encontrado')) {
+        res.status(404).json({ success: false, message: 'Empleado no encontrado.' });
       } else {
         res.status(500).json({ success: false, message: 'Error interno del servidor al obtener el empleado.' });
       }
@@ -190,26 +193,28 @@ export class EmployeeController {
     }
 
     try {
-      const params = {
-        id: employeeId,
+      const params = [
+        employeeId,
         nombre,
         apellido,
-        email,
-        telefono,
-        sector_id,
-        sucursal_id,
-        fecha_ingreso,
+        email || null,
+        telefono || null,
+        sector_id || null,
+        sucursal_id || null,
+        fecha_ingreso || null,
         usuario_id
-      };
-      logger.info(`Actualizando empleado ID ${employeeId} con params: ${JSON.stringify(params)}`);
-      const result = await this.db.executeStoredProcedure<ProcedureResult>('sp_Employee_Update', params);
+      ];
       
-      if (result.recordset && result.recordset.length > 0 && result.recordset[0].id) {
-        logger.info(`Empleado ID: ${result.recordset[0].id} actualizado por usuario ID: ${usuario_id}`);
+      logger.info(`Actualizando empleado ID ${employeeId} con params: ${JSON.stringify(params)}`);
+      const result = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>('sp_Employee_Update', params);
+      
+      const [data] = result;
+      if (data && data.length > 0 && data[0].id) {
+        logger.info(`Empleado ID: ${data[0].id} actualizado por usuario ID: ${usuario_id}`);
         
         // Devolver los datos completos del empleado actualizado
         const employeeData = {
-          id: result.recordset[0].id,
+          id: data[0].id,
           nombre: nombre,
           apellido: apellido,
           email: email,
@@ -222,21 +227,20 @@ export class EmployeeController {
         
         res.status(200).json({ 
           success: true, 
-          message: result.recordset[0].mensaje || 'Empleado actualizado exitosamente.', 
+          message: data[0].mensaje || 'Empleado actualizado exitosamente.', 
           data: employeeData 
         });
       } else {
         logger.error(`sp_Employee_Update no devolvió el resultado esperado para ID: ${employeeId}.`, { result });
-        // Esto podría ser un caso donde el SP no encontró el empleado para actualizar y no arrojó error.
-        // O el SP no devolvió el ID/mensaje esperado.
         res.status(404).json({ success: false, message: 'Empleado no encontrado o error al actualizar.' }); 
       }
     } catch (error) {
       const err = error as Error & { number?: number };
       logger.error(`Error al actualizar empleado ID ${employeeId}: ${err.message}`, { error: err });
-      if (err.message.includes('Empleado no encontrado')) {
-        res.status(404).json({ success: false, message: err.message });
-      } else if (err.message.includes('Error de validación del SP')) { // Ajustar según mensajes reales del SP
+      
+      if (err.message?.includes('no encontrado')) {
+        res.status(404).json({ success: false, message: 'Empleado no encontrado.' });
+      } else if (err.message?.includes('validación')) {
         res.status(400).json({ success: false, message: err.message });
       } else {
         res.status(500).json({ success: false, message: 'Error interno del servidor al actualizar el empleado.' });
@@ -268,33 +272,35 @@ export class EmployeeController {
     }
 
     try {
-      const params = {
-        id: employeeId,
+      const params = [
+        employeeId,
         activo,
         usuario_id
-      };
-      logger.info(`Cambiando estado de empleado ID ${employeeId} a ${activo} por usuario ID: ${usuario_id}`);
-      const result = await this.db.executeStoredProcedure<ProcedureResult>('sp_Employee_ToggleActive', params);
+      ];
       
-      if (result.recordset && result.recordset.length > 0 && result.recordset[0].id) {
-        logger.info(`Estado de empleado ID: ${result.recordset[0].id} cambiado a ${activo} por usuario ID: ${usuario_id}`);
+      logger.info(`Cambiando estado de empleado ID ${employeeId} a ${activo} por usuario ID: ${usuario_id}`);
+      const result = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>('sp_Employee_ToggleActive', params);
+      
+      const [data] = result;
+      if (data && data.length > 0 && data[0].id) {
+        logger.info(`Estado de empleado ID: ${data[0].id} cambiado a ${activo} por usuario ID: ${usuario_id}`);
         res.status(200).json({ 
           success: true, 
-          message: result.recordset[0].mensaje || 'Estado del empleado actualizado exitosamente.', 
-          data: { id: result.recordset[0].id, activo } 
+          message: data[0].mensaje || 'Estado del empleado actualizado exitosamente.', 
+          data: { id: data[0].id, activo } 
         });
       } else {
         logger.error(`sp_Employee_ToggleActive no devolvió el resultado esperado para ID: ${employeeId}.`, { result });
-        // Podría ser que el empleado no se encontró o el SP no devolvió ID/mensaje.
         res.status(404).json({ success: false, message: 'Empleado no encontrado o error al cambiar estado.' });
       }
     } catch (error) {
       const err = error as Error & { number?: number };
       logger.error(`Error al cambiar estado de empleado ID ${employeeId}: ${err.message}`, { error: err });
-      if (err.message.includes('Empleado no encontrado')) {
-        res.status(404).json({ success: false, message: err.message });
-      } else if (err.message.includes('El empleado ya tiene ese estado')) { // Asumiendo que el SP usa RAISERROR con este mensaje
-        res.status(409).json({ success: false, message: err.message }); // 409 Conflict
+      
+      if (err.message?.includes('no encontrado')) {
+        res.status(404).json({ success: false, message: 'Empleado no encontrado.' });
+      } else if (err.message?.includes('ya tiene ese estado')) {
+        res.status(409).json({ success: false, message: 'El empleado ya tiene ese estado.' });
       } else {
         res.status(500).json({ success: false, message: 'Error interno del servidor al cambiar el estado del empleado.' });
       }

@@ -1,9 +1,9 @@
 import { Response } from 'express';
+import mysql from 'mysql2/promise';
 import { AuthRequest } from '../types/auth.types';
 import { DatabaseConnection } from '../utils/database';
 import { logger } from '../utils/logger';
 import { SearchType, ResultType, PaginatedSearchResponse, SearchResult } from '../types/search.types';
-import * as sql from 'mssql';
 
 export class SearchController {
   private db = DatabaseConnection.getInstance();
@@ -31,20 +31,22 @@ export class SearchController {
         pageSize: 10
       });
 
-      const result = await this.db.executeStoredProcedure('sp_Search_Global', {
-        searchTerm: query.trim(),
-        searchType: 'General',
-        pageNumber: 1,
-        pageSize: 10
-      });
+      const result = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>('sp_Search_Global', [
+        query.trim(),
+        'General',
+        1,
+        10
+      ]);
+
+      const [data] = result;
 
       console.log('📊 Resultado del SP sp_Search_Global:', {
-        recordsetExists: !!result.recordset,
-        recordsetLength: result.recordset ? result.recordset.length : 0,
-        sampleData: result.recordset ? result.recordset.slice(0, 2) : null
+        dataExists: !!data,
+        dataLength: data ? data.length : 0,
+        sampleData: data ? data.slice(0, 2) : null
       });
 
-      res.json(result.recordset);
+      res.json(data || []);
 
     } catch (error) {
       console.error('❌ Error en búsqueda global:', error);
@@ -74,15 +76,17 @@ export class SearchController {
       logger.info(`Búsqueda por número de serie iniciada por ${req.user?.email}`, { serialNumber });
 
       // Ejecutar stored procedure con tipo de búsqueda específico
-      const result = await this.db.executeStoredProcedure<any>('sp_Search_Global', {
-        searchTerm: serialNumber,
-        searchType: SearchType.SERIAL_NUMBER,
-        pageNumber: 1, 
-        pageSize: 10 
-      });
+      const result = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>('sp_Search_Global', [
+        serialNumber,
+        SearchType.SERIAL_NUMBER,
+        1,
+        10
+      ]);
+
+      const [data] = result;
 
       // Procesar resultados
-      if (!result.recordset || result.recordset.length === 0) {
+      if (!data || data.length === 0) {
         res.status(404).json({ 
           success: false,
           error: 'No se encontraron resultados para el número de serie especificado' 
@@ -91,7 +95,7 @@ export class SearchController {
       }
 
       // Transformar resultados
-      const searchResults: SearchResult[] = result.recordset.map((item: any) => ({
+      const searchResults: SearchResult[] = data.map((item: any) => ({
         resultType: item.ResultType as ResultType,
         itemId: item.ItemId,
         title: item.Title,
@@ -105,7 +109,7 @@ export class SearchController {
       }));
 
       // La información de paginación es la misma para todos los registros devueltos por el SP
-      const firstResult = result.recordset[0]; 
+      const firstResult = data[0]; 
 
       res.json({
         success: true,
@@ -151,15 +155,17 @@ export class SearchController {
       logger.info(`Búsqueda por contraseña de encriptación iniciada por ${req.user?.email}`, { password });
 
       // Ejecutar stored procedure con tipo de búsqueda específico
-      const result = await this.db.executeStoredProcedure<any>('sp_Search_Global', {
-        searchTerm: password,
-        searchType: SearchType.ENCRYPTION_PASSWORD,
-        pageNumber: 1,
-        pageSize: 10
-      });
+      const result = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>('sp_Search_Global', [
+        password,
+        SearchType.ENCRYPTION_PASSWORD,
+        1,
+        10
+      ]);
+
+      const [data] = result;
 
       // Procesar resultados
-      if (!result.recordset || result.recordset.length === 0) {
+      if (!data || data.length === 0) {
         res.status(404).json({ 
           success: false,
           error: 'No se encontraron resultados para la contraseña de encriptación especificada' 
@@ -168,7 +174,7 @@ export class SearchController {
       }
 
       // Transformar resultados
-      const searchResults: SearchResult[] = result.recordset.map((item: any) => ({
+      const searchResults: SearchResult[] = data.map((item: any) => ({
         resultType: item.ResultType as ResultType,
         itemId: item.ItemId,
         title: item.Title,
@@ -182,7 +188,7 @@ export class SearchController {
       }));
 
       // La información de paginación es la misma para todos los registros devueltos por el SP
-      const firstResult = result.recordset[0]; 
+      const firstResult = data[0]; 
 
       res.json({
         success: true,

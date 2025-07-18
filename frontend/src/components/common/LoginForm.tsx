@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
-import { FiMail, FiLock, FiArrowRight, FiAlertTriangle, FiLoader } from 'react-icons/fi';
+import { FiMail, FiLock, FiArrowRight, FiAlertTriangle, FiLoader, FiEye, FiEyeOff } from 'react-icons/fi';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 
@@ -24,7 +24,9 @@ const LoginSchema = Yup.object().shape({
  */
 const LoginForm: React.FC = () => {
   const [formError, setFormError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState<boolean>(false);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { state, login } = useAuth();
   const { theme } = useTheme();
   const { isLoading, error: authContextError } = state;
@@ -34,6 +36,13 @@ const LoginForm: React.FC = () => {
       setFormError(authContextError);
     }
   }, [authContextError]);
+
+  // Verificar si hay parámetro session_expired
+  React.useEffect(() => {
+    if (searchParams.get('session_expired') === 'true') {
+      setFormError('Tu sesión ha expirado. Por favor, inicia sesión nuevamente.');
+    }
+  }, [searchParams]);
 
   // Función para manejar el envío del formulario
   const formik = useFormik({
@@ -131,33 +140,48 @@ const LoginForm: React.FC = () => {
           <FiLock className="text-primary-500" />
           <span>Contraseña</span>
         </label>
-        <input
-          type="password"
-          id="password"
-          name="password"
-          value={formik.values.password}
-          onChange={formik.handleChange}
-          onBlur={formik.handleBlur}
-          disabled={isLoading}
-          autoComplete="current-password"
-          placeholder="••••••••"
-          className={`
-            w-full px-6 py-4 
-            backdrop-blur-sm border rounded-xl
-            transition-all duration-300 ease-out-expo
-            focus:outline-none focus:ring-4
-            hover:border-slate-400
-            disabled:opacity-50 disabled:cursor-not-allowed
-            ${theme === 'dark' 
-              ? 'bg-slate-800/60 border-slate-600/50 text-slate-100 placeholder:text-slate-400 focus:bg-slate-800/80 hover:bg-slate-800/70' 
-              : 'bg-white/60 border-slate-200 text-slate-800 placeholder:text-slate-400 focus:bg-white/80 hover:bg-white/70'
-            }
-            ${formik.touched.password && formik.errors.password 
-              ? 'border-danger-400 focus:border-danger-500 focus:ring-danger-500/20' 
-              : 'focus:border-primary-500 focus:ring-primary-500/20'
-            }
-          `}
-        />
+        <div className="relative">
+          <input
+            type={showPassword ? "text" : "password"}
+            id="password"
+            name="password"
+            value={formik.values.password}
+            onChange={formik.handleChange}
+            onBlur={formik.handleBlur}
+            disabled={isLoading}
+            autoComplete="current-password"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck="false"
+            placeholder="Admin123"
+            className={`
+              w-full px-6 py-4 pr-14
+              backdrop-blur-sm border rounded-xl
+              transition-all duration-300 ease-out-expo
+              focus:outline-none focus:ring-4
+              hover:border-slate-400
+              disabled:opacity-50 disabled:cursor-not-allowed
+              ${theme === 'dark' 
+                ? 'bg-slate-800/60 border-slate-600/50 text-slate-100 placeholder:text-slate-400 focus:bg-slate-800/80 hover:bg-slate-800/70' 
+                : 'bg-white/60 border-slate-200 text-slate-800 placeholder:text-slate-400 focus:bg-white/80 hover:bg-white/70'
+              }
+              ${formik.touched.password && formik.errors.password 
+                ? 'border-danger-400 focus:border-danger-500 focus:ring-danger-500/20' 
+                : 'focus:border-primary-500 focus:ring-primary-500/20'
+              }
+            `}
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            className={`absolute right-4 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-primary-500 transition-colors duration-200 ${
+              theme === 'dark' ? 'hover:text-primary-400' : 'hover:text-primary-600'
+            }`}
+            tabIndex={-1}
+          >
+            {showPassword ? <FiEyeOff className="w-5 h-5" /> : <FiEye className="w-5 h-5" />}
+          </button>
+        </div>
         {formik.touched.password && formik.errors.password && (
           <div className={`flex items-center space-x-2 text-sm transition-colors duration-300 ${
             theme === 'dark' ? 'text-danger-400' : 'text-danger-600'

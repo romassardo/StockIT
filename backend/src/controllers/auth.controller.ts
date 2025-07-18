@@ -7,7 +7,7 @@ import {
   JWT_SECRET, JWT_OPTIONS, JWT_REFRESH_SECRET, JWT_REFRESH_OPTIONS, JWT_EXPIRATION, JWT_REFRESH_EXPIRATION
 } from '../config/jwt.config';
 import { AuthRequest, UserJwtPayload } from '../types/auth.types';
-import sql from 'mssql';
+import mysql from 'mysql2/promise';
 
 interface DatabaseUser {
   id: number;
@@ -50,18 +50,19 @@ export class AuthController {
     }
 
     try {
-      const result = await this.db.executeStoredProcedure<DatabaseUser>('sp_User_GetByEmail', {
-        Email: email
-      });
+      const [results] = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>('sp_User_GetByEmail', [email]);
 
-      if (!result.recordset || result.recordset.length === 0) {
+      // Los SPs de MySQL devuelven [userRows, metadata], necesitamos acceder al primer elemento
+      const userRows = results[0] as mysql.RowDataPacket[];
+      
+      if (!userRows || userRows.length === 0) {
         logger.warn(`Login fallido: Usuario con email ${email} no encontrado. IP: ${ipAddress}`);
         await this.logSecurityEvent(null, 'LOGIN_FAIL_NOT_FOUND', ipAddress, 'Usuarios', null, `Intento de login para usuario con email no existente: ${email}`, req.headers['user-agent']);
         res.status(401).json({ success: false, message: 'Credenciales inválidas' });
         return;
       }
 
-      const user: DatabaseUser = result.recordset[0];
+      const user: DatabaseUser = userRows[0] as DatabaseUser;
 
       if (!user.activo) {
         logger.warn(`Login fallido: Usuario con email ${email} inactivo. IP: ${ipAddress}`);
@@ -69,8 +70,6 @@ export class AuthController {
         res.status(401).json({ success: false, message: 'Usuario inactivo' });
         return;
       }
-
-
 
       const passwordIsValid = await bcrypt.compare(password, user.password_hash);
       if (!passwordIsValid) {
@@ -127,17 +126,18 @@ export class AuthController {
       const decoded = jwt.verify(oldRefreshToken, JWT_REFRESH_SECRET, { algorithms: [JWT_REFRESH_OPTIONS.algorithm!] }) as unknown as { id: number };
       const userId = decoded.id;
 
-      const userResult = await this.db.executeStoredProcedure<{ id: number; nombre: string; email: string; rol: string; activo: boolean }>('sp_User_Get', {
-        user_id: decoded.id
-      });
+      const [userResults] = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>('sp_User_Get', [decoded.id]);
 
-      if (!userResult.recordset || userResult.recordset.length === 0) {
+      // Los SPs de MySQL devuelven [userRows, metadata], necesitamos acceder al primer elemento
+      const userRows = userResults[0] as mysql.RowDataPacket[];
+      
+      if (!userRows || userRows.length === 0) {
         logger.warn(`Refresh token: Usuario ID ${userId} no encontrado. IP: ${ipAddress}`);
         res.status(401).json({ success: false, message: 'Refresh token inválido o usuario no encontrado' });
         return;
       }
 
-      const user: { id: number; nombre: string; email: string; rol: string; activo: boolean } = userResult.recordset[0];
+      const user: { id: number; nombre: string; email: string; rol: string; activo: boolean } = userRows[0] as any;
       if (!user.activo) {
         logger.warn(`Refresh token: Usuario ID ${userId} inactivo. IP: ${ipAddress}`);
         res.status(401).json({ success: false, message: 'Usuario inactivo' });
@@ -199,67 +199,100 @@ export class AuthController {
     }
 
     try {
-      const userResult = await this.db.executeStoredProcedure<{ password_hash: string }>('sp_User_Get', {
-        user_id: userId
-      });
+      // Obtener el usuario actual
+      const [userResults] = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>('sp_User_Get', [userId]);
 
-      if (!userResult.recordset || userResult.recordset.length === 0) {
-        logger.error(`ChangePassword: Usuario ID ${userId} no encontrado (esto no debería pasar). IP: ${ipAddress}`);
+      // Los SPs de MySQL devuelven [userRows, metadata], necesitamos acceder al primer elemento
+      const userRows = userResults[0] as mysql.RowDataPacket[];
+      
+      if (!userRows || userRows.length === 0) {
+        logger.warn(`Cambio de contraseña: Usuario ID ${userId} no encontrado. IP: ${ipAddress}`);
         res.status(404).json({ success: false, message: 'Usuario no encontrado' });
         return;
       }
 
-      const storedPasswordHash = userResult.recordset[0].password_hash;
+      const user: DatabaseUser = userRows[0] as DatabaseUser;
 
-      const passwordIsValid = await bcrypt.compare(currentPassword, storedPasswordHash);
-
-      if (!passwordIsValid) {
+      // Verificar contraseña actual
+      const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password_hash);
+      if (!isCurrentPasswordValid) {
         logger.warn(`Cambio de contraseña fallido: Contraseña actual incorrecta para usuario ID ${userId}. IP: ${ipAddress}`);
-        await this.logSecurityEvent(userId, 'PW_CHANGE_FAIL_CURRENT', ipAddress, 'Usuarios', userId, `Intento fallido de cambio de contraseña (actual incorrecta) para usuario ID: ${userId}`, req.headers['user-agent']);
+        await this.logSecurityEvent(userId, 'CHANGE_PASSWORD_FAIL_CURRENT', ipAddress, 'Usuarios', userId, `Intento de cambio de contraseña con contraseña actual incorrecta`, req.headers['user-agent']);
         res.status(401).json({ success: false, message: 'Contraseña actual incorrecta' });
         return;
       }
 
-      const newPasswordHash = await bcrypt.hash(newPassword, 10);
+      // Hashear nueva contraseña
+      const saltRounds = 12;
+      const hashedNewPassword = await bcrypt.hash(newPassword, saltRounds);
 
-      await this.db.executeStoredProcedure('sp_User_ChangePassword', {
-        user_id: userId,
-        new_password_hash: newPasswordHash,
-        usuario_ejecutor_id: userId
-      });
+      // Actualizar contraseña en la base de datos
+      const [updateResults] = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>('sp_User_ChangePassword', [userId, hashedNewPassword]);
 
-      await this.logSecurityEvent(userId, 'PW_CHANGE_SUCCESS', ipAddress, 'Usuarios', userId, `Contraseña cambiada exitosamente para usuario ID: ${userId}`, req.headers['user-agent']);
+      await this.logSecurityEvent(userId, 'CHANGE_PASSWORD_SUCCESS', ipAddress, 'Usuarios', userId, `Contraseña cambiada exitosamente`, req.headers['user-agent']);
       logger.info(`Contraseña cambiada exitosamente para usuario ID ${userId}. IP: ${ipAddress}`);
-      res.status(200).json({ success: true, message: 'Contraseña cambiada exitosamente' });
 
+      res.status(200).json({
+        success: true,
+        message: 'Contraseña actualizada correctamente'
+      });
     } catch (error) {
       const err = error as Error;
       logger.error(`Error al cambiar contraseña para usuario ID ${userId}: ${err.message}. IP: ${ipAddress}`);
-      await this.logSecurityEvent(userId, 'PW_CHANGE_ERROR_SERVER', ipAddress, 'Usuarios', userId, `Error en servidor durante cambio de contraseña para User ID ${userId}: ${err.message}`, req.headers['user-agent']);
+      await this.logSecurityEvent(userId, 'CHANGE_PASSWORD_ERROR_SERVER', ipAddress, 'Usuarios', userId, `Error en servidor durante cambio de contraseña: ${err.message}`, req.headers['user-agent']);
       res.status(500).json({ success: false, message: 'Error en el servidor al cambiar contraseña' });
-      return;
     }
   };
 
   public getProfile = async (req: AuthRequest, res: Response): Promise<void> => {
     if (!req.user) {
-      // Esto no debería ocurrir si el middleware authenticateToken funciona
       res.status(401).json({ success: false, message: 'No autenticado' });
       return;
     }
 
+    try {
+      const [userResults] = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>('sp_User_Get', [req.user.id]);
 
-    logger.info(`Perfil solicitado por usuario ID ${req.user.id}. IP: ${req.ip}`);
-    res.status(200).json({ success: true, user: req.user });
+      // Los SPs de MySQL devuelven [userRows, metadata], necesitamos acceder al primer elemento
+      const userRows = userResults[0] as mysql.RowDataPacket[];
+      
+      if (!userRows || userRows.length === 0) {
+        res.status(404).json({ success: false, message: 'Usuario no encontrado' });
+        return;
+      }
+
+      const user: DatabaseUser = userRows[0] as DatabaseUser;
+      res.status(200).json({
+        success: true,
+        user: {
+          id: user.id,
+          nombre_usuario: user.nombre,
+          email: user.email,
+          rol: user.rol,
+        }
+      });
+    } catch (error) {
+      const err = error as Error;
+      logger.error(`Error al obtener perfil: ${err.message}`);
+      res.status(500).json({ success: false, message: 'Error en el servidor' });
+    }
   };
 
   public validateToken = async (req: AuthRequest, res: Response): Promise<void> => {
-
     if (!req.user) {
-      res.status(401).json({ success: false, message: 'Token inválido o no proporcionado (no autenticado)' });
+      res.status(401).json({ success: false, message: 'Token inválido' });
       return;
     }
-    logger.info(`Token validado para usuario ID ${req.user.id}. IP: ${req.ip}`);
-    res.status(200).json({ success: true, message: 'Token válido', user: req.user });
+
+    res.status(200).json({
+      success: true,
+      message: 'Token válido',
+      user: {
+        id: req.user.id,
+        nombre_usuario: req.user.nombre_usuario,
+        email: req.user.email,
+        rol: req.user.rol,
+      }
+    });
   };
 }

@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import mysql from 'mysql2/promise';
 import { DatabaseConnection } from '../utils/database';
 import { logger } from '../utils/logger';
 import { AuthRequest } from '../types/auth.types';
@@ -27,16 +28,18 @@ export class SectorController {
     }
 
     try {
-      const params = {
-        Nombre: nombre,
-        Descripcion: descripcion,
-        ResponsableEmail: responsable_email,
-        usuario_id: userId 
-      };
-      const result = await this.db.executeStoredProcedure<{ id: number }>('sp_Sector_Create', params);
+      const params = [
+        nombre,
+        descripcion || null,
+        responsable_email || null,
+        userId
+      ];
       
-      if (result.recordset && result.recordset.length > 0 && result.recordset[0].id) {
-        const newSectorId = result.recordset[0].id;
+      const result = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>('sp_Sector_Create', params);
+      
+      const [data] = result;
+      if (data && data.length > 0 && data[0].id) {
+        const newSectorId = data[0].id;
         logger.info(`Sector creado con ID: ${newSectorId} por UsuarioID: ${userId}`);
         res.status(201).json({ 
           success: true, 
@@ -48,8 +51,8 @@ export class SectorController {
       }
     } catch (error: any) {
       logger.error(`Error al crear sector: ${error.message}`, { error, params: req.body, userId });
-      if (error.message.includes('ya existe')) { // Asumiendo que el SP lanza un error con 'ya existe'
-        res.status(409).json({ success: false, message: error.message });
+      if (error.message?.includes('ya existe')) {
+        res.status(409).json({ success: false, message: 'Ya existe un sector con ese nombre.' });
       } else {
         res.status(500).json({ success: false, message: 'Error interno del servidor al crear el sector.' });
       }
@@ -61,19 +64,19 @@ export class SectorController {
     const { activo_only } = req.query;
     
     try {
-      // El procedimiento sp_Sector_GetAll solo acepta el parámetro activo_only
-      const params = {
-        activo_only: activo_only ? (String(activo_only).toLowerCase() === 'true' ? 1 : 0) : 1
-      };
+      const params = [
+        activo_only ? (String(activo_only).toLowerCase() === 'true' ? 1 : 0) : 1
+      ];
 
-      const result = await this.db.executeStoredProcedure<Sector>('sp_Sector_GetAll', params);
+      const result = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>('sp_Sector_GetAll', params);
       
-      if (result.recordset) {
-        logger.debug(`Sectores obtenidos. Total: ${result.recordset.length}`);
+      const [data] = result;
+      if (data) {
+        logger.debug(`Sectores obtenidos. Total: ${data.length}`);
         res.status(200).json({
           success: true,
           message: 'Sectores obtenidos exitosamente.',
-          data: result.recordset
+          data: data
         });
       } else {
         throw new Error('No se pudo obtener información de sectores');
@@ -92,10 +95,12 @@ export class SectorController {
         return;
     }
     try {
-      const result = await this.db.executeStoredProcedure<Sector>('sp_Sector_Get', { SectorID: Number(id) });
-      if (result.recordset && result.recordset.length > 0) {
+      const result = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>('sp_Sector_Get', [Number(id)]);
+      
+      const [data] = result;
+      if (data && data.length > 0) {
         logger.debug(`Sector obtenido con ID: ${id}`);
-        res.status(200).json({ success: true, data: result.recordset[0] });
+        res.status(200).json({ success: true, data: data[0] });
       } else {
         logger.warn(`Sector no encontrado con ID: ${id}`);
         res.status(404).json({ success: false, message: 'Sector no encontrado.' });
@@ -122,12 +127,14 @@ export class SectorController {
     }
 
     try {
-      const params = {
-        id: Number(id),
-        nombre: nombre,
-        usuario_id: userId
-      };
-      const result = await this.db.executeStoredProcedure('sp_Sector_Update', params);
+      const params = [
+        Number(id),
+        nombre,
+        userId
+      ];
+      
+      const result = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>('sp_Sector_Update', params);
+      
       logger.info(`Sector ID: ${id} actualizado por UsuarioID: ${userId}`);
       
       // Devolver los datos del sector actualizado (solo campos disponibles en BD)
@@ -144,12 +151,12 @@ export class SectorController {
       });
     } catch (error: any) {
       logger.error(`Error al actualizar sector ID ${id}: ${error.message}`, { error, params: req.body, userId });
-       if (error.message.includes('no existe')) {
+      
+      if (error.message?.includes('no existe')) {
         res.status(404).json({ success: false, message: 'Sector no encontrado para actualizar.' });
-      } else if (error.message.includes('ya existe')) {
-        res.status(409).json({ success: false, message: error.message });
-      }
-      else {
+      } else if (error.message?.includes('ya existe')) {
+        res.status(409).json({ success: false, message: 'Ya existe otro sector con ese nombre.' });
+      } else {
         res.status(500).json({ success: false, message: 'Error interno del servidor al actualizar el sector.' });
       }
     }
@@ -179,13 +186,13 @@ export class SectorController {
     }
 
     try {
-      const params = {
-        id: sectorId,
-        activo: activo,
-        usuario_id: usuarioId
-      };
+      const params = [
+        sectorId,
+        activo,
+        usuarioId
+      ];
       
-      await this.db.executeStoredProcedure('sp_Sector_ToggleActive', params);
+      await this.db.executeStoredProcedure<mysql.RowDataPacket[]>('sp_Sector_ToggleActive', params);
       
       const message = activo ? 'Sector activado exitosamente' : 'Sector desactivado exitosamente';
       logger.info(`Estado de sector ID ${sectorId} cambiado a ${activo} por usuario ID ${usuarioId}`);
@@ -197,7 +204,8 @@ export class SectorController {
       });
     } catch (error: any) {
       logger.error(`Error al cambiar estado del sector ID ${sectorId}: ${error.message}`, { error, usuarioId });
-      if (error.message.includes('no existe')) {
+      
+      if (error.message?.includes('no existe')) {
         res.status(404).json({ success: false, message: 'Sector no encontrado.' });
       } else {
         res.status(500).json({ success: false, message: 'Error interno del servidor.' });

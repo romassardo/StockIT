@@ -19,10 +19,28 @@ const Assignments: React.FC = () => {
         setSelectedAsset(response.data);
         setIsDetailModalOpen(true);
       } else {
-        addNotification({ type: 'error', message: response.message || 'No se encontrÃ³ el activo.' });
+        addNotification({ type: 'error', message: response.message || 'No se encontró el activo.' });
       }
     } catch (error) {
-      addNotification({ type: 'error', message: 'Error al buscar el activo.' });
+      if (error instanceof Error) {
+        addNotification({ type: 'error', message: 'Error al buscar el activo.' });
+      }
+    }
+  };
+
+  const handleSearchById = async (id: number) => {
+    try {
+      const item = await inventoryService.getInventoryById(id);
+      if (item) {
+        setSelectedAsset(item);
+        setIsDetailModalOpen(true);
+      } else {
+        addNotification({ type: 'error', message: 'No se encontró el activo.' });
+      }
+    } catch (error) {
+      if (error instanceof Error) {
+        addNotification({ type: 'error', message: 'Error al buscar el activo.' });
+      }
     }
   };
 

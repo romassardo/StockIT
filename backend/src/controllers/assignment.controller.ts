@@ -1,5 +1,5 @@
 import { Response } from 'express';
-import * as sql from 'mssql';
+import mysql from 'mysql2/promise';
 import { AuthRequest } from '../types/auth.types';
 import { DatabaseConnection } from '../utils/database';
 
@@ -120,27 +120,25 @@ export class AssignmentController {
       const tipo_asignacion = empleado_id ? 'Empleado' : sector_id ? 'Sector' : 'Sucursal';
       const id_destino = empleado_id || sector_id || sucursal_id;
 
-      const params = {
-        inventario_individual_id: inventario_individual_id || null,
-        tipo_asignacion,
-        id_destino,
-        password_encriptacion: password_encriptacion || null,
-        cuenta_gmail: cuenta_gmail || null,
-        numero_telefono: numero_telefono || null,
-        codigo_2fa_whatsapp: codigo_2fa_whatsapp || null,
-        observaciones: observaciones || null,
-        usuario_asigna_id: usuario_id,
-        id_asignacion: { type: sql.Int, isOutput: true }
-      };
-
       // Ejecutar el stored procedure
-      const result = await this.db.executeStoredProcedure<{ id_asignacion: number }>(
+      const result = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>(
         'sp_Assignment_Create',
-        params
+        [
+          inventario_individual_id || null,
+          tipo_asignacion,
+          id_destino,
+          password_encriptacion || null,
+          cuenta_gmail || null,
+          numero_telefono || null,
+          codigo_2fa_whatsapp || null,
+          observaciones || null,
+          usuario_id
+        ]
       );
       
-      if (result.output && result.output.id_asignacion) {
-        const newAssignmentId = result.output.id_asignacion;
+      const [data] = result;
+      if (data && data.length > 0 && data[0].id_asignacion) {
+        const newAssignmentId = data[0].id_asignacion;
         logger.info(`Asignación creada con ID: ${newAssignmentId}`);
         
         res.status(201).json({
@@ -232,17 +230,18 @@ export class AssignmentController {
         return;
       }
 
-      const result = await this.db.executeStoredProcedure<AssignmentResult>(
+      const result = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>(
         'sp_Assignment_Return',
-        {
-          assignment_id: +assignment_id,
-          observaciones: observaciones || null,
+        [
+          +assignment_id,
+          observaciones || null,
           usuario_id
-        }
+        ]
       );
 
-      if (result.recordset && result.recordset.length > 0) {
-        const { message } = result.recordset[0];
+      const [data] = result;
+      if (data && data.length > 0) {
+        const { message } = data[0];
         
         logger.info(`Asignación ${assignment_id} devuelta exitosamente por usuario ${usuario_id}`);
         
@@ -310,17 +309,18 @@ export class AssignmentController {
         return;
       }
 
-      const result = await this.db.executeStoredProcedure<AssignmentResult>(
+      const result = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>(
         'sp_Assignment_Cancel',
-        {
-          assignment_id: +assignment_id,
-          motivo: motivo.trim(),
+        [
+          +assignment_id,
+          motivo.trim(),
           usuario_id
-        }
+        ]
       );
 
-      if (result.recordset && result.recordset.length > 0) {
-        const { message } = result.recordset[0];
+      const [data] = result;
+      if (data && data.length > 0) {
+        const { message } = data[0];
         
         logger.info(`Asignación ${assignment_id} cancelada por usuario ${usuario_id}. Motivo: ${motivo}`);
         
@@ -373,18 +373,19 @@ export class AssignmentController {
         return;
       }
 
-      const result = await this.db.executeStoredProcedure<AssignmentData[]>(
+      const result = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>(
         'sp_Asignaciones_GetByInventarioId',
-        {
-          inventario_individual_id: +inventario_id
-        }
+        [
+          +inventario_id
+        ]
       );
 
       logger.info(`Consultado historial de asignaciones para inventario ID ${inventario_id}`);
       
+      const [data] = result;
       res.status(200).json({
         success: true,
-        data: result.recordset || []
+        data: data || []
       });
     } catch (error: any) {
       logger.error(`Error al obtener historial de asignaciones: ${error.message}`, { error });
@@ -434,20 +435,17 @@ export class AssignmentController {
 
       // Construir filtros SQL dinámicos
       const filtersSqlParts: string[] = ['a.activa = 1'];
-      const sqlParams: any = {
-        offset: (pageNum - 1) * limitNum,
-        limit: limitNum
-      };
+      const sqlParams: any[] = [];
 
       if (empleado_id) {
-        filtersSqlParts.push('a.empleado_id = @empleado_id');
-        sqlParams.empleado_id = +empleado_id;
+        filtersSqlParts.push('a.empleado_id = ?');
+        sqlParams.push(+empleado_id);
       } else if (sector_id) {
-        filtersSqlParts.push('a.sector_id = @sector_id');
-        sqlParams.sector_id = +sector_id;
+        filtersSqlParts.push('a.sector_id = ?');
+        sqlParams.push(+sector_id);
       } else if (sucursal_id) {
-        filtersSqlParts.push('a.sucursal_id = @sucursal_id');
-        sqlParams.sucursal_id = +sucursal_id;
+        filtersSqlParts.push('a.sucursal_id = ?');
+        sqlParams.push(+sucursal_id);
       }
 
       const filtersSql = filtersSqlParts.join(' AND ');
@@ -483,24 +481,27 @@ export class AssignmentController {
         LEFT   JOIN Sucursales         su ON su.id = a.sucursal_id
         WHERE  ${filtersSql}
         ORDER BY a.fecha_asignacion DESC
-        OFFSET @offset ROWS FETCH NEXT @limit ROWS ONLY;`;
+        LIMIT ? OFFSET ?`;
 
       // Consulta para total de registros
       const countQuery = `
         SELECT COUNT(1) AS total
         FROM   Asignaciones a
-        WHERE  ${filtersSql};`;
+        WHERE  ${filtersSql}`;
 
       const [countResult, dataResult] = await Promise.all([
-        this.db.executeQuery<any>(countQuery, sqlParams),
-        this.db.executeQuery<any>(dataQuery, sqlParams)
+        this.db.executeQuery(countQuery, sqlParams),
+        this.db.executeQuery(dataQuery, [...sqlParams, limitNum, (pageNum - 1) * limitNum])
       ]);
 
-      const totalRecords = countResult.recordset?.[0]?.total ?? 0;
+      const [countData] = countResult;
+      const [resultData] = dataResult;
+      
+      const totalRecords = countData?.[0]?.total ?? 0;
       const totalPages = Math.ceil(totalRecords / limitNum);
 
       // Mapear a estructura alineada con el frontend
-      const assignments = dataResult.recordset.map((row: any) => ({
+      const assignments = resultData.map((row: any) => ({
         id: row.id,
         fecha_asignacion: row.fecha_asignacion,
         inventario_individual_id: row.inventario_individual_id,
@@ -557,19 +558,20 @@ export class AssignmentController {
         return;
       }
 
-      const result = await this.db.executeStoredProcedure<AssignmentData[]>(
+      const result = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>(
         'sp_Assignment_GetById',
-        {
-          assignment_id: +assignment_id
-        }
+        [
+          +assignment_id
+        ]
       );
 
-      if (result.recordset && result.recordset.length > 0) {
+      const [data] = result;
+      if (data && data.length > 0) {
         logger.info(`Consultada asignación ID ${assignment_id}`);
         
         res.status(200).json({
           success: true,
-          data: result.recordset[0]
+          data: data[0]
         });
       } else {
         logger.warn(`No se encontró la asignación con ID ${assignment_id}`);
@@ -631,13 +633,15 @@ export class AssignmentController {
         LEFT   JOIN Productos           p ON p.id  = ii.producto_id
         LEFT   JOIN Categorias          c ON c.id  = p.categoria_id
         LEFT   JOIN Empleados           e ON e.id  = a.empleado_id
-        WHERE  a.empleado_id = @empleado_id AND a.activa = 1
-        ORDER BY a.fecha_asignacion DESC;`;
+        WHERE  a.empleado_id = ? AND a.activa = 1
+        ORDER BY a.fecha_asignacion DESC`;
 
-      const result = await this.db.executeQuery<any>(query, { empleado_id: employeeId });
+      const result = await this.db.executeQuery(query, [employeeId]);
+      
+      const [data] = result;
       
       // Mapear a estructura que incluya datos sensibles
-      const assignments = result.recordset.map((row: any) => ({
+      const assignments = data.map((row: any) => ({
         id: row.id,
         fecha_asignacion: row.fecha_asignacion,
         inventario_individual_id: row.inventario_individual_id,
@@ -699,11 +703,15 @@ export class AssignmentController {
         return;
       }
       
-      const result = await this.db.executeStoredProcedure<any>('sp_Assignment_GetDetailsById', {
-        assignment_id: Number(assignment_id)
-      });
+      const result = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>(
+        'sp_Assignment_GetDetailsById',
+        [
+          Number(assignment_id)
+        ]
+      );
       
-      res.json(result.recordset);
+      const [data] = result;
+      res.json(data);
 
     } catch (error: any) {
       logger.error('Error en getAssignmentDetailsById', { error });

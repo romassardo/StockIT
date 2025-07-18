@@ -30,61 +30,63 @@ const AssetDetailDrawer: React.FC<AssetDetailDrawerProps> = ({ assetId, onClose 
 
         const combinedEvents: TimelineEvent[] = [];
 
-        // Mapear logs de actividad
-        activityLogs?.forEach((log: ActivityLog) => {
-          combinedEvents.push({
-            id: `log-${log.id}`,
-            fecha: log.fecha_hora,
-            accion: log.accion,
-            usuario: log.usuario_nombre,
-            observaciones: log.descripcion || 'Sin observaciones.',
-          });
-        });
+        // Mapear historial a eventos de timeline
+        const timelineEvents: TimelineEvent[] = (inventoryDetails.history || []).map((log, index) => {
+          let event: Partial<TimelineEvent> = {
+            id: log.id || index,
+            date: log.fecha_hora,
+            user: log.usuario_nombre,
+          };
 
-        // Mapear asignaciones
-        assignments?.forEach((asg: Assignment) => {
-          combinedEvents.push({
-            id: `asg-${asg.id}`,
-            fecha: asg.fecha_asignacion,
-            accion: 'Asignado',
-            usuario: asg.usuario_asigna_nombre,
-            observaciones: `Asignado a ${asg.empleado_nombre} en ${asg.sector_nombre} (${asg.sucursal_nombre}).`,
-          });
-          if (asg.fecha_devolucion) {
-            combinedEvents.push({
-              id: `dev-${asg.id}`,
-              fecha: asg.fecha_devolucion,
-              accion: 'Devuelto',
-              usuario: asg.usuario_recibe_nombre || 'Sistema',
-              observaciones: 'El activo fue devuelto al inventario.',
-            });
+          try {
+            const details = JSON.parse(log.descripcion);
+            if (details.accion) {
+              event.title = details.accion;
+              event.description = details.observaciones;
+            } else if (log.tabla_afectada === 'Reparaciones') {
+              if (log.accion === 'INSERT') {
+                event = {
+                  ...event,
+                  title: 'Envío a Reparación',
+                  description: `A ${details.proveedor || 'proveedor'}. Problema: ${details.problema_descripcion || 'No especificado.'}`
+                };
+              } else if (log.accion === 'UPDATE') {
+                event = {
+                  ...event,
+                  title: `Retorno de Reparación`,
+                  description: `Estado: ${details.estado_reparacion || 'N/A'}. Solución: ${details.solucion_descripcion || 'No especificada.'}`
+                };
+              }
+            } else if (log.tabla_afectada === 'Asignaciones') {
+              if (log.accion === 'INSERT') {
+                event = {
+                  ...event,
+                  title: 'Nueva Asignación',
+                  description: `Asignado a ${details.empleado_nombre || 'N/A'} en ${details.sector_nombre || 'N/A'} / ${details.sucursal_nombre || 'N/A'}`
+                };
+              } else if (log.accion === 'UPDATE' && (details.activa === 0 || details.activa === "0")) {
+                event = {
+                  ...event,
+                  title: 'Devolución de Activo',
+                  description: `El activo fue devuelto y está nuevamente disponible.`
+                };
+              }
+            } else {
+              event.title = `${log.accion} en ${log.tabla_afectada}`;
+              event.description = log.descripcion;
+            }
+          } catch (e) {
+            event.title = `${log.accion} en ${log.tabla_afectada}`;
+            event.description = log.descripcion;
           }
-        });
 
-        // Mapear reparaciones
-        repairs?.forEach((rep: ActiveRepair) => {
-          combinedEvents.push({
-            id: `rep-${rep.reparacion_id}`,
-            fecha: rep.fecha_envio,
-            accion: 'Enviado a ReparaciÃ³n',
-            usuario: rep.usuario_envia_nombre,
-            observaciones: `Enviado a ${rep.proveedor}. Problema: ${rep.problema_descripcion}`,
-          });
-          if (rep.fecha_retorno) {
-            combinedEvents.push({
-              id: `ret-${rep.reparacion_id}`,
-              fecha: rep.fecha_retorno,
-              accion: `ReparaciÃ³n Finalizada (${rep.estado_reparacion})`,
-              usuario: rep.usuario_recibe_nombre || 'Sistema',
-              observaciones: `SoluciÃ³n: ${rep.solucion_descripcion || 'No especificada.'}`,
-            });
-          }
+          return event as TimelineEvent;
         });
 
         // Ordenar todos los eventos por fecha descendente
-        combinedEvents.sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
+        timelineEvents.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
         
-        setTimeline(combinedEvents);
+        setTimeline(timelineEvents);
       } catch (err: any) {
         setError(err.message || 'Error al cargar el historial del activo.');
       } finally {
@@ -96,29 +98,45 @@ const AssetDetailDrawer: React.FC<AssetDetailDrawerProps> = ({ assetId, onClose 
   }, [assetId]);
 
   useEffect(() => {
-    // Para la animaciÃ³n de entrada
-    const timer = setTimeout(() => {
-      setIsVisible(true);
-    }, 10); // Un pequeÃ±o delay para asegurar que la transiciÃ³n ocurra
-    
-    // Para la animaciÃ³n de salida con la tecla Escape
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        handleClose();
+    // Mapear logs de actividad
+    activityLogs?.forEach((log: ActivityLog) => {
+      if (log.tabla_afectada === 'Asignaciones') {
+        // Lógica para asignaciones
+      } else if (log.tabla_afectada === 'Reparaciones') {
+        // Lógica para reparaciones
       }
-    };
-    
-    window.addEventListener('keydown', handleKeyDown);
+    });
 
-    return () => {
-      clearTimeout(timer);
-      window.removeEventListener('keydown', handleKeyDown);
-    };
+    const reparacionesFormateadas = repairs?.map(rep => ({
+      id: rep.reparacion_id,
+      date: rep.fecha_envio,
+      user: rep.usuario_envia_nombre,
+      accion: 'Enviado a Reparación',
+      observaciones: `A ${rep.proveedor}. Problema: ${rep.problema_descripcion}`
+    }));
+
+    if(repairs[0]?.fecha_retorno){
+      reparacionesFormateadas.push({
+        id: repairs[0].reparacion_id + 1000,
+        date: repairs[0].fecha_retorno,
+        user: repairs[0].usuario_recibe_nombre,
+        accion: `Reparación Finalizada (${repairs[0].estado_reparacion})`,
+        observaciones: `Solución: ${repairs[0].solucion_descripcion || 'No especificada.'}`,
+      });
+    }
+
+    setTimeline([...reparacionesFormateadas].sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+  }, [repairs]);
+
+  useEffect(() => {
+    // Para la animación de entrada
+    const timer = setTimeout(() => setIsVisible(true), 10); 
+    return () => clearTimeout(timer);
   }, []);
 
   const handleClose = () => {
     setIsVisible(false);
-    setTimeout(onClose, 500); // Esperar que la animaciÃ³n de salida termine
+    setTimeout(onClose, 500); // Esperar que la animación de salida termine
   };
 
   const drawerContent = (

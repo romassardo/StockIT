@@ -140,8 +140,9 @@ export class CacheService {
 
     if (!categories) {
       const db = DatabaseConnection.getInstance();
-      const result = await db.executeStoredProcedure('sp_Categoria_GetAll', {});
-      categories = Array.isArray(result) ? result : (result as any).recordset || [];
+      const result = await db.executeStoredProcedure('sp_Categoria_GetAll', []);
+      const [data] = result;
+      categories = Array.isArray(data) ? data : data || [];
       this.set(cacheKey, categories, 60); // 1 hora
     }
 
@@ -157,8 +158,9 @@ export class CacheService {
 
     if (!products) {
       const db = DatabaseConnection.getInstance();
-      const result = await db.executeStoredProcedure('sp_Producto_GetAll', {});
-      const allProducts = Array.isArray(result) ? result : (result as any).recordset || [];
+      const result = await db.executeStoredProcedure('sp_Producto_GetAll', []);
+      const [data] = result;
+      const allProducts = Array.isArray(data) ? data : data || [];
       products = allProducts.filter((p: any) => p.activo === true);
       this.set(cacheKey, products, 30); // 30 minutos
     }
@@ -175,8 +177,9 @@ export class CacheService {
 
     if (!employees) {
       const db = DatabaseConnection.getInstance();
-      const result = await db.executeStoredProcedure('sp_Employee_GetAll', {});
-      const allEmployees = Array.isArray(result) ? result : (result as any).recordset || [];
+      const result = await db.executeStoredProcedure('sp_Employee_GetAll', []);
+      const [data] = result;
+      const allEmployees = Array.isArray(data) ? data : data || [];
       employees = allEmployees.filter((e: any) => e.activo === true);
       this.set(cacheKey, employees, 15); // 15 minutos
     }
@@ -193,8 +196,9 @@ export class CacheService {
 
     if (!sectors) {
       const db = DatabaseConnection.getInstance();
-      const result = await db.executeStoredProcedure('sp_Sector_GetAll', {});
-      const allSectors = Array.isArray(result) ? result : (result as any).recordset || [];
+      const result = await db.executeStoredProcedure('sp_Sector_GetAll', []);
+      const [data] = result;
+      const allSectors = Array.isArray(data) ? data : data || [];
       sectors = allSectors.filter((s: any) => s.activo === true);
       this.set(cacheKey, sectors, 30); // 30 minutos
     }
@@ -211,8 +215,9 @@ export class CacheService {
 
     if (!branches) {
       const db = DatabaseConnection.getInstance();
-      const result = await db.executeStoredProcedure('sp_Branch_GetAll', {});
-      const allBranches = Array.isArray(result) ? result : (result as any).recordset || [];
+      const result = await db.executeStoredProcedure('sp_Branch_GetAll', []);
+      const [data] = result;
+      const allBranches = Array.isArray(data) ? data : data || [];
       branches = allBranches.filter((b: any) => b.activo === true);
       this.set(cacheKey, branches, 30); // 30 minutos
     }
@@ -231,12 +236,15 @@ export class CacheService {
       try {
         const db = DatabaseConnection.getInstance();
         // Ejecutar SPs del dashboard de forma segura
-        const inventoryStats = await db.executeStoredProcedure('sp_Report_Inventory', {});
-        const stockAlerts = await db.executeStoredProcedure('sp_Report_GetStockAlertsCount', {});
+        const inventoryStats = await db.executeStoredProcedure('sp_Report_Inventory', []);
+        const stockAlerts = await db.executeStoredProcedure('sp_Report_GetStockAlertsCount', []);
+        
+        const [inventoryData] = inventoryStats;
+        const [alertsData] = stockAlerts;
         
         stats = {
-          inventory: Array.isArray(inventoryStats) ? inventoryStats : (inventoryStats as any).recordset || [],
-          alerts: Array.isArray(stockAlerts) ? stockAlerts : (stockAlerts as any).recordset || [],
+          inventory: Array.isArray(inventoryData) ? inventoryData : inventoryData || [],
+          alerts: Array.isArray(alertsData) ? alertsData : alertsData || [],
           lastUpdate: new Date().toISOString()
         };
         

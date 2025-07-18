@@ -1,4 +1,5 @@
 import { Response } from 'express';
+import mysql from 'mysql2/promise';
 import { AuthRequest } from '../types/auth.types';
 import { DatabaseConnection } from '../utils/database';
 import { logger } from '../utils/logger';
@@ -22,20 +23,22 @@ export class ChangelogController {
       const pageNumber = parseInt(page as string, 10);
       const itemsPerPage = parseInt(pageSize as string, 10);
       
-      const result = await this.db.executeStoredProcedure<any>('sp_Changelog_GetAll', {
-        version: version || null,
-        tipo_cambio: tipo_cambio || null,
-        PageNumber: pageNumber,
-        PageSize: itemsPerPage
-      });
+      const result = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>('sp_Changelog_GetAll', [
+        version || null,
+        tipo_cambio || null,
+        pageNumber,
+        itemsPerPage
+      ]);
+      
+      const [data] = result;
       
       // Formato de respuesta paginada
-      if (result.recordset.length > 0) {
-        const totalRows = result.recordset[0].TotalRows;
+      if (data && data.length > 0) {
+        const totalRows = data[0].TotalRows;
         const totalPages = Math.ceil(totalRows / itemsPerPage);
         
         res.status(200).json({
-          data: result.recordset,
+          data: data,
           pagination: {
             totalItems: totalRows,
             totalPages,
@@ -70,16 +73,18 @@ export class ChangelogController {
     try {
       const { id } = req.params;
       
-      const result = await this.db.executeStoredProcedure<any>('sp_Changelog_Get', {
-        id: parseInt(id, 10)
-      });
+      const result = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>('sp_Changelog_Get', [
+        parseInt(id, 10)
+      ]);
       
-      if (result.recordset.length === 0) {
+      const [data] = result;
+      
+      if (!data || data.length === 0) {
         res.status(404).json({ message: 'Registro de changelog no encontrado' });
         return;
       }
       
-      res.status(200).json(result.recordset[0]);
+      res.status(200).json(data[0]);
       
     } catch (error) {
       logger.error('Error obteniendo registro de changelog:', error);
@@ -113,14 +118,15 @@ export class ChangelogController {
         return;
       }
       
-      const result = await this.db.executeStoredProcedure<any>('sp_Changelog_Create', {
+      const result = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>('sp_Changelog_Create', [
         version,
         descripcion,
         tipo_cambio,
         usuario_id
-      });
+      ]);
       
-      const newId = result.recordset[0].id;
+      const [data] = result;
+      const newId = data[0].id;
       
       logger.info(`Registro de changelog ${version} creado por ${req.user!.nombre_usuario}`);
       
@@ -176,15 +182,17 @@ export class ChangelogController {
         return;
       }
       
-      const result = await this.db.executeStoredProcedure<any>('sp_Changelog_Update', {
-        id: parseInt(id, 10),
+      const result = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>('sp_Changelog_Update', [
+        parseInt(id, 10),
         version,
         descripcion,
         tipo_cambio,
         usuario_id
-      });
+      ]);
       
-      if (result.recordset.length === 0 || result.recordset[0].success !== 1) {
+      const [data] = result;
+      
+      if (!data || data.length === 0 || data[0].success !== 1) {
         res.status(404).json({ message: 'Registro de changelog no encontrado' });
         return;
       }
@@ -229,12 +237,14 @@ export class ChangelogController {
       const { id } = req.params;
       const usuario_id = (req.user as any).id; // Usuario autenticado
       
-      const result = await this.db.executeStoredProcedure<any>('sp_Changelog_Delete', {
-        id: parseInt(id, 10),
+      const result = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>('sp_Changelog_Delete', [
+        parseInt(id, 10),
         usuario_id
-      });
+      ]);
       
-      if (result.recordset.length === 0 || result.recordset[0].success !== 1) {
+      const [data] = result;
+      
+      if (!data || data.length === 0 || data[0].success !== 1) {
         res.status(404).json({ message: 'Registro de changelog no encontrado' });
         return;
       }
@@ -273,20 +283,22 @@ export class ChangelogController {
       const pageNumber = parseInt(page as string, 10);
       const itemsPerPage = parseInt(pageSize as string, 10);
       
-      const result = await this.db.executeStoredProcedure<any>('sp_Changelog_GetPublic', {
-        version: version || null,
-        tipo_cambio: tipo_cambio || null,
-        PageNumber: pageNumber,
-        PageSize: itemsPerPage
-      });
+      const result = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>('sp_Changelog_GetPublic', [
+        version || null,
+        tipo_cambio || null,
+        pageNumber,
+        itemsPerPage
+      ]);
+      
+      const [data] = result;
       
       // Formato de respuesta paginada
-      if (result.recordset.length > 0) {
-        const totalRows = result.recordset[0].TotalRows;
+      if (data && data.length > 0) {
+        const totalRows = data[0].TotalRows;
         const totalPages = Math.ceil(totalRows / itemsPerPage);
         
         res.status(200).json({
-          data: result.recordset,
+          data: data,
           pagination: {
             totalItems: totalRows,
             totalPages,

@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import mysql from 'mysql2/promise';
 import { DatabaseConnection } from '../utils/database';
 import { logger } from '../utils/logger';
 import { AuthRequest } from '../types/auth.types';
@@ -77,18 +78,24 @@ export class DashboardController {
         });
         return;
       }
+
+      let statsData: SystemStats | null = null;
+
+      // Intentar ejecutar el stored procedure primero
       try {
-        // Intentar ejecutar el stored procedure primero
         logger.info('Intentando obtener estadísticas con el SP sp_Dashboard_GetSystemStats');
-        const spResult = await this.db.executeStoredProcedure<SystemStats>('sp_Dashboard_GetSystemStats');
+        const spResult = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>('sp_Dashboard_GetSystemStats', []);
         
-        if (spResult.recordset && spResult.recordset.length > 0) {
+        const [data] = spResult;
+        if (data && data.length > 0) {
           logger.info('Estadísticas obtenidas exitosamente con SP sp_Dashboard_GetSystemStats');
+          statsData = data[0] as SystemStats;
+          
           // 🚀 GUARDAR EN CACHÉ (5 minutos)
-          await cacheService.set(cacheKey, spResult.recordset[0], 5 * 60 * 1000);
+          await cacheService.set(cacheKey, statsData, 5 * 60 * 1000);
           res.status(200).json({
             success: true,
-            data: spResult.recordset[0],
+            data: statsData,
             source: 'stored_procedure'
           });
           return;
@@ -105,19 +112,19 @@ export class DashboardController {
       const usersQuery = `SELECT COUNT(id) AS TotalUsuariosActivos 
                           FROM Usuarios 
                           WHERE activo = 1`;
-      const usersResult = await this.db.executeQuery<{ TotalUsuariosActivos: number }>(usersQuery);
+      const usersResult = await this.db.executeQuery(usersQuery);
       
       // 2. Total de categorías activas
       const categoriesQuery = `SELECT COUNT(id) AS TotalCategoriasActivas 
                                FROM Categorias 
                                WHERE activo = 1`;
-      const categoriesResult = await this.db.executeQuery<{ TotalCategoriasActivas: number }>(categoriesQuery);
+      const categoriesResult = await this.db.executeQuery(categoriesQuery);
       
       // 3. Total de productos distintos activos
       const productsQuery = `SELECT COUNT(id) AS TotalProductosDistintosActivos 
                              FROM Productos 
                              WHERE activo = 1`;
-      const productsResult = await this.db.executeQuery<{ TotalProductosDistintosActivos: number }>(productsQuery);
+      const productsResult = await this.db.executeQuery(productsQuery);
       
       // 4. Inventario Individual
       const inventoryQuery = `
@@ -129,13 +136,7 @@ export class DashboardController {
           SUM(CASE WHEN estado = 'Dado de Baja' THEN 1 ELSE 0 END) AS ItemsBajaInventarioIndividual
         FROM InventarioIndividual
       `;
-      const inventoryResult = await this.db.executeQuery<{
-        TotalItemsInventarioIndividual: number;
-        ItemsDisponiblesInventarioIndividual: number;
-        ItemsAsignadosInventarioIndividual: number;
-        ItemsEnReparacionInventarioIndividual: number;
-        ItemsBajaInventarioIndividual: number;
-      }>(inventoryQuery);
+      const inventoryResult = await this.db.executeQuery(inventoryQuery);
       
       // 5. Stock General
       const stockQuery = `
@@ -143,13 +144,13 @@ export class DashboardController {
           COUNT(DISTINCT producto_id) AS ProductosEnStockGeneralDistintos
         FROM StockGeneral
         WHERE cantidad_actual > 0`;
-      const stockResult = await this.db.executeQuery<{ ProductosEnStockGeneralDistintos: number }>(stockQuery);
+      const stockResult = await this.db.executeQuery(stockQuery);
       
       const totalUnitsQuery = `
         SELECT 
-          SUM(CAST(cantidad_actual AS BIGINT)) AS TotalUnidadesStockGeneral
+          SUM(CAST(cantidad_actual AS SIGNED)) AS TotalUnidadesStockGeneral
         FROM StockGeneral`;
-      const totalUnitsResult = await this.db.executeQuery<{ TotalUnidadesStockGeneral: number }>(totalUnitsQuery);
+      const totalUnitsResult = await this.db.executeQuery(totalUnitsQuery);
       
       // 6. Total de asignaciones activas
       const assignmentsQuery = `
@@ -157,33 +158,44 @@ export class DashboardController {
           COUNT(id) AS TotalAsignacionesActivas
         FROM Asignaciones 
         WHERE activa = 1`;
-      const assignmentsResult = await this.db.executeQuery<{ TotalAsignacionesActivas: number }>(assignmentsQuery);
+      const assignmentsResult = await this.db.executeQuery(assignmentsQuery);
       
       // 7. Total de reparaciones activas
       const repairsQuery = `
         SELECT 
           COUNT(id) AS TotalReparacionesActivas
         FROM Reparaciones 
-        WHERE estado IN ('Enviado', 'Recibido')`;
-      const repairsResult = await this.db.executeQuery<{ TotalReparacionesActivas: number }>(repairsQuery);
+        WHERE estado IN ('En Reparación')`;
+      const repairsResult = await this.db.executeQuery(repairsQuery);
       
       // Combinar todos los resultados
+      const [usersData] = usersResult;
+      const [categoriesData] = categoriesResult;
+      const [productsData] = productsResult;
+      const [inventoryData] = inventoryResult;
+      const [stockData] = stockResult;
+      const [totalUnitsData] = totalUnitsResult;
+      const [assignmentsData] = assignmentsResult;
+      const [repairsData] = repairsResult;
+      
       const stats: SystemStats = {
-        TotalUsuariosActivos: usersResult.recordset[0]?.TotalUsuariosActivos || 0,
-        TotalCategoriasActivas: categoriesResult.recordset[0]?.TotalCategoriasActivas || 0,
-        TotalProductosDistintosActivos: productsResult.recordset[0]?.TotalProductosDistintosActivos || 0,
-        TotalItemsInventarioIndividual: inventoryResult.recordset[0]?.TotalItemsInventarioIndividual || 0,
-        ItemsDisponiblesInventarioIndividual: inventoryResult.recordset[0]?.ItemsDisponiblesInventarioIndividual || 0,
-        ItemsAsignadosInventarioIndividual: inventoryResult.recordset[0]?.ItemsAsignadosInventarioIndividual || 0,
-        ItemsEnReparacionInventarioIndividual: inventoryResult.recordset[0]?.ItemsEnReparacionInventarioIndividual || 0,
-        ItemsBajaInventarioIndividual: inventoryResult.recordset[0]?.ItemsBajaInventarioIndividual || 0,
-        ProductosEnStockGeneralDistintos: stockResult.recordset[0]?.ProductosEnStockGeneralDistintos || 0,
-        TotalUnidadesStockGeneral: totalUnitsResult.recordset[0]?.TotalUnidadesStockGeneral || 0,
-        TotalAsignacionesActivas: assignmentsResult.recordset[0]?.TotalAsignacionesActivas || 0,
-        TotalReparacionesActivas: repairsResult.recordset[0]?.TotalReparacionesActivas || 0
+        TotalUsuariosActivos: usersData[0]?.TotalUsuariosActivos || 0,
+        TotalCategoriasActivas: categoriesData[0]?.TotalCategoriasActivas || 0,
+        TotalProductosDistintosActivos: productsData[0]?.TotalProductosDistintosActivos || 0,
+        TotalItemsInventarioIndividual: inventoryData[0]?.TotalItemsInventarioIndividual || 0,
+        ItemsDisponiblesInventarioIndividual: inventoryData[0]?.ItemsDisponiblesInventarioIndividual || 0,
+        ItemsAsignadosInventarioIndividual: inventoryData[0]?.ItemsAsignadosInventarioIndividual || 0,
+        ItemsEnReparacionInventarioIndividual: inventoryData[0]?.ItemsEnReparacionInventarioIndividual || 0,
+        ItemsBajaInventarioIndividual: inventoryData[0]?.ItemsBajaInventarioIndividual || 0,
+        ProductosEnStockGeneralDistintos: stockData[0]?.ProductosEnStockGeneralDistintos || 0,
+        TotalUnidadesStockGeneral: totalUnitsData[0]?.TotalUnidadesStockGeneral || 0,
+        TotalAsignacionesActivas: assignmentsData[0]?.TotalAsignacionesActivas || 0,
+        TotalReparacionesActivas: repairsData[0]?.TotalReparacionesActivas || 0
       };
       
       logger.info('Estadísticas obtenidas exitosamente con consultas directas');
+      logger.info(`Estadísticas calculadas: ${JSON.stringify(stats)}`);
+      
       // 🚀 GUARDAR EN CACHÉ (5 minutos)
       await cacheService.set(cacheKey, stats, 5 * 60 * 1000);
       res.status(200).json({
@@ -210,13 +222,14 @@ export class DashboardController {
       try {
         // Intentar ejecutar el stored procedure primero
         logger.info('Intentando obtener alertas de stock con el SP sp_Dashboard_GetStockAlerts');
-        const spResult = await this.db.executeStoredProcedure<StockAlert>('sp_Dashboard_GetStockAlerts');
+        const spResult = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>('sp_Dashboard_GetStockAlerts', []);
         
-        if (spResult.recordset && spResult.recordset.length >= 0) { // Uso >= 0 ya que un array vacío es válido
+        const [data] = spResult;
+        if (data && data.length >= 0) { // Uso >= 0 ya que un array vacío es válido
           logger.info('Alertas de stock obtenidas exitosamente con SP sp_Dashboard_GetStockAlerts');
           res.status(200).json({
             success: true,
-            data: spResult.recordset,
+            data: data,
             source: 'stored_procedure'
           });
           return;
@@ -243,7 +256,7 @@ export class DashboardController {
             CASE 
               WHEN p.stock_minimo = 0 THEN 0 
               ELSE (sg.cantidad_actual * 100.0) / p.stock_minimo 
-            END AS INT
+            END AS SIGNED
           ) AS Porcentaje
         FROM 
           Productos p
@@ -256,12 +269,14 @@ export class DashboardController {
           Porcentaje ASC
       `;
       
-      const result = await this.db.executeQuery<StockAlert>(query);
+      const result = await this.db.executeQuery(query);
+      
+      const [data] = result;
       
       logger.info('Alertas de stock obtenidas exitosamente con consulta directa');
       res.status(200).json({
         success: true,
-        data: result.recordset || [],
+        data: data || [],
         source: 'direct_query'
       });
       
@@ -284,7 +299,7 @@ export class DashboardController {
       const limitNum = Math.min(parseInt(limit as string, 10) || 10, 50); // Máximo 50 registros
       
       const query = `
-        SELECT TOP ${limitNum}
+        SELECT
           la.id AS ID,
           la.usuario_id AS UsuarioID,
           u.nombre AS UsuarioNombre,
@@ -299,13 +314,16 @@ export class DashboardController {
           LEFT JOIN Usuarios u ON la.usuario_id = u.id
         ORDER BY 
           la.fecha_hora DESC
+        LIMIT ?
       `;
       
-      const result = await this.db.executeQuery<RecentActivity>(query);
+      const result = await this.db.executeQuery(query, [limitNum]);
+      
+      const [data] = result;
       
       res.status(200).json({
         success: true,
-        data: result.recordset || []
+        data: data || []
       });
       
     } catch (error: any) {
@@ -340,10 +358,7 @@ export class DashboardController {
         WHERE
           p.activo = 1
       `;
-      const lowStockResult = await this.db.executeQuery<{
-        TotalProductos: number;
-        ProductosBajoStock: number;
-      }>(lowStockQuery);
+      const lowStockResult = await this.db.executeQuery(lowStockQuery);
 
       // 2. Tasa de utilización de equipos
       const utilizationQuery = `
@@ -355,59 +370,56 @@ export class DashboardController {
         WHERE
           estado IN ('Disponible', 'Asignado')
       `;
-      const utilizationResult = await this.db.executeQuery<{
-        TotalEquipos: number;
-        EquiposAsignados: number;
-      }>(utilizationQuery);
+      const utilizationResult = await this.db.executeQuery(utilizationQuery);
 
       // 3. Tiempo promedio de reparación (en días, para reparaciones completadas en el último mes)
       const repairTimeQuery = `
         SELECT
-          AVG(DATEDIFF(day, fecha_envio, fecha_retorno)) AS TiempoPromedioReparacion
+          AVG(DATEDIFF(fecha_retorno, fecha_envio)) AS TiempoPromedioReparacion
         FROM
           Reparaciones
         WHERE
           estado = 'Completado'
           AND fecha_retorno IS NOT NULL
-          AND fecha_retorno >= DATEADD(month, -1, GETDATE())
+          AND fecha_retorno >= DATE_SUB(NOW(), INTERVAL 1 MONTH)
       `;
-      const repairTimeResult = await this.db.executeQuery<{
-        TiempoPromedioReparacion: number;
-      }>(repairTimeQuery);
+      const repairTimeResult = await this.db.executeQuery(repairTimeQuery);
 
       // 4. Tasa de rotación (movimientos por día en el último mes)
       const rotationRateQuery = `
         SELECT
           COUNT(*) AS TotalMovimientos,
-          COUNT(DISTINCT CAST(fecha_movimiento AS date)) AS DiasConMovimientos
+          COUNT(DISTINCT DATE(fecha_movimiento)) AS DiasConMovimientos
         FROM
           MovimientosStock
         WHERE
-          fecha_movimiento >= DATEADD(month, -1, GETDATE())
+          fecha_movimiento >= DATE_SUB(NOW(), INTERVAL 1 MONTH)
       `;
-      const rotationRateResult = await this.db.executeQuery<{
-        TotalMovimientos: number;
-        DiasConMovimientos: number;
-      }>(rotationRateQuery);
+      const rotationRateResult = await this.db.executeQuery(rotationRateQuery);
 
       // Calcular los KPIs
-      const lowStockData = lowStockResult.recordset[0];
-      const utilizationData = utilizationResult.recordset[0];
-      const repairTimeData = repairTimeResult.recordset[0];
-      const rotationRateData = rotationRateResult.recordset[0];
+      const [lowStockData] = lowStockResult;
+      const [utilizationData] = utilizationResult;
+      const [repairTimeData] = repairTimeResult;
+      const [rotationRateData] = rotationRateResult;
 
-      const lowStockPercentage = lowStockData.TotalProductos > 0
-        ? (lowStockData.ProductosBajoStock / lowStockData.TotalProductos) * 100
+      const lowStockInfo = lowStockData[0];
+      const utilizationInfo = utilizationData[0];
+      const repairTimeInfo = repairTimeData[0];
+      const rotationRateInfo = rotationRateData[0];
+
+      const lowStockPercentage = lowStockInfo.TotalProductos > 0
+        ? (lowStockInfo.ProductosBajoStock / lowStockInfo.TotalProductos) * 100
         : 0;
 
-      const utilizationRate = utilizationData.TotalEquipos > 0
-        ? (utilizationData.EquiposAsignados / utilizationData.TotalEquipos) * 100
+      const utilizationRate = utilizationInfo.TotalEquipos > 0
+        ? (utilizationInfo.EquiposAsignados / utilizationInfo.TotalEquipos) * 100
         : 0;
 
-      const avgRepairTime = repairTimeData.TiempoPromedioReparacion || 0;
+      const avgRepairTime = repairTimeInfo.TiempoPromedioReparacion || 0;
 
-      const rotationRate = rotationRateData.DiasConMovimientos > 0
-        ? rotationRateData.TotalMovimientos / rotationRateData.DiasConMovimientos
+      const rotationRate = rotationRateInfo.DiasConMovimientos > 0
+        ? rotationRateInfo.TotalMovimientos / rotationRateInfo.DiasConMovimientos
         : 0;
 
       const kpis = {

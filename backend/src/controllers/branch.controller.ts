@@ -1,5 +1,5 @@
 import { type Request, type Response } from 'express';
-import sql from 'mssql';
+import mysql from 'mysql2/promise';
 import { DatabaseConnection } from '../utils/database';
 import { logger } from '../utils/logger';
 import { type AuthRequest } from '../types/auth.types';
@@ -12,7 +12,6 @@ export class BranchController {
     this.db = DatabaseConnection.getInstance();
   }
 
-  // Crear una nueva sucursal
   // Crear una nueva sucursal
   public createBranch = async (req: AuthRequest, res: Response): Promise<void> => {
     const { nombre, activo } = req.body as { nombre: string, activo?: boolean };
@@ -30,39 +29,36 @@ export class BranchController {
     }
 
     try {
-      const params: Record<string, any> = { // Definir los parámetros para el SP
-        nombre: { type: sql.VarChar(100), value: nombre },
-        usuario_id: { type: sql.Int, value: usuarioId }
-      };
+      // Parámetros como array para MySQL
+      const params = [
+        nombre,
+        activo !== undefined ? activo : true, // Default true si no se especifica
+        usuarioId
+      ];
 
-      // Añadir 'activo' solo si está definido en el request body, para permitir que el SP use su default
-      if (activo !== undefined) {
-        params.activo = { type: sql.Bit, value: activo };
-      }
-      
-      // Especificamos el tipo de resultado esperado del SP para el tipado
-      const result = await this.db.executeStoredProcedure<{ id: number, mensaje: string }>('sp_Branch_Create', params);
+      const result = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>('sp_Branch_Create', params);
 
-      if (result.recordset && result.recordset.length > 0 && result.recordset[0].id) {
-        const branchId = result.recordset[0].id;
-        const message = result.recordset[0].mensaje || 'Sucursal creada exitosamente.';
+      const [data] = result;
+      if (data && data.length > 0 && data[0].id) {
+        const branchId = data[0].id;
+        const message = data[0].mensaje || 'Sucursal creada exitosamente.';
         logger.info(`Sucursal creada con ID: ${branchId} por usuario ID: ${usuarioId}`);
         res.status(201).json({ success: true, message, branchId });
       } else {
-        logger.error('Error al crear la sucursal: el SP no devolvió el ID o mensaje esperado en el recordset.', { nombre, usuarioId, spResult: result });
+        logger.error('Error al crear la sucursal: el SP no devolvió el ID o mensaje esperado.', { nombre, usuarioId, spResult: result });
         res.status(500).json({ success: false, message: 'Error al crear la sucursal, respuesta inesperada del procedimiento almacenado.' });
       }
     } catch (error: any) {
       logger.error('Error al crear la sucursal:', { error, nombre, usuarioId });
-      // Verificar si es un error lanzado por el SP (THROW)
-      if (error.originalError && error.originalError.info && error.originalError.info.procName === 'sp_Branch_Create') {
-        // Los errores 50020 y 50021 son definidos en el SP
-        if (error.number === 50020 || error.number === 50021) { // Nombre obligatorio o Sucursal ya existe
-          res.status(400).json({ success: false, message: error.message });
-          return;
-        }
+      
+      // Manejo simplificado de errores para MySQL
+      if (error.message?.includes('ya existe')) {
+        res.status(409).json({ success: false, message: 'Ya existe una sucursal con ese nombre.' });
+      } else if (error.message?.includes('obligatorio')) {
+        res.status(400).json({ success: false, message: 'El nombre de la sucursal es obligatorio.' });
+      } else {
+        res.status(500).json({ success: false, message: 'Error interno del servidor al crear la sucursal.' });
       }
-      res.status(500).json({ success: false, message: 'Error interno del servidor al crear la sucursal.' });
     }
   };
 
@@ -74,13 +70,12 @@ export class BranchController {
     const activoOnly = activo_only === 'false' ? false : true;
 
     try {
-      const params = {
-        activo_only: { type: sql.Bit, value: activoOnly }
-      };
+      const params = [activoOnly];
 
-      const result = await this.db.executeStoredProcedure<Sucursal>('sp_Branch_GetAll', params);
+      const result = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>('sp_Branch_GetAll', params);
       
-      res.status(200).json({ success: true, data: result.recordset });
+      const [data] = result;
+      res.status(200).json({ success: true, data: data || [] });
 
     } catch (error: any) {
       logger.error('Error al obtener todas las sucursales:', { error, query: req.query });
@@ -99,27 +94,25 @@ export class BranchController {
     }
 
     try {
-      const params = {
-        id: { type: sql.Int, value: branchId }
-      };
+      const params = [branchId];
 
-      const result = await this.db.executeStoredProcedure<Sucursal>('sp_Branch_Get', params);
+      const result = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>('sp_Branch_Get', params);
 
-      if (result.recordset && result.recordset.length > 0) {
-        res.status(200).json({ success: true, data: result.recordset[0] });
+      const [data] = result;
+      if (data && data.length > 0) {
+        res.status(200).json({ success: true, data: data[0] });
       } else {
-        // Este caso no debería ocurrir si el SP lanza error 50022 como se espera
-        logger.warn(`SP sp_Branch_Get para ID ${branchId} no devolvió error pero tampoco encontró la sucursal.`);
+        logger.warn(`SP sp_Branch_Get para ID ${branchId} no encontró la sucursal.`);
         res.status(404).json({ success: false, message: 'Sucursal no encontrada.' });
       }
     } catch (error: any) {
       logger.error(`Error al obtener la sucursal con ID ${branchId}:`, { error });
-      // Verificar si es el error 'Sucursal no encontrada' lanzado por el SP
-      if (error.originalError && error.originalError.info && error.originalError.info.procName === 'sp_Branch_Get' && error.number === 50022) {
-        res.status(404).json({ success: false, message: error.message });
-        return;
+      
+      if (error.message?.includes('no encontrada')) {
+        res.status(404).json({ success: false, message: 'Sucursal no encontrada.' });
+      } else {
+        res.status(500).json({ success: false, message: 'Error interno del servidor al obtener la sucursal.' });
       }
-      res.status(500).json({ success: false, message: 'Error interno del servidor al obtener la sucursal.' });
     }
   };
 
@@ -147,39 +140,33 @@ export class BranchController {
     }
 
     try {
-      const params = {
-        id: branchId,
-        nombre: nombre,
-        usuario_id: usuarioId
-      };
+      const params = [branchId, nombre, usuarioId];
 
-      const result = await this.db.executeStoredProcedure<{ id: number, mensaje: string }>('sp_Branch_Update', params);
+      const result = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>('sp_Branch_Update', params);
 
-      if (result.recordset && result.recordset.length > 0 && result.recordset[0].id) {
+      const [data] = result;
+      if (data && data.length > 0 && data[0].id) {
         res.status(200).json({
           success: true,
-          message: result.recordset[0].mensaje,
-          data: { id: result.recordset[0].id, nombre: nombre, activo: true } // Devolvemos el nombre actualizado y estado activo
+          message: data[0].mensaje,
+          data: { id: data[0].id, nombre: nombre, activo: true } // Devolvemos el nombre actualizado y estado activo
         });
       } else {
-        // Este caso no debería ocurrir si el SP siempre devuelve un resultado o lanza error
         logger.error(`SP sp_Branch_Update para ID ${branchId} no devolvió resultado esperado.`, { spResult: result });
         res.status(500).json({ success: false, message: 'Error al actualizar la sucursal, respuesta inesperada del servidor.' });
       }
     } catch (error: any) {
       logger.error(`Error al actualizar la sucursal ID ${branchId}:`, { error, nombre });
-      if (error.originalError && error.originalError.info && error.originalError.info.procName === 'sp_Branch_Update') {
-        switch (error.number) {
-          case 50023: // Sucursal no encontrada
-            res.status(404).json({ success: false, message: error.message });
-            return;
-          case 50024: // El nombre de la sucursal es obligatorio
-          case 50025: // Ya existe otra sucursal con ese nombre
-            res.status(error.number === 50024 ? 400 : 409).json({ success: false, message: error.message });
-            return;
-        }
+      
+      if (error.message?.includes('no encontrada')) {
+        res.status(404).json({ success: false, message: 'Sucursal no encontrada.' });
+      } else if (error.message?.includes('obligatorio')) {
+        res.status(400).json({ success: false, message: 'El nombre de la sucursal es obligatorio.' });
+      } else if (error.message?.includes('ya existe')) {
+        res.status(409).json({ success: false, message: 'Ya existe otra sucursal con ese nombre.' });
+      } else {
+        res.status(500).json({ success: false, message: 'Error interno del servidor al actualizar la sucursal.' });
       }
-      res.status(500).json({ success: false, message: 'Error interno del servidor al actualizar la sucursal.' });
     }
   };
 
@@ -207,38 +194,31 @@ export class BranchController {
     }
 
     try {
-      const params = {
-        id: branchId,
-        activo: activo,
-        usuario_id: usuarioId
-      };
+      const params = [branchId, activo, usuarioId];
 
-      const result = await this.db.executeStoredProcedure<{ id: number, mensaje: string }>('sp_Branch_ToggleActive', params);
+      const result = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>('sp_Branch_ToggleActive', params);
 
-      if (result.recordset && result.recordset.length > 0 && result.recordset[0].id) {
+      const [data] = result;
+      if (data && data.length > 0 && data[0].id) {
         res.status(200).json({
           success: true,
-          message: result.recordset[0].mensaje,
-          data: { id: result.recordset[0].id, activo: activo } // Devolvemos el nuevo estado
+          message: data[0].mensaje,
+          data: { id: data[0].id, activo: activo } // Devolvemos el nuevo estado
         });
       } else {
-        // Este caso no debería ocurrir si el SP siempre devuelve un resultado o lanza error
         logger.error(`SP sp_Branch_ToggleActive para ID ${branchId} no devolvió resultado esperado.`, { spResult: result });
         res.status(500).json({ success: false, message: 'Error al cambiar estado de la sucursal, respuesta inesperada del servidor.' });
       }
     } catch (error: any) {
       logger.error(`Error al cambiar estado de la sucursal ID ${branchId}:`, { error, activo });
-      if (error.originalError && error.originalError.info && error.originalError.info.procName === 'sp_Branch_ToggleActive') {
-        switch (error.number) {
-          case 50026: // Sucursal no encontrada
-            res.status(404).json({ success: false, message: error.message });
-            return;
-          case 50027: // La sucursal ya tiene ese estado
-            res.status(409).json({ success: false, message: error.message });
-            return;
-        }
+      
+      if (error.message?.includes('no encontrada')) {
+        res.status(404).json({ success: false, message: 'Sucursal no encontrada.' });
+      } else if (error.message?.includes('ya tiene ese estado')) {
+        res.status(409).json({ success: false, message: 'La sucursal ya tiene ese estado.' });
+      } else {
+        res.status(500).json({ success: false, message: 'Error interno del servidor al cambiar el estado de la sucursal.' });
       }
-      res.status(500).json({ success: false, message: 'Error interno del servidor al cambiar el estado de la sucursal.' });
     }
   };
 }

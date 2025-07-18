@@ -1,31 +1,36 @@
-import { Response } from 'express';
-import sql from 'mssql';
-import { AuthRequest } from '../types/auth.types';
-import { logger } from '../utils/logger';
+import { Request, Response } from 'express';
 import { DatabaseConnection } from '../utils/database';
+import { logger } from '../utils/logger';
+import { AuthRequest } from '../types/auth.types';
+import mysql from 'mysql2/promise';
 
-// Cache de idempotencia en memoria para evitar duplicados
 interface CacheEntry {
   timestamp: number;
   response: any;
   status: number;
 }
-const idempotencyCache = new Map<string, CacheEntry>();
-const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutos
 
-// Limpieza periódica de la caché para no consumir memoria indefinidamente
-setInterval(() => {
-  const now = Date.now();
-  idempotencyCache.forEach((entry, key) => {
-    if (now - entry.timestamp > CACHE_TTL_MS) {
-      idempotencyCache.delete(key);
-      console.log(`🧹 Cache-Cleaner: Entrada de idempotencia expirada y eliminada: ${key}`);
-    }
-  });
-}, CACHE_TTL_MS);
+interface StockEntryRequest {
+  producto_id: number;
+  cantidad: number;
+  motivo?: string;
+  observaciones?: string;
+  ubicacion?: string;
+}
+
+interface StockExitRequest {
+  producto_id: number;
+  cantidad: number;
+  empleado_id?: number;
+  sector_id?: number;
+  sucursal_id?: number;
+  motivo: string;
+  observaciones?: string;
+}
 
 export class StockController {
   private db: DatabaseConnection;
+  private cache: Map<string, CacheEntry> = new Map();
 
   constructor() {
     this.db = DatabaseConnection.getInstance();
@@ -33,140 +38,171 @@ export class StockController {
 
   public addStockEntry = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-      const { producto_id, cantidad, motivo, observaciones } = req.body;
-      
-      console.log('📤 Procesando entrada de stock:', { producto_id, cantidad, motivo, observaciones });
+      const usuario_id = req.user?.id;
+      if (!usuario_id) {
+        res.status(401).json({ success: false, message: 'Usuario no autenticado' });
+        return;
+      }
 
-      // Validaciones básicas
-      if (!producto_id || !cantidad || !motivo) {
+      const body: StockEntryRequest = req.body;
+
+      // Validación básica
+      if (!body.producto_id || !body.cantidad || body.cantidad <= 0) {
         res.status(400).json({
           success: false,
-          error: 'Producto ID, cantidad y motivo son requeridos'
+          message: 'Producto ID y cantidad (mayor a 0) son requeridos'
         });
         return;
       }
 
-      const cantidadNum = parseInt(cantidad);
-      if (isNaN(cantidadNum) || cantidadNum <= 0) {
-        res.status(400).json({
-          success: false,
-          error: 'La cantidad debe ser un número positivo'
-        });
-        return;
-      }
+      logger.info(`[STOCK_ENTRY] Usuario ${usuario_id} agregando stock`, {
+        producto_id: body.producto_id,
+        cantidad: body.cantidad,
+        motivo: body.motivo
+      });
 
-      // Ejecutar el stored procedure
-      const result = await this.db.executeStoredProcedure<any>(
+      const [results] = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>(
         'sp_StockGeneral_Entry',
-        {
-          producto_id: parseInt(producto_id),
-          cantidad: cantidadNum,
-          motivo: motivo.trim(),
-          observaciones: observaciones?.trim() || null,
-          usuario_id: req.user!.id
-        }
+        [
+          body.producto_id,
+          body.cantidad,
+          usuario_id,
+          body.motivo || 'Entrada manual',
+          body.observaciones || null,
+          body.ubicacion || null
+        ]
       );
 
-      console.log('✅ Resultado del SP:', result.output);
+      // MySQL devuelve un array, verificamos si hay resultados
+      if (!Array.isArray(results) || results.length === 0) {
+        logger.error('[STOCK_ENTRY] Error: No se pudo procesar la entrada de stock');
+        res.status(500).json({
+          success: false,
+          message: 'Error al procesar la entrada de stock'
+        });
+        return;
+      }
 
-      res.status(200).json({
+      const result = results[0];
+      logger.info(`[STOCK_ENTRY] Entrada de stock procesada exitosamente`, {
+        producto_id: body.producto_id,
+        cantidad: body.cantidad,
+        nuevo_stock: result.nuevo_stock
+      });
+
+      res.status(201).json({
         success: true,
-        message: result.output.mensaje,
+        message: 'Entrada de stock registrada exitosamente',
         data: {
-          movimientoId: result.output.movimiento_id,
-          stockId: result.output.stock_id,
-          stockActual: result.output.stock_actual
+          producto_id: body.producto_id,
+          cantidad: body.cantidad,
+          stock_anterior: result.stock_anterior,
+          stock_actual: result.nuevo_stock,
+          movimiento_id: result.movimiento_id
         }
       });
 
     } catch (error: any) {
-      console.error('❌ Error en addStockEntry:', error);
-      logger.error('Error al registrar entrada de stock:', error);
-      
-      const status = (error.number && error.number >= 50000 && error.number < 60000) ? 400 : 500;
-      res.status(status).json({
+      logger.error(`[STOCK_ENTRY] Error al agregar entrada de stock: ${error.message}`, { error });
+      res.status(500).json({
         success: false,
-        error: error.message || 'Error interno del servidor',
-        details: {
-          sqlErrorCode: error.number,
-          procName: error.procName
-        }
+        message: 'Error interno del servidor al agregar entrada de stock'
       });
     }
   };
 
   public processStockExit = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-      const { 
-        producto_id, 
-        cantidad, 
-        motivo, 
-        empleado_id, 
-        sector_id, 
-        sucursal_id, 
-        observaciones
-      } = req.body;
-      
-      console.log('📤 Procesando salida de stock:', { producto_id, cantidad, motivo, empleado_id, sector_id, sucursal_id });
+      const usuario_id = req.user?.id;
+      if (!usuario_id) {
+        res.status(401).json({ success: false, message: 'Usuario no autenticado' });
+        return;
+      }
 
-      // Validaciones básicas
-      if (!producto_id || !cantidad || !motivo) {
+      const body: StockExitRequest = req.body;
+
+      // Validación básica
+      if (!body.producto_id || !body.cantidad || body.cantidad <= 0) {
         res.status(400).json({
           success: false,
-          error: 'Producto ID, cantidad y motivo son requeridos'
+          message: 'Producto ID y cantidad (mayor a 0) son requeridos'
         });
         return;
       }
 
-      const cantidadNum = parseInt(cantidad);
-      if (isNaN(cantidadNum) || cantidadNum <= 0) {
+      if (!body.motivo) {
         res.status(400).json({
           success: false,
-          error: 'La cantidad debe ser un número positivo'
+          message: 'El motivo de la salida es requerido'
         });
         return;
       }
 
-      // Ejecutar el stored procedure
-      const result = await this.db.executeStoredProcedure<any>(
+      // Verificar que al menos uno de los destinos esté especificado
+      if (!body.empleado_id && !body.sector_id && !body.sucursal_id) {
+        res.status(400).json({
+          success: false,
+          message: 'Debe especificar al menos un destino (empleado, sector o sucursal)'
+        });
+        return;
+      }
+
+      logger.info(`[STOCK_EXIT] Usuario ${usuario_id} procesando salida de stock`, {
+        producto_id: body.producto_id,
+        cantidad: body.cantidad,
+        motivo: body.motivo,
+        empleado_id: body.empleado_id,
+        sector_id: body.sector_id,
+        sucursal_id: body.sucursal_id
+      });
+
+      const [results] = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>(
         'sp_StockGeneral_Exit',
-        {
-          producto_id: parseInt(producto_id),
-          cantidad: cantidadNum,
-          motivo: motivo.trim(),
-          empleado_id: empleado_id ? parseInt(empleado_id) : null,
-          sector_id: sector_id ? parseInt(sector_id) : null,
-          sucursal_id: sucursal_id ? parseInt(sucursal_id) : null,
-          observaciones: observaciones?.trim() || null,
-          usuario_id: req.user!.id
-        }
+        [
+          body.producto_id,
+          body.cantidad,
+          usuario_id,
+          body.empleado_id || null,
+          body.sector_id || null,
+          body.sucursal_id || null,
+          body.motivo,
+          body.observaciones || null
+        ]
       );
 
-      console.log('✅ Resultado del SP:', result.output);
+      if (!Array.isArray(results) || results.length === 0) {
+        logger.error('[STOCK_EXIT] Error: No se pudo procesar la salida de stock');
+        res.status(500).json({
+          success: false,
+          message: 'Error al procesar la salida de stock'
+        });
+        return;
+      }
+
+      const result = results[0];
+      logger.info(`[STOCK_EXIT] Salida de stock procesada exitosamente`, {
+        producto_id: body.producto_id,
+        cantidad: body.cantidad,
+        nuevo_stock: result.nuevo_stock
+      });
 
       res.status(200).json({
         success: true,
-        message: result.output.mensaje,
+        message: 'Salida de stock registrada exitosamente',
         data: {
-          movimientoId: result.output.movimiento_id,
-          stockId: result.output.stock_id,
-          stockActual: result.output.stock_actual,
-          alertaBajoStock: result.output.alerta_bajo_stock
+          producto_id: body.producto_id,
+          cantidad: body.cantidad,
+          stock_anterior: result.stock_anterior,
+          stock_actual: result.nuevo_stock,
+          movimiento_id: result.movimiento_id
         }
       });
 
     } catch (error: any) {
-      console.error('❌ Error en processStockExit:', error);
-      logger.error('Error al registrar salida de stock:', error);
-      
-      const status = (error.number && error.number >= 50000 && error.number < 60000) ? 400 : 500;
-      res.status(status).json({
+      logger.error(`[STOCK_EXIT] Error al procesar salida de stock: ${error.message}`, { error });
+      res.status(500).json({
         success: false,
-        error: error.message || 'Error interno del servidor',
-        details: {
-          sqlErrorCode: error.number,
-          procName: error.procName
-        }
+        message: 'Error interno del servidor al procesar salida de stock'
       });
     }
   };
@@ -175,16 +211,16 @@ export class StockController {
     try {
       console.log('📊 Obteniendo stock actual...');
 
-      const result = await this.db.executeStoredProcedure<any>(
+      const [results] = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>(
         'sp_StockGeneral_GetAll',
-        {
-          categoria_id: null,
-          solo_bajo_stock: false,
-          producto_id: null
-        }
+        [
+          null, // categoria_id
+          false, // solo_bajo_stock
+          null // producto_id
+        ]
       );
       
-      const stockItems = result.recordset || [];
+      const stockItems = Array.isArray(results) ? results : [];
       console.log(`✅ Se encontraron ${stockItems.length} items de stock actual`);
 
       res.json({
@@ -209,16 +245,16 @@ export class StockController {
       const { categoria_id, solo_bajo_stock, producto_id } = req.query;
       console.log('Consultando stock general con parámetros:', { categoria_id, solo_bajo_stock, producto_id });
 
-      const result = await this.db.executeStoredProcedure<any>(
+      const [results] = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>(
         'sp_StockGeneral_GetAll',
-        {
-          categoria_id: categoria_id ? Number(categoria_id) : null,
-          solo_bajo_stock: solo_bajo_stock === 'true',
-          producto_id: producto_id ? Number(producto_id) : null
-        }
+        [
+          categoria_id ? Number(categoria_id) : null,
+          solo_bajo_stock === 'true',
+          producto_id ? Number(producto_id) : null
+        ]
       );
       
-      const stockItems = result.recordset || [];
+      const stockItems = Array.isArray(results) ? results : [];
       console.log(`Se encontraron ${stockItems.length} items de stock`);
 
       // ENVOLVER LA RESPUESTA EN UN OBJETO
@@ -247,15 +283,15 @@ export class StockController {
         categoria_id, solo_criticos
       });
 
-      const result = await this.db.executeStoredProcedure<any>(
+      const [results] = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>(
         'sp_StockGeneral_GetLowStock',
-        {
-          categoria_id: categoria_id ? parseInt(categoria_id as string) : null,
-          solo_criticos: solo_criticos === 'true'
-        }
+        [
+          categoria_id ? parseInt(categoria_id as string) : null,
+          solo_criticos === 'true'
+        ]
       );
 
-      const alerts = result.recordset || [];
+      const alerts = Array.isArray(results) ? results : [];
       console.log(`✅ Se encontraron ${alerts.length} alertas de stock bajo`);
 
       // Clasificar alertas por criticidad
@@ -326,23 +362,23 @@ export class StockController {
         }
       });
 
-      const result = await this.db.executeStoredProcedure<any>(
+      const [results] = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>(
         'sp_StockGeneral_GetMovements',
-        {
-          producto_id: producto_id ? parseInt(producto_id as string) : null,
-          tipo_movimiento: tipo_movimiento || null,
-          empleado_id: empleado_id ? parseInt(empleado_id as string) : null,
-          sector_id: sector_id ? parseInt(sector_id as string) : null,
-          sucursal_id: sucursal_id ? parseInt(sucursal_id as string) : null,
-          fecha_desde: fecha_inicio ? new Date(fecha_inicio as string) : null,
-          fecha_hasta: fecha_fin ? new Date(fecha_fin as string) : null,
-          search: search || null,
-          PageNumber: parseInt(page as string),
-          PageSize: parseInt(limit as string)
-        }
+        [
+          producto_id ? parseInt(producto_id as string) : null,
+          tipo_movimiento || null,
+          empleado_id ? parseInt(empleado_id as string) : null,
+          sector_id ? parseInt(sector_id as string) : null,
+          sucursal_id ? parseInt(sucursal_id as string) : null,
+          fecha_inicio ? new Date(fecha_inicio as string) : null,
+          fecha_fin ? new Date(fecha_fin as string) : null,
+          search || null,
+          parseInt(page as string),
+          parseInt(limit as string)
+        ]
       );
 
-      const movements = result.recordset || [];
+      const movements = Array.isArray(results) ? results : [];
       console.log(`✅ Se encontraron ${movements.length} movimientos de stock`);
 
       res.json({
@@ -367,3 +403,5 @@ export class StockController {
     }
   };
 }
+
+export default new StockController();

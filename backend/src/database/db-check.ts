@@ -1,92 +1,117 @@
 import { DatabaseConnection } from '../utils/database';
 import { logger } from '../utils/logger';
+import mysql from 'mysql2/promise';
 
 /**
- * Script para verificar la conexión a la base de datos
+ * Script para verificar la conexión a la base de datos MySQL
  * Se puede ejecutar directamente con: npx ts-node src/database/db-check.ts
  */
 async function checkDatabaseConnection(): Promise<void> {
-  console.log('\n=== Verificación de Conexión a Base de Datos ===\n');
+  console.log('\n=== Verificación de Conexión a Base de Datos MySQL ===\n');
   
   const db = DatabaseConnection.getInstance();
   
   try {
-    console.log('Intentando conectar a la base de datos...');
-    const status = await db.checkConnectionStatus();
+    console.log('Intentando conectar a la base de datos MySQL...');
     
-    if (status.connected) {
-      console.log('\n✅ Conexión exitosa a la base de datos!\n');
-      console.log('Estadísticas del pool de conexiones:');
-      console.log(`- Tamaño del pool: ${status.poolSize}`);
-      console.log(`- Conexiones disponibles: ${status.availableCount}`);
-      console.log(`- Conexiones en espera: ${status.pending}`);
+    // Verificar conexión ejecutando una consulta simple
+    const testResult = await db.executeQuery<mysql.RowDataPacket[]>('SELECT 1 as test');
+    const [testData] = testResult;
+    
+    if (testData && testData.length > 0 && testData[0].test === 1) {
+      console.log('\n✅ Conexión exitosa a la base de datos MySQL!\n');
       
-      // Intentar obtener la versión del servidor
+      // Intentar obtener la versión del servidor MySQL
       try {
-        const result = await db.executeQuery<{ version: string }>('SELECT @@VERSION AS version');
-        console.log('\nInformación del servidor:');
-        console.log(result.recordset[0].version);
+        const versionResult = await db.executeQuery<mysql.RowDataPacket[]>('SELECT VERSION() AS version');
+        const [versionData] = versionResult;
+        
+        console.log('Información del servidor MySQL:');
+        console.log(`Versión: ${versionData[0].version}`);
       } catch (error) {
         console.error('No se pudo obtener la versión del servidor:', (error as Error).message);
       }
       
-      // Verificar que existe la tabla MigracionesDB
+      // Verificar información de la base de datos actual
       try {
-        const result = await db.executeQuery<{ exists: number }>(
-          "SELECT COUNT(*) AS exists FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME = 'MigracionesDB'"
+        const dbInfoResult = await db.executeQuery<mysql.RowDataPacket[]>('SELECT DATABASE() AS db_name');
+        const [dbInfoData] = dbInfoResult;
+        
+        console.log(`Base de datos actual: ${dbInfoData[0].db_name}`);
+      } catch (error) {
+        console.error('No se pudo obtener el nombre de la base de datos:', (error as Error).message);
+      }
+      
+      // Verificar tablas principales del sistema
+      try {
+        const tablesResult = await db.executeQuery<mysql.RowDataPacket[]>(
+          `SELECT TABLE_NAME 
+           FROM INFORMATION_SCHEMA.TABLES 
+           WHERE TABLE_SCHEMA = DATABASE() 
+           ORDER BY TABLE_NAME`
         );
+        const [tablesData] = tablesResult;
         
-        const tableExists = result.recordset[0].exists > 0;
-        console.log(`\nTabla de migraciones: ${tableExists ? '✅ Existe' : '❌ No existe'}`);
-        
-        if (!tableExists) {
-          console.log('👉 La tabla de migraciones se creará automáticamente al ejecutar las migraciones.');
+        console.log(`\nTablas encontradas: ${tablesData.length}`);
+        if (tablesData.length > 0) {
+          console.log('Lista de tablas:');
+          tablesData.forEach((table: any) => {
+            console.log(`  - ${table.TABLE_NAME}`);
+          });
         }
       } catch (error) {
-        console.error('Error al verificar tabla de migraciones:', (error as Error).message);
+        console.error('Error al verificar tablas:', (error as Error).message);
+      }
+      
+      // Verificar stored procedures
+      try {
+        const spResult = await db.executeQuery<mysql.RowDataPacket[]>(
+          `SELECT ROUTINE_NAME 
+           FROM INFORMATION_SCHEMA.ROUTINES 
+           WHERE ROUTINE_SCHEMA = DATABASE() 
+           AND ROUTINE_TYPE = 'PROCEDURE'
+           ORDER BY ROUTINE_NAME`
+        );
+        const [spData] = spResult;
+        
+        console.log(`\nStored Procedures encontrados: ${spData.length}`);
+        if (spData.length > 0) {
+          console.log('Lista de SPs (primeros 10):');
+          spData.slice(0, 10).forEach((sp: any) => {
+            console.log(`  - ${sp.ROUTINE_NAME}`);
+          });
+          if (spData.length > 10) {
+            console.log(`  ... y ${spData.length - 10} más`);
+          }
+        }
+      } catch (error) {
+        console.error('Error al verificar stored procedures:', (error as Error).message);
       }
     } else {
-      console.error('\n❌ Error al conectar a la base de datos!');
+      console.error('\n❌ Error al conectar a la base de datos MySQL!');
       console.log('\nPosibles causas:');
-      console.log('1. Servidor de base de datos no está en ejecución');
-      console.log('2. Credenciales incorrectas');
-      console.log('3. Nombre de base de datos incorrecto');
-      console.log('4. Problemas de red o firewall');
+      console.log('1. Servidor MySQL no está en ejecución');
+      console.log('2. Credenciales incorrectas en .env');
+      console.log('3. Base de datos no existe');
+      console.log('4. Problemas de red o puerto incorrecto');
       
       console.log('\nSoluciones:');
-      console.log('1. Verificar que el servidor SQL Server esté en ejecución');
-      console.log('2. Revisar variables de entorno en el archivo .env');
-      console.log('3. Verificar que la base de datos existe');
-      console.log('4. Comprobar conexión de red y reglas de firewall');
-      
-      // Intentar obtener más diagnósticos
-      try {
-        const diagnostics = await db.getDiagnostics();
-        console.log('\nDiagnóstico:');
-        console.log('- Variables de entorno:');
-        console.log(`  DB_HOST: ${diagnostics.envVars.dbHost}`);
-        console.log(`  DB_PORT: ${diagnostics.envVars.dbPort}`);
-        console.log(`  DB_NAME: ${diagnostics.envVars.dbName}`);
-        console.log(`  DB_USER configurado: ${diagnostics.envVars.hasUser ? 'Sí' : 'No'}`);
-        console.log(`  DB_PASSWORD configurado: ${diagnostics.envVars.hasPassword ? 'Sí' : 'No'}`);
-        
-        if (diagnostics.lastError) {
-          console.log(`\nÚltimo error: ${diagnostics.lastError}`);
-        }
-      } catch (error) {
-        // No hacer nada si falla el diagnóstico
-      }
+      console.log('1. Verificar que MySQL esté en ejecución');
+      console.log('2. Revisar variables de entorno en .env:');
+      console.log('   - DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD');
+      console.log('3. Crear la base de datos si no existe');
+      console.log('4. Verificar puerto 3306 esté abierto');
     }
-  } catch (error) {
-    console.error('\n❌ Error durante la verificación:', (error as Error).message);
-  } finally {
-    // Cerrar la conexión
-    try {
-      await db.close();
-      console.log('\nConexión cerrada correctamente.');
-    } catch (error) {
-      console.error('Error al cerrar la conexión:', (error as Error).message);
-    }
+  } catch (error: any) {
+    console.error('\n❌ Error durante la verificación:', error.message);
+    
+    // Diagnóstico básico
+    console.log('\nDiagnóstico de variables de entorno:');
+    console.log(`DB_HOST: ${process.env.DB_HOST || 'NO CONFIGURADO'}`);
+    console.log(`DB_PORT: ${process.env.DB_PORT || 'NO CONFIGURADO'}`);
+    console.log(`DB_NAME: ${process.env.DB_NAME || 'NO CONFIGURADO'}`);
+    console.log(`DB_USER: ${process.env.DB_USER ? 'CONFIGURADO' : 'NO CONFIGURADO'}`);
+    console.log(`DB_PASSWORD: ${process.env.DB_PASSWORD ? 'CONFIGURADO' : 'NO CONFIGURADO'}`);
   }
   
   console.log('\n=== Fin de la verificación ===\n');
