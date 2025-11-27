@@ -1,5 +1,5 @@
 ---
-trigger: manual
+trigger: always_on
 ---
 
 # 📘 Rule: Keep the Changelog Continuously Updated Throughout the Project
@@ -58,4 +58,3 @@ Tasks are not considered fully completed until the changelog has been updated ac
 docs/task-master.md – for matching tasks to changelog
 
 Changelog table schema in T2.5 of task-master.md
-

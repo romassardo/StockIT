@@ -84,9 +84,9 @@ export const updateInventoryItem = async (id: number, item: Partial<InventoryIte
   }
 };
 
-export const getInventoryHistory = async (id: number): Promise<any[]> => {
+export const getInventoryHistory = async (id: number): Promise<{ success: boolean; data: any[] }> => {
   try {
-    const response = await api.get<any[]>(`/inventory/${id}/history`);
+    const response = await api.get<{ success: boolean; data: any[] }>(`/inventory/${id}/history`);
     return sanitizeNumericFields(response.data);
   } catch (error) {
     console.error('Error obteniendo historial de inventario:', error);
@@ -132,8 +132,9 @@ export const getProductsWithSerialNumber = async (): Promise<{ success: boolean;
 
 export const getInventoryBySerial = async (serialNumber: string): Promise<InventoryItem> => {
   try {
-    const response = await api.get<InventoryItem>(`/inventory/serial/${serialNumber}`);
-    return sanitizeNumericFields(response.data);
+    const response = await api.get<{ success: boolean; data: InventoryItem }>(`/inventory/serial/${serialNumber}`);
+    // El backend devuelve { success: true, data: InventoryItem }
+    return sanitizeNumericFields(response.data.data);
   } catch (error) {
     console.error('Error obteniendo inventario por serial:', error);
     throw error;

@@ -26,7 +26,15 @@ export class DatabaseConnection {
       connectionLimit: 20, // Máximo de conexiones en el pool
       queueLimit: 0,
       idleTimeout: 10000, // milisegundos
-      connectTimeout: 10000 // timeout para la conexión inicial
+      connectTimeout: 10000, // timeout para la conexión inicial
+      charset: 'utf8mb4',
+      // IMPORTANTE: Forzar encoding UTF-8 completo para caracteres especiales (ñ, é, í, etc.)
+      typeCast: function (field: any, next: any) {
+        if (field.type === 'VAR_STRING' || field.type === 'STRING' || field.type === 'VARCHAR') {
+          return field.string();
+        }
+        return next();
+      }
     };
 
     logger.info('Configuración de conexión a MySQL preparada.');
@@ -44,8 +52,22 @@ export class DatabaseConnection {
       try {
         logger.info(`[DB_GETPOOL_DEBUG] Creando nuevo pool de conexiones para MySQL...`);
         logger.info(`[DB_GETPOOL_DEBUG] Host: ${this.config.host}, DB: ${this.config.database}, User: ${this.config.user}`);
-        this.pool = mysql.createPool(this.config);
-        logger.info('Pool de conexiones MySQL creado exitosamente.');
+        
+        // Crear pool con opciones que fuerzan UTF-8 en cada conexión
+        const poolConfig = {
+          ...this.config,
+          // Esto ejecuta SET NAMES automáticamente para cada conexión nueva
+          multipleStatements: true
+        };
+        
+        this.pool = mysql.createPool(poolConfig);
+        
+        // Configurar UTF-8 en cada nueva conexión del pool
+        this.pool.on('connection', (connection) => {
+          connection.query("SET NAMES 'utf8mb4' COLLATE 'utf8mb4_unicode_ci'");
+        });
+        
+        logger.info('Pool de conexiones MySQL creado exitosamente (con soporte UTF-8).');
       } catch (error) {
         const err = error as Error;
         logger.error(`Error al crear el pool de MySQL: ${err.message}`);
@@ -61,8 +83,13 @@ export class DatabaseConnection {
     try {
       const pool = this.getPool();
       connection = await pool.getConnection();
+      
+      // Forzar UTF-8 para caracteres especiales (ñ, é, í, ó, ú, etc.)
+      await connection.query("SET NAMES 'utf8mb4' COLLATE 'utf8mb4_unicode_ci'");
+      await connection.query("SET CHARACTER SET utf8mb4");
+      
       await connection.ping();
-      logger.info('[DB_TEST_CONNECTION] La prueba de conexión a la base de datos MySQL fue exitosa.');
+      logger.info('[DB_TEST_CONNECTION] La prueba de conexión a la base de datos MySQL fue exitosa (UTF-8 configurado).');
     } catch (error) {
       const err = error as Error;
       logger.error(`[DB_TEST_CONNECTION] Falló la prueba de conexión a MySQL: ${err.message}`);
@@ -71,6 +98,7 @@ export class DatabaseConnection {
       connection?.release();
     }
   }
+
   
   public async executeQuery<T extends mysql.RowDataPacket[]>(
     query: string,

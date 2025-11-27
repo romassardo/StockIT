@@ -97,6 +97,16 @@ class AssignmentService {
   }
 
   /**
+   * Cancelar asignación
+   */
+  async cancelAssignment(assignmentId: number, motivo: string): Promise<AssignmentResponse> {
+    const response = await api.put<AssignmentResponse>(`${this.baseUrl}/${assignmentId}/cancel`, {
+      motivo
+    });
+    return response.data;
+  }
+
+  /**
    * Obtener asignaciones por empleado
    */
   async getAssignmentsByEmployee(employeeId: number): Promise<AssignmentResponse> {

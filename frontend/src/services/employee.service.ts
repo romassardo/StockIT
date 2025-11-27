@@ -30,8 +30,8 @@ class EmployeeService {
   /**
    * Obtener todos los empleados activos
    */
-  async getActiveEmployees(): Promise<EmployeeResponse> {
-    const response = await api.get<EmployeeResponse>(`${this.baseUrl}?activo_only=true`);
+  async getActiveEmployees(): Promise<PaginatedEmployeesResponse> {
+    const response = await api.get<PaginatedEmployeesResponse>(`${this.baseUrl}?activo_only=true`);
     return response.data;
   }
 

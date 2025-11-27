@@ -1,8 +1,11 @@
-﻿import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { FiGrid, FiList, FiFilter, FiRefreshCw, FiSearch, FiPlus, FiChevronLeft, FiChevronRight, FiSend, FiTool, FiClock, FiHash, FiPackage } from 'react-icons/fi';
+import { 
+  FiGrid, FiList, FiRefreshCw, FiSearch, FiPlus, 
+  FiChevronLeft, FiChevronRight, FiSend, FiTool, FiClock, 
+  FiPackage, FiSmartphone, FiMonitor, FiAlertCircle 
+} from 'react-icons/fi';
 import * as inventoryService from '../services/inventory.service';
-import { InventoryItem, PaginatedSearchResponse } from '../types';
 import Loading from '../components/common/Loading';
 import { useTheme } from '../contexts/ThemeContext';
 import { useNotification } from '../contexts/NotificationContext';
@@ -13,6 +16,27 @@ import SendToRepairModal from '../components/modals/SendToRepairModal';
 import InventoryDetail from '../components/inventory/InventoryDetail';
 import BatchEntryModal from '../components/inventory/BatchEntryModal';
 
+// --- Interfaces y Tipos ---
+
+// Interfaz alineada con la respuesta real del Backend
+interface BackendInventoryItem {
+  id: number;
+  numero_serie: string;
+  estado: string;
+  fecha_ingreso: string;
+  fecha_creacion: string;
+  producto: {
+    id: number;
+    marca: string;
+    modelo: string;
+    descripcion: string;
+    categoria: {
+      id: number;
+      nombre: string;
+    } | null;
+  };
+}
+
 interface InventoryFilters {
   page: number;
   pageSize: number;
@@ -21,61 +45,114 @@ interface InventoryFilters {
   categoria_id?: number;
 }
 
+// --- Componentes UI Estilizados ---
+
+const GlassCard = ({ children, className = "", onClick }: { children: React.ReactNode; className?: string; onClick?: () => void }) => {
+  const { theme } = useTheme();
+  return (
+    <div 
+      onClick={onClick}
+      className={`
+        relative overflow-hidden rounded-2xl transition-all duration-300
+        ${onClick ? 'cursor-pointer hover:scale-[1.01] hover:shadow-lg' : ''}
+        ${theme === 'dark' 
+          ? 'bg-slate-900/60 border border-slate-700/50 shadow-lg shadow-slate-900/20 backdrop-blur-xl' 
+          : 'bg-white/80 border border-slate-200/60 shadow-xl shadow-slate-200/40 backdrop-blur-xl'
+        }
+        ${className}
+      `}
+    >
+      {children}
+    </div>
+  );
+};
+
+const StatusBadge = ({ status }: { status: string }) => {
+  const normalizedStatus = status?.toLowerCase().trim() || 'desconocido';
+  
+  let colorClass = '';
+  let label = status;
+
+  if (normalizedStatus === 'disponible') {
+    colorClass = 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20';
+    label = 'Disponible';
+  } else if (normalizedStatus === 'asignado') {
+    colorClass = 'bg-blue-500/10 text-blue-600 border-blue-500/20';
+    label = 'Asignado';
+  } else if (normalizedStatus.includes('repara')) {
+    colorClass = 'bg-amber-500/10 text-amber-600 border-amber-500/20';
+    label = 'En Reparación';
+  } else if (normalizedStatus.includes('baja')) {
+    colorClass = 'bg-red-500/10 text-red-600 border-red-500/20';
+    label = 'Dado de Baja';
+  } else {
+    colorClass = 'bg-slate-500/10 text-slate-600 border-slate-500/20';
+  }
+
+  return (
+    <span className={`px-2.5 py-1 rounded-full text-xs font-bold border ${colorClass} inline-flex items-center gap-1`}>
+      <div className={`w-1.5 h-1.5 rounded-full ${colorClass.replace('/10', '').replace('text-', 'bg-').split(' ')[0]}`} />
+      {label}
+    </span>
+  );
+};
+
+// --- Componente Principal ---
+
 const Inventory: React.FC = () => {
   const { theme } = useTheme();
   const { addNotification } = useNotification();
   
-  const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
+  // Estados de Datos
+  const [inventoryItems, setInventoryItems] = useState<BackendInventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
+  // Estados de Filtro y UI
   const [searchTerm, setSearchTerm] = useState('');
   const [filters, setFilters] = useState<InventoryFilters>({
     page: 1,
-    pageSize: 28,
+    pageSize: 20,
   });
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  
-  const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
-  const [showFilters, setShowFilters] = useState(false);
-  
-  const [pagination, setPagination] = useState<PaginatedSearchResponse<InventoryItem>['pagination']>({
-    currentPage: 1,
-    pageSize: 28,
-    totalItems: 0,
-    totalPages: 0,
-  });
-
+  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
   const [quickFilter, setQuickFilter] = useState<'todos' | 'notebooks' | 'celulares'>('todos');
-  const [statusFilter, setStatusFilter] = useState<string | null>(null);
 
+  const [pagination, setPagination] = useState({
+    currentPage: 1,
+    totalPages: 1,
+    totalItems: 0,
+    pageSize: 20,
+  });
+
+  // Modales
+  const [selectedItem, setSelectedItem] = useState<BackendInventoryItem | null>(null);
   const [showAssignmentModal, setShowAssignmentModal] = useState(false);
-  const [assignmentTargetItem, setAssignmentTargetItem] = useState<InventoryItem | null>(null);
-
   const [showEntryModal, setShowEntryModal] = useState(false);
-
+  const [showBatchEntryModal, setShowBatchEntryModal] = useState(false);
   const [showRepairModal, setShowRepairModal] = useState(false);
-  const [repairTargetItem, setRepairTargetItem] = useState<InventoryItem | null>(null);
-
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
-  const [showBatchEntryModal, setShowBatchEntryModal] = useState(false);
-
+  // Carga de Datos
   const loadInventory = useCallback(async () => {
     setLoading(true);
     try {
       const response = await inventoryService.getInventoryItems(filters);
-      setInventoryItems(response.data);
-      if (response.pagination) {
-        setPagination(response.pagination);
-      }
-    } catch (error) {
-      console.error('Error al cargar inventario:', error);
-      setError('Error al cargar el inventario');
-      addNotification({
-        type: 'error',
-        message: 'No se pudo cargar el inventario.',
+      
+      // El backend ya devuelve los datos con la estructura correcta gracias al mapeo robusto del controlador
+      const items = (response.data || []) as unknown as BackendInventoryItem[];
+
+      setInventoryItems(items);
+      setPagination({
+        currentPage: response.currentPage,
+        totalPages: response.totalPages,
+        totalItems: response.totalItems,
+        pageSize: filters.pageSize,
       });
+      setError(null);
+    } catch (err) {
+      console.error('Error cargando inventario:', err);
+      setError('No se pudo cargar el inventario.');
+      addNotification({ type: 'error', message: 'Error de conexión.' });
     } finally {
       setLoading(false);
     }
@@ -85,391 +162,396 @@ const Inventory: React.FC = () => {
     loadInventory();
   }, [filters, loadInventory]);
 
-  const handleGlobalSearch = async () => {
-    if (!searchTerm.trim()) {
-      loadInventory();
-      return;
-    }
-    try {
-      setLoading(true);
-      const searchFilters: InventoryFilters = {
-        ...filters,
-        search: searchTerm.trim(),
-        page: 1
-      };
-      
-      const response = await inventoryService.getInventoryItems(searchFilters);
-      
-      setInventoryItems(response.data);
-      if (response.pagination) {
-        setPagination(response.pagination);
-      }
-    } catch (err: any) {
-      if (err.response?.status === 404) {
-        setInventoryItems([]);
-        setPagination({ currentPage: 1, pageSize: 25, totalItems: 0, totalPages: 0 });
-      } else {
-        setError(err.response?.data?.error || 'Error en la búsqueda');
-      }
-    } finally {
-      setLoading(false);
-    }
+  // Handlers de Filtros
+  const handleSearch = () => {
+    setFilters(prev => ({ ...prev, search: searchTerm, page: 1 }));
   };
 
-  const handleFilterChange = (newFilters: Partial<InventoryFilters>) => {
-    setFilters((prev: InventoryFilters) => ({ ...prev, ...newFilters, page: 1 }));
-  };
-
-  const handleStatusFilterClick = (estado: string | null) => {
-    setStatusFilter(estado);
-    setQuickFilter('todos');
-    handleFilterChange({ estado: estado || undefined, categoria_id: undefined });
-  };
-  
-  const handleQuickFilterClick = (filter: 'todos' | 'notebooks' | 'celulares') => {
-    setQuickFilter(filter);
-    setStatusFilter(null);
-    const categoria_id = filter === 'notebooks' ? 1 : filter === 'celulares' ? 2 : undefined;
-    handleFilterChange({ categoria_id, estado: undefined });
-  };
-
-  const handlePageChange = (page: number) => {
-    setFilters((prev: InventoryFilters) => ({ ...prev, page }));
-  };
-
-  const getStatusColor = (estado: string) => {
-    if (!estado) return 'bg-slate-500 text-white border-slate-500 font-medium';
-    const estadoNormalizado = estado.toLowerCase().trim();
+  const handleQuickFilter = (type: 'todos' | 'notebooks' | 'celulares') => {
+    setQuickFilter(type);
+    let catId: number | undefined = undefined;
+    if (type === 'notebooks') catId = 1; // Asumiendo ID 1 para Notebooks
+    if (type === 'celulares') catId = 2; // Asumiendo ID 2 para Celulares
     
-    if (estadoNormalizado.includes('reparac')) {
-      return 'bg-amber-500 text-white border-amber-500 font-medium';
-    }
-    
-    switch (estadoNormalizado) {
-      case 'disponible':
-        return 'bg-emerald-500 text-white border-emerald-500 font-medium';
-      case 'dado de baja':
-        return 'bg-red-500 text-white border-red-500 font-medium';
-      case 'asignado':
-        return 'bg-cyan-500 text-white border-cyan-500 font-medium';
-      default:
-        return 'bg-slate-500 text-white border-slate-500 font-medium';
+    setFilters(prev => ({ ...prev, categoria_id: catId, page: 1 }));
+  };
+
+  const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= pagination.totalPages) {
+      setFilters(prev => ({ ...prev, page: newPage }));
     }
   };
 
-  const normalizeStatusText = (estado: string) => {
-    if (!estado) return 'Desconocido';
-    const estadoNormalizado = estado.toLowerCase().trim();
-    if (estadoNormalizado.includes('reparac')) return 'En Reparación';
-    if (estadoNormalizado === 'disponible') return 'Disponible';
-    if (estadoNormalizado === 'dado de baja') return 'Dado de Baja';
-    if (estadoNormalizado === 'asignado') return 'Asignado';
-    return estado;
+  // Handlers de Acciones
+  const openAssignment = (item: BackendInventoryItem) => {
+    // Adaptador simple para el modal existente
+    setSelectedItem(item);
+    setShowAssignmentModal(true);
   };
 
-  const handleOpenHistory = (item: InventoryItem) => {
+  const openRepair = (item: BackendInventoryItem) => {
+    setSelectedItem(item);
+    setShowRepairModal(true);
+  };
+
+  const openHistory = (item: BackendInventoryItem) => {
     setSelectedItem(item);
     setIsDetailModalOpen(true);
   };
 
-  const resetFilters = () => {
-    setFilters({ page: 1, pageSize: 28 });
-    setQuickFilter('todos');
-    setStatusFilter(null);
-    setSearchTerm('');
-  };
-
-  const handleRefresh = () => {
-    loadInventory();
-  };
-
-  const openAssignmentModal = (item?: InventoryItem) => {
-    setAssignmentTargetItem(item || null);
-    setShowAssignmentModal(true);
-  };
-
-  const closeAssignmentModal = () => {
-    setShowAssignmentModal(false);
-    setAssignmentTargetItem(null);
-  };
-
-  const handleAssignmentSuccess = () => {
-    closeAssignmentModal();
-    addNotification({ type: 'success', message: 'Asignación creada exitosamente.' });
-    loadInventory();
-  };
-
-  const openEntryModal = () => {
-    setShowEntryModal(true);
-  };
-
-  const closeEntryModal = () => {
-    setShowEntryModal(false);
-  };
-
-  const handleEntrySuccess = () => {
-    closeEntryModal();
-    addNotification({ type: 'success', message: 'Inventario actualizado exitosamente.' });
-    loadInventory();
-  };
-
-  const openBatchEntryModal = () => {
-    setShowBatchEntryModal(true);
-  };
-
-  const closeBatchEntryModal = () => {
-    setShowBatchEntryModal(false);
-  };
-
-  const handleBatchEntrySuccess = (result: { Creados: number; Duplicados: string | null }) => {
-    closeBatchEntryModal();
-    const message = `Alta masiva completa. Creados: ${result.Creados}. Duplicados: ${result.Duplicados || 'Ninguno'}.`;
-    addNotification({ type: 'success', message: message });
-    loadInventory();
-  };
-
-  const openRepairModal = (item: InventoryItem) => {
-    setRepairTargetItem(item);
-    setShowRepairModal(true);
-  };
-
-  const closeRepairModal = () => {
-    setShowRepairModal(false);
-    setRepairTargetItem(null);
-  };
-
-  const handleRepairSuccess = () => {
-    closeRepairModal();
-    addNotification({ type: 'success', message: 'Activo enviado a reparación.' });
-    loadInventory();
-  };
-  
-  const columns = React.useMemo(() => [
-      { Header: 'N° Serie', accessor: 'numero_serie' },
-      { Header: 'Producto', accessor: 'producto' },
-      { Header: 'Estado', accessor: 'estado' },
-      { Header: 'Acciones', accessor: 'actions' },
-  ], []);
-
   return (
-    <div className="relative min-h-screen overflow-hidden">
-      {/* 🌌 ORBES DE FONDO ANIMADOS - IMPLEMENTACIÓN OBLIGATORIA */}
-      <div className={`fixed inset-0 pointer-events-none transition-all duration-300 ${
-        theme === 'dark' 
-          ? 'bg-gradient-to-br from-slate-900/95 via-slate-800/90 to-slate-900/95' 
-          : 'bg-gradient-to-br from-slate-50/95 via-slate-100/90 to-slate-200/95'
-      }`}>
-        {/* Orbe 1: Top-left - Primary */}
-        <div className={`absolute top-20 left-10 w-32 h-32 rounded-full blur-xl animate-float transition-all duration-300 ${
-          theme === 'dark' 
-            ? 'bg-primary-500/20' 
-            : 'bg-primary-500/10'
-        }`}></div>
-        
-        {/* Orbe 2: Top-right - Secondary */}
-        <div className={`absolute top-40 right-20 w-24 h-24 rounded-full blur-lg animate-float transition-all duration-300 ${
-          theme === 'dark' 
-            ? 'bg-secondary-500/20' 
-            : 'bg-secondary-500/10'
-        }`} style={{animationDelay: '2s'}}></div>
-        
-        {/* Orbe 3: Bottom-left - Success */}
-        <div className={`absolute bottom-32 left-1/4 w-20 h-20 rounded-full blur-lg animate-float transition-all duration-300 ${
-          theme === 'dark' 
-            ? 'bg-success-500/20' 
-            : 'bg-success-500/10'
-        }`} style={{animationDelay: '4s'}}></div>
-        
-        {/* Orbe 4: Bottom-right - Info */}
-        <div className={`absolute bottom-20 right-1/3 w-28 h-28 rounded-full blur-xl animate-float transition-all duration-300 ${
-          theme === 'dark' 
-            ? 'bg-info-500/20' 
-            : 'bg-info-500/10'
-        }`} style={{animationDelay: '1s'}}></div>
-      </div>
-
-      {/* Contenido principal */}
-      <div className={`relative z-10 p-4 sm:p-6 transition-colors duration-300 min-h-screen ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
-       <header className="mb-6">
-         {/* 🎯 HEADER ESTÁNDAR MODERN DESIGN SYSTEM 2025 */}
-         <div className="flex items-center space-x-4">
-           <FiPackage className="w-8 h-8 text-primary-500" strokeWidth={2.5} />
-           <div>
-             <h1 className="text-2xl md:text-5xl font-bold bg-gradient-to-r from-primary-600 via-primary-500 to-secondary-500 bg-clip-text text-transparent">
-               Inventario General
-             </h1>
-             <p className={`mt-1 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
-               Visualiza y gestiona todos los activos serializados.
-             </p>
-           </div>
-         </div>
-       </header>
-       
-       <div className="glass-card p-4 mb-6">
-         <div className="flex flex-wrap items-center justify-between gap-4">
-             <div className="flex-grow flex items-center bg-slate-500/10 rounded-lg">
-                 <FiSearch className="mx-3 text-slate-400"/>
-                 <input
-                     type="text"
-                     value={searchTerm}
-                     onChange={(e) => setSearchTerm(e.target.value)}
-                     onKeyDown={(e) => e.key === 'Enter' && handleGlobalSearch()}
-                     placeholder="Buscar por serie, marca, modelo, etc..."
-                     className="w-full bg-transparent p-2 focus:outline-none"
-                 />
-             </div>
-             <div className="flex items-center gap-2">
-                 <button onClick={() => setShowFilters(!showFilters)} className="btn-secondary p-2"><FiFilter /></button>
-                 <button onClick={handleRefresh} className="btn-secondary p-2"><FiRefreshCw/></button>
-                 <button onClick={openEntryModal} className="btn-secondary flex items-center gap-2 p-2"><FiPlus/><span>Nuevo Item</span></button>
-                 <button onClick={openBatchEntryModal} className="btn-primary flex items-center gap-2 p-2"><FiPlus/><span>Añadir Lote</span></button>
-             </div>
-         </div>
-         {showFilters && (
-             <div className="mt-4 flex flex-wrap gap-2">
-                  <button onClick={() => handleQuickFilterClick('todos')} className={`btn-filter ${quickFilter === 'todos' ? 'active' : ''}`}>Todos</button>
-                  <button onClick={() => handleQuickFilterClick('notebooks')} className={`btn-filter ${quickFilter === 'notebooks' ? 'active' : ''}`}>Notebooks</button>
-                  <button onClick={() => handleQuickFilterClick('celulares')} className={`btn-filter ${quickFilter === 'celulares' ? 'active' : ''}`}>Celulares</button>
-                  <button onClick={() => handleStatusFilterClick('Disponible')} className={`btn-filter ${statusFilter === 'Disponible' ? 'active' : ''}`}>Disponibles</button>
-                  <button onClick={() => handleStatusFilterClick('Asignado')} className={`btn-filter ${statusFilter === 'Asignado' ? 'active' : ''}`}>Asignados</button>
-                  <button onClick={() => handleStatusFilterClick('En Reparación')} className={`btn-filter ${statusFilter === 'En Reparación' ? 'active' : ''}`}>En Reparación</button>
-                  <button onClick={() => handleStatusFilterClick('Dado de Baja')} className={`btn-filter ${statusFilter === 'Dado de Baja' ? 'active' : ''}`}>Dados de Baja</button>
-             </div>
-         )}
-       </div>
- 
-       <div className="flex items-center justify-between mb-4">
-         <div className="text-sm">
-           Mostrando <span className="font-bold">{inventoryItems.length}</span> de <span className="font-bold">{pagination.totalItems}</span> activos.
-         </div>
-         <div className="flex items-center gap-2">
-           <button onClick={() => setViewMode('grid')} className={`p-2 rounded-lg ${viewMode === 'grid' ? 'bg-primary-500/20 text-primary-500' : 'bg-slate-500/10'}`}><FiGrid/></button>
-           <button onClick={() => setViewMode('list')} className={`p-2 rounded-lg ${viewMode === 'list' ? 'bg-primary-500/20 text-primary-500' : 'bg-slate-500/10'}`}><FiList/></button>
-         </div>
-       </div>
-
-       {loading && <Loading text="Cargando inventario..." />}
-       {!loading && error && <div className="text-red-500 text-center">{error}</div>}
-       {!loading && !error && inventoryItems.length === 0 && (
-         <div className="text-center py-10">
-           <p>No se encontraron activos con los filtros actuales.</p>
-           <button onClick={resetFilters} className="mt-4 btn-secondary">Limpiar Filtros</button>
-         </div>
-       )}
- 
-       {!loading && !error && inventoryItems.length > 0 && (
-         <>
-             {viewMode === 'grid' ? (
-                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                     {inventoryItems.map(item => (
-                         <div key={item.id} className="glass-card p-4 flex flex-col justify-between cursor-pointer" onClick={() => handleOpenHistory(item)}>
-                             <div>
-                                 <div className="flex justify-between items-start">
-                                     <span className={`px-2 py-1 text-xs rounded-full border shadow-sm ${getStatusColor(item.estado)}`}>{normalizeStatusText(item.estado)}</span>
-                                     <FiPackage className="text-slate-400"/>
-                                 </div>
-                                 <h3 className="font-bold mt-2">{item.producto?.marca} {item.producto?.modelo}</h3>
-                                 <p className="text-sm text-slate-400">{item.producto?.categoria?.nombre}</p>
-                                 <p className="text-xs font-mono mt-2 text-slate-500">{item.numero_serie}</p>
-                             </div>
-                             <div className="mt-4 flex gap-2">
-                                 <button onClick={(e) => { e.stopPropagation(); openAssignmentModal(item); }} disabled={item.estado !== 'Disponible'} className="btn-action-grid flex-1"><FiSend/> Asignar</button>
-                                 <button onClick={(e) => { e.stopPropagation(); openRepairModal(item); }} disabled={item.estado.toLowerCase().includes('reparac') || item.estado === 'Dado de Baja'} className="btn-action-grid flex-1"><FiTool/> Reparar</button>
-                             </div>
-                         </div>
-                     ))}
-                 </div>
-             ) : (
-                 <div className="overflow-x-auto glass-card p-4 mt-6">
-                     <table className="min-w-full">
-                         <thead className={`border-b ${theme === 'dark' ? 'border-slate-700/50' : 'border-slate-200'}`}>
-                             <tr>
-                                 {columns.map(col => <th key={col.Header} className="p-3 text-left text-xs font-semibold uppercase tracking-wider">{col.Header}</th>)}
-                             </tr>
-                         </thead>
-                         <tbody>
-                             {inventoryItems.map((item) => (
-                             <tr key={item.id} className={`border-b transition-colors duration-200 ${theme === 'dark' ? 'border-slate-800 hover:bg-slate-800/50' : 'border-slate-100 hover:bg-slate-50/50'}`}>
-                                 <td className="p-3"><div className="flex items-center"><FiHash className="mr-2 text-slate-500"/>{item.numero_serie}</div></td>
-                                 <td className="p-3">
-                                   <div className="flex flex-col">
-                                     <span className="font-semibold">{item.producto?.modelo}</span>
-                                     <span className="text-xs text-slate-400">{item.producto?.marca}</span>
-                                   </div>
-                                 </td>
-                                 <td className="p-3"><span className={`px-2 py-1 rounded-lg text-xs font-medium border backdrop-blur-sm ${getStatusColor(item.estado)}`}>{normalizeStatusText(item.estado)}</span></td>
-                                 <td className="p-3">
-                                     <div className="flex items-center justify-end space-x-1">
-                                         <button onClick={() => handleOpenHistory(item)} className="btn-table-action" title="Ver Historial"><FiClock/></button>
-                                         <button onClick={() => openAssignmentModal(item)} disabled={item.estado !== 'Disponible'} className="btn-table-action" title="Asignar"><FiSend/></button>
-                                         <button onClick={() => openRepairModal(item)} disabled={item.estado.toLowerCase().includes('reparac') || item.estado === 'Dado de Baja'} className="btn-table-action" title="Enviar a reparar"><FiTool/></button>
-                                     </div>
-                                 </td>
-                             </tr>
-                             ))}
-                         </tbody>
-                     </table>
-                 </div>
-             )}
- 
-             <div className="flex justify-center mt-6">
-               <nav className="flex items-center gap-2">
-                 <button onClick={() => handlePageChange(pagination.currentPage - 1)} disabled={pagination.currentPage <= 1} className="btn-secondary p-2"><FiChevronLeft/></button>
-                 <span className="text-sm">Página {pagination.currentPage} de {pagination.totalPages}</span>
-                 <button onClick={() => handlePageChange(pagination.currentPage + 1)} disabled={pagination.currentPage >= pagination.totalPages} className="btn-secondary p-2"><FiChevronRight/></button>
-               </nav>
-             </div>
-         </>
-       )}
+    <div className={`min-h-screen p-6 transition-colors duration-300 ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
       
-       {showAssignmentModal && (
+      {/* Header Principal */}
+      <header className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+        <div>
+          <div className="flex items-center gap-3 mb-1">
+             <div className="p-2 rounded-xl bg-indigo-500/10 text-indigo-500">
+               <FiPackage size={24} />
+             </div>
+             <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-500 to-purple-600">
+               Inventario
+             </h1>
+          </div>
+          <p className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
+            Gestión centralizada de activos de IT
+          </p>
+        </div>
+
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={() => setShowEntryModal(true)}
+            className="px-4 py-2 rounded-xl bg-white border border-slate-200 text-slate-600 font-medium text-sm hover:bg-slate-50 transition-colors flex items-center gap-2 shadow-sm"
+          >
+            <FiPlus /> Individual
+          </button>
+          <button 
+            onClick={() => setShowBatchEntryModal(true)}
+            className="px-4 py-2 rounded-xl bg-indigo-600 text-white font-bold text-sm hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/30 flex items-center gap-2"
+          >
+            <FiPlus /> Cargar Lote
+          </button>
+        </div>
+      </header>
+
+      {/* Barra de Herramientas y Filtros */}
+      <GlassCard className="mb-6 !p-4">
+        <div className="flex flex-col lg:flex-row gap-4 justify-between items-center">
+          
+          {/* Buscador */}
+          <div className="w-full lg:w-96 relative group">
+            <div className={`absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>
+              <FiSearch />
+            </div>
+            <input
+              type="text"
+              placeholder="Buscar por serie, modelo, marca..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+              className={`
+                w-full pl-10 pr-4 py-2.5 rounded-xl text-sm outline-none transition-all border
+                ${theme === 'dark' 
+                  ? 'bg-slate-800/50 border-slate-700 focus:border-indigo-500 text-white placeholder-slate-500' 
+                  : 'bg-slate-50 border-slate-200 focus:border-indigo-500 text-slate-800 placeholder-slate-400'
+                }
+              `}
+            />
+          </div>
+
+          {/* Filtros Rápidos */}
+          <div className={`flex p-1 rounded-xl border ${theme === 'dark' ? 'bg-slate-800/50 border-slate-700' : 'bg-slate-100/50 border-slate-200'}`}>
+            {[
+              { id: 'todos', label: 'Todos', icon: FiPackage },
+              { id: 'notebooks', label: 'Notebooks', icon: FiMonitor },
+              { id: 'celulares', label: 'Celulares', icon: FiSmartphone },
+            ].map((filter) => (
+              <button
+                key={filter.id}
+                onClick={() => handleQuickFilter(filter.id as any)}
+                className={`
+                  px-4 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 transition-all
+                  ${quickFilter === filter.id 
+                    ? 'bg-indigo-500 text-white shadow-md' 
+                    : 'text-slate-500 hover:text-indigo-500'
+                  }
+                `}
+              >
+                <filter.icon size={14} /> {filter.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Controles de Vista y Recarga */}
+          <div className="flex items-center gap-2 border-l pl-4 border-slate-200 dark:border-slate-700">
+             <button 
+               onClick={loadInventory}
+               className={`p-2 rounded-lg transition-colors ${theme === 'dark' ? 'hover:bg-slate-700 text-slate-400' : 'hover:bg-slate-200 text-slate-500'}`}
+               title="Recargar tabla"
+             >
+               <FiRefreshCw size={18} />
+             </button>
+             <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
+               <button 
+                 onClick={() => setViewMode('list')}
+                 className={`p-1.5 rounded-md transition-all ${viewMode === 'list' ? 'bg-white dark:bg-slate-700 shadow-sm text-indigo-500' : 'text-slate-400'}`}
+               >
+                 <FiList size={16} />
+               </button>
+               <button 
+                 onClick={() => setViewMode('grid')}
+                 className={`p-1.5 rounded-md transition-all ${viewMode === 'grid' ? 'bg-white dark:bg-slate-700 shadow-sm text-indigo-500' : 'text-slate-400'}`}
+               >
+                 <FiGrid size={16} />
+               </button>
+             </div>
+          </div>
+
+        </div>
+      </GlassCard>
+
+      {/* Contenido Principal: Tabla o Grid */}
+      {loading ? (
+        <Loading text="Cargando activos..." />
+      ) : error ? (
+        <div className="text-center py-12 text-red-500 bg-red-50 dark:bg-red-900/20 rounded-2xl border border-red-200 dark:border-red-800">
+           <FiAlertCircle size={48} className="mx-auto mb-4 opacity-50" />
+           <p className="font-bold">{error}</p>
+           <button onClick={loadInventory} className="mt-4 text-sm underline">Intentar nuevamente</button>
+        </div>
+      ) : inventoryItems.length === 0 ? (
+        <div className="text-center py-20 opacity-60">
+          <div className="bg-slate-100 dark:bg-slate-800/50 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-4">
+            <FiPackage size={40} className="text-slate-400" />
+          </div>
+          <h3 className="text-lg font-bold mb-2">No se encontraron activos</h3>
+          <p className="text-sm">Intenta ajustar los filtros o buscar otro término.</p>
+        </div>
+      ) : (
+        <>
+          {viewMode === 'list' ? (
+            <GlassCard className="!p-0 overflow-hidden">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className={`text-xs uppercase tracking-wider font-semibold border-b ${theme === 'dark' ? 'text-slate-400 border-slate-700 bg-slate-800/30' : 'text-slate-500 border-slate-200 bg-slate-50/50'}`}>
+                    <th className="px-6 py-4">Activo / Serie</th>
+                    <th className="px-6 py-4">Categoría</th>
+                    <th className="px-6 py-4">Estado</th>
+                    <th className="px-6 py-4 text-right">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200 dark:divide-slate-700/50">
+                  {inventoryItems.map((item) => (
+                    <tr 
+                      key={item.id} 
+                      className={`transition-colors group ${theme === 'dark' ? 'hover:bg-slate-800/50' : 'hover:bg-slate-50'}`}
+                    >
+                      <td className="px-6 py-4">
+                        <div className="flex flex-col">
+                          <span className={`font-bold ${theme === 'dark' ? 'text-slate-200' : 'text-slate-800'}`}>
+                            {item.producto?.marca} {item.producto?.modelo}
+                          </span>
+                          <span className="text-xs font-mono text-indigo-500 bg-indigo-50 dark:bg-indigo-900/20 px-1.5 py-0.5 rounded w-fit mt-1">
+                            {item.numero_serie}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-sm opacity-80">
+                        {item.producto?.categoria?.nombre || 'General'}
+                      </td>
+                      <td className="px-6 py-4">
+                        <StatusBadge status={item.estado} />
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex justify-end items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button 
+                            onClick={() => openHistory(item)}
+                            className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400 hover:text-indigo-500 transition-colors"
+                            title="Ver Historial"
+                          >
+                            <FiClock size={18} />
+                          </button>
+                          <button 
+                            onClick={() => openAssignment(item)}
+                            disabled={item.estado !== 'Disponible'}
+                            className={`p-2 rounded-lg transition-colors ${item.estado === 'Disponible' ? 'hover:bg-indigo-50 dark:hover:bg-indigo-900/30 text-indigo-500' : 'opacity-30 cursor-not-allowed'}`}
+                            title="Asignar"
+                          >
+                            <FiSend size={18} />
+                          </button>
+                          <button 
+                            onClick={() => openRepair(item)}
+                            disabled={item.estado === 'En Reparación' || item.estado === 'Dado de Baja'}
+                            className={`p-2 rounded-lg transition-colors ${item.estado !== 'En Reparación' ? 'hover:bg-amber-50 dark:hover:bg-amber-900/20 text-amber-500' : 'opacity-30 cursor-not-allowed'}`}
+                            title="Enviar a Reparación"
+                          >
+                            <FiTool size={18} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </GlassCard>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {inventoryItems.map((item) => (
+                <GlassCard key={item.id} className="flex flex-col p-5 hover:shadow-xl transition-all group">
+                  <div className="flex justify-between items-start mb-4">
+                    <StatusBadge status={item.estado} />
+                    <button 
+                      onClick={() => openHistory(item)} 
+                      className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700/50 text-slate-400 hover:text-indigo-500 transition-colors"
+                      title="Ver historial"
+                    >
+                      <FiClock size={18} />
+                    </button>
+                  </div>
+                  
+                  <div className="flex-1 mb-6">
+                    <div className="text-xs font-bold text-indigo-500 dark:text-indigo-400 mb-1 uppercase tracking-wider">
+                      {item.producto?.categoria?.nombre || 'General'}
+                    </div>
+                    <h3 className={`font-bold text-xl mb-2 leading-tight ${theme === 'dark' ? 'text-slate-100' : 'text-slate-800'}`}>
+                      {item.producto?.marca} {item.producto?.modelo}
+                    </h3>
+                    
+                    <div className="flex items-center gap-2 mt-3">
+                      <span className="text-xs text-slate-500 uppercase font-semibold">S/N:</span>
+                      <code className="bg-slate-100 dark:bg-slate-800/80 px-2 py-1 rounded text-sm font-mono text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700/50">
+                        {item.numero_serie}
+                      </code>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-3 mt-auto pt-4 border-t border-slate-200/50 dark:border-slate-700/50">
+                    <button 
+                      onClick={() => openAssignment(item)}
+                      disabled={item.estado !== 'Disponible'}
+                      className={`
+                        flex-1 py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all
+                        ${item.estado === 'Disponible' 
+                          ? 'bg-indigo-600 text-white hover:bg-indigo-700 shadow-lg shadow-indigo-500/20' 
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-400 cursor-not-allowed'
+                        }
+                      `}
+                    >
+                      <FiSend size={16} /> Asignar
+                    </button>
+                    <button 
+                      onClick={() => openRepair(item)}
+                      disabled={item.estado === 'En Reparación' || item.estado === 'Dado de Baja'}
+                      className={`
+                        px-3 py-2.5 rounded-xl text-sm font-bold transition-all border
+                        ${item.estado !== 'En Reparación' 
+                          ? 'border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800' 
+                          : 'border-slate-200 dark:border-slate-700 text-slate-300 dark:text-slate-600 cursor-not-allowed'
+                        }
+                      `}
+                      title="Reparar"
+                    >
+                      <FiTool size={18} />
+                    </button>
+                  </div>
+                </GlassCard>
+              ))}
+            </div>
+          )}
+
+          {/* Paginación */}
+          <div className="flex justify-between items-center mt-6">
+             <p className="text-xs opacity-60">
+               Mostrando {inventoryItems.length} de {pagination.totalItems} resultados
+             </p>
+             <div className="flex gap-2">
+               <button 
+                 onClick={() => handlePageChange(pagination.currentPage - 1)}
+                 disabled={pagination.currentPage <= 1}
+                 className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 disabled:opacity-30 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+               >
+                 <FiChevronLeft />
+               </button>
+               <span className="px-4 py-2 text-sm font-medium bg-white/50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700">
+                 {pagination.currentPage} / {pagination.totalPages || 1}
+               </span>
+               <button 
+                 onClick={() => handlePageChange(pagination.currentPage + 1)}
+                 disabled={pagination.currentPage >= pagination.totalPages}
+                 className="p-2 rounded-lg border border-slate-200 dark:border-slate-700 disabled:opacity-30 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+               >
+                 <FiChevronRight />
+               </button>
+             </div>
+          </div>
+        </>
+      )}
+
+      {/* Modales */}
+      {showAssignmentModal && (
          <AssignmentModal
            isOpen={showAssignmentModal}
-           onClose={closeAssignmentModal}
-           onSuccess={handleAssignmentSuccess}
-           inventoryItem={assignmentTargetItem}
+           onClose={() => setShowAssignmentModal(false)}
+           onSuccess={() => {
+             setShowAssignmentModal(false);
+             addNotification({ type: 'success', message: 'Asignación exitosa' });
+             loadInventory();
+           }}
+           inventoryItem={selectedItem as any} // Casting temporal hasta actualizar modal
          />
        )}
+       
        {showEntryModal && (
          <InventoryEntryModal
            isOpen={showEntryModal}
-           onClose={closeEntryModal}
-           onSuccess={handleEntrySuccess}
-         />
-       )}
-       {showBatchEntryModal && (
-        <BatchEntryModal
-          isOpen={showBatchEntryModal}
-          onClose={closeBatchEntryModal}
-          onSuccess={handleBatchEntrySuccess}
-        />
-       )}
-       {showRepairModal && repairTargetItem && (
-         <SendToRepairModal
-           isOpen={showRepairModal}
-           onClose={closeRepairModal}
-           onRepairSubmitted={handleRepairSuccess}
-           preselectedAsset={{
-             inventario_individual_id: repairTargetItem.id,
-             numero_serie: repairTargetItem.numero_serie,
-             producto_info: `${repairTargetItem.producto?.marca || ''} ${repairTargetItem.producto?.modelo || ''}`.trim(),
+           onClose={() => setShowEntryModal(false)}
+           onSuccess={() => {
+             setShowEntryModal(false);
+             loadInventory();
            }}
          />
        )}
+
+       {showBatchEntryModal && (
+        <BatchEntryModal
+          isOpen={showBatchEntryModal}
+          onClose={() => setShowBatchEntryModal(false)}
+          onSuccess={() => {
+             setShowBatchEntryModal(false);
+             loadInventory();
+          }}
+        />
+       )}
+
+       {showRepairModal && selectedItem && (
+         <SendToRepairModal
+           isOpen={showRepairModal}
+           onClose={() => setShowRepairModal(false)}
+           onRepairSubmitted={() => {
+             setShowRepairModal(false);
+             addNotification({ type: 'success', message: 'Equipo enviado a reparación' });
+             loadInventory();
+           }}
+           preselectedAsset={{
+             inventario_individual_id: selectedItem.id,
+             numero_serie: selectedItem.numero_serie,
+             producto_info: `${selectedItem.producto.marca} ${selectedItem.producto.modelo}`
+           }}
+         />
+       )}
+
        {isDetailModalOpen && selectedItem && createPortal(
          <InventoryDetail
-           item={selectedItem}
+           item={selectedItem as any}
            onClose={() => setIsDetailModalOpen(false)}
            onRefresh={loadInventory}
          />,
          document.body
        )}
- 
+
        <NotificationContainer/>
-       </div>
-     </div>
-   );
+    </div>
+  );
 };
 
 export default Inventory;
-

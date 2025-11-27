@@ -16,11 +16,11 @@ Desarrollar una aplicación web para la gestión de inventario y control de stoc
 
 - **Backend**: Node.js con TypeScript
 - **Frontend**: React con TypeScript
-- **Base de Datos**: Microsoft SQL Server
+- **Base de Datos**: MariaDB
 - **Arquitectura DB**: Stored Procedures para operaciones críticas
 - **Documentación API**: Swagger/OpenAPI
 - **Control de versiones**: Git
-- **Autenticación**: JWT (JSON Web Tokens)
+- **Autenticación**: A definir
 - **Testing**: Jest para pruebas unitarias
 
 ## 3. ACLARACIONES FUNDAMENTALES
@@ -67,11 +67,8 @@ Desarrollar una aplicación web para la gestión de inventario y control de stoc
    - Memorias RAM
    - Discos Externos
    - Discos SSD/NVMe
-   - Discos HDD
    - Placas de Video
-   - Motherboards
    - Fuentes de Alimentación
-   - Procesadores
    - Adaptadores USB Varios
 
 4. **Validación de datos**: Solo los administradores del sistema pueden agregar nuevos tipos de productos al catálogo. Los usuarios estándar únicamente pueden seleccionar de opciones predefinidas.
@@ -84,7 +81,7 @@ Desarrollar una aplicación web para la gestión de inventario y control de stoc
 
 **CON SEGUIMIENTO INDIVIDUAL (número de serie):**
 - Notebook Dell Latitude 5520 - Serie: DLL5520ABC123
-- Celular Samsung A52 - Serie: SMGA52XYZ789
+- Celular Samsung A52 - IMEI: 123456789012345
 
 **SIN SEGUIMIENTO INDIVIDUAL (cantidad en stock):**
 - Desktop HP EliteDesk: 15 unidades en stock
@@ -278,7 +275,7 @@ Changelog (
 ## 6. REGLAS DE NEGOCIO Y VALIDACIONES
 
 ### Validaciones Críticas:
-1. **Para Notebooks y Celulares (con número de serie)**:
+1. **Para Notebooks y Celulares (con número de serie e IMEI)**:
    - No se puede asignar un activo que esté "En Reparación" o "Dado de Baja"
    - No se puede dar de baja un activo "Asignado" (debe devolverse primero)
    - Los números de serie deben ser únicos en todo el sistema
@@ -310,7 +307,7 @@ Changelog (
 ### Flujo de Alta de Notebook/Celular (con número de serie):
 ```
 1. Administrador selecciona producto del catálogo (debe ser Notebook o Celular)
-2. Ingresa número(s) de serie individual para cada unidad
+2. Ingresa número(s) de serie individual o IMEI si es celular para cada unidad
 3. Sistema valida unicidad del número de serie
 4. Se registra en InventarioIndividual con estado "Disponible"
 5. Se registra en log de actividad
@@ -331,7 +328,7 @@ Changelog (
 ```
 1. Usuario busca notebook disponible por número de serie
 2. Selecciona empleado 
-3. Selecciona ubicación del empleado (sector o sucursal)
+3. Selecciona ubicación del empleado (sector/sucursal)
 4. Ingresa contraseña de encriptación (OBLIGATORIO)
 5. Confirma asignación
 6. Sistema actualiza estado a "Asignado" en InventarioIndividual
@@ -342,9 +339,9 @@ Changelog (
 
 ### Flujo de Asignación de Celular:
 ```
-1. Usuario busca celular disponible por número de serie
+1. Usuario busca celular disponible por número de IMEI
 2. Selecciona empleado
-3. Selecciona ubicación del empleado (sector o sucursal)
+3. Selecciona ubicación del empleado (sector/sucursal)
 4. Ingresa datos obligatorios:
    - Número de teléfono
    - Cuenta Gmail
@@ -361,7 +358,7 @@ Changelog (
 1. Usuario selecciona producto del stock general
 2. Verifica cantidad disponible
 3. Ingresa cantidad a retirar
-4. Selecciona destino (empleado, sector o sucursal)
+4. Selecciona destino (empleado y sector/sucursal o solo sector/sucursal)
 5. Ingresa motivo (consumo, préstamo, proyecto)
 6. Sistema valida stock suficiente
 7. Resta cantidad de StockGeneral
@@ -372,7 +369,7 @@ Changelog (
 
 ### Flujo de Reparación (solo Notebooks/Celulares):
 ```
-1. Usuario busca notebook/celular por número de serie
+1. Usuario busca notebook/celular por número de serie o IMEI si es celular
 2. Ingresa datos de reparación:
    - Proveedor
    - Descripción del problema
@@ -390,6 +387,7 @@ Changelog (
 1. Usuario accede a vista de stock
 2. Puede filtrar por:
    - Categoría
+   - Producto
    - Productos bajo mínimo
    - Ubicación
 3. Ve cantidades actuales
@@ -410,7 +408,7 @@ El sistema incluirá un módulo de Changelog para registrar todos los avances y 
 
 ### Visualización:
 - Panel de administración con filtros por fecha, versión y tipo
-- Exportación a CSV/PDF
+- Exportación a Excel/PDF
 - Notificaciones de nuevas versiones a administradores
 
 ### Ejemplo de Entradas:
@@ -795,7 +793,7 @@ proyecto-inventario-it/
 -- sp_Product_SetMinimumStock
 ```
 
-## 12. DATOS DE PRUEBA (DESARROLLO)
+## 12. DATOS DE PRUEBA SEED (DESARROLLO)
 
 ### Usuarios
 - 2 administradores: admin1@empresa.com, admin2@empresa.com
@@ -803,7 +801,7 @@ proyecto-inventario-it/
 
 ### Empleados, Sectores y Sucursales
 - **50 empleados** con nombres y apellidos
-- **10 sectores**: Administración, Compras, Contable, RRHH, Marketing, Publicidad, Sistemas, Soporte, Gerencia, Logística
+- **10 sectores**: Administración, Compras, Contable, RRHH, Comercial, Publicidad, Sistemas, Soporte, Auditoria, Logística
 - **55 sucursales** numeradas del 1 al 55
 
 ### Inventario Individual (Notebooks y Celulares con número de serie)
@@ -830,12 +828,10 @@ proyecto-inventario-it/
   - 200 Cables varios (HDMI, USB, Red)
   - 100 Pilas (AA, AAA)
   - 20 Toner
-  - 50 Cargadores
+  - 50 Cargadores Celular
 - **Componentes**:
   - 40 Memorias RAM (diferentes capacidades)
   - 25 Discos SSD
-  - 15 Discos HDD
-  - 10 Placas de video
 
 ### Asignaciones Históricas (Solo Notebooks/Celulares)
 - 20 asignaciones completadas (con devolución)
@@ -904,12 +900,7 @@ proyecto-inventario-it/
 - **Usuario Estándar**: Operaciones de inventario, asignaciones, consultas
 
 ### Medidas de Seguridad
-- Autenticación JWT con refresh tokens
-- Encriptación de contraseñas con bcrypt
-- Validación de entrada en todos los endpoints
-- Rate limiting para prevenir atasos
-- Logs de auditoría para todas las operaciones
-- Backup automático de base de datos
+- A definir
 
 ## 15. SISTEMA DE BACKUP
 
@@ -918,7 +909,7 @@ proyecto-inventario-it/
 - **Backup Diferencial**: Cada 4 horas
 - **Backup de Logs**: Cada hora
 - **Retención**: 30 días para completos, 7 días para diferenciales
-- **Almacenamiento**: Local + Copia en nube (Azure/AWS)
+- **Almacenamiento**: Local
 
 ### Procedimiento de Restauración
 1. Identificar punto de restauración necesario
@@ -948,7 +939,7 @@ proyecto-inventario-it/
 
 ### Optimizaciones
 - Índices en campos de búsqueda frecuente
-- Paginación en todas las listas (25 items por defecto)
+- Paginación en todas las listas (50 items por defecto)
 - Caché para datos estáticos (categorías, productos)
 - Lazy loading en frontend
 - Compresión de respuestas API
@@ -1015,9 +1006,9 @@ proyecto-inventario-it/
 **MUY IMPORTANTE**: El sistema maneja dos tipos de inventario completamente diferentes:
 
 1. **INVENTARIO INDIVIDUAL** (Solo Notebooks y Celulares):
-   - Cada unidad tiene número de serie único
+   - Cada unidad tiene número de serie único o un IMEI en el caso de los celulares
    - Se rastrea individualmente
-   - Tiene historial de asignaciones
+   - Tiene historial de asignaciones y Reparaciones
    - Puede enviarse a reparación
    - Estados: Disponible, Asignado, En Reparación, Dado de Baja
 
@@ -1041,4 +1032,4 @@ proyecto-inventario-it/
 - Queries directas sin validación
 - Estados globales innecesarios
 - Dependencias excesivas
-- Confundir el manejo de productos con serie vs sin serie
+- Confundir el manejo de productos con serie u IMEI vs sin serie

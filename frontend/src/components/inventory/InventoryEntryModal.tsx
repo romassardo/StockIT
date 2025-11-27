@@ -1,7 +1,9 @@
-﻿import React, { useState, useEffect } from 'react';
-import { FiX, FiPlusCircle, FiTag, FiType, FiHardDrive } from 'react-icons/fi';
+import React, { useState, useEffect } from 'react';
+import { FiTag, FiType, FiHardDrive, FiLoader, FiCheckCircle } from 'react-icons/fi';
 import * as inventoryService from '../../services/inventory.service';
 import { Product } from '../../types';
+import Modal from '../common/Modal';
+import { useNotification } from '../../contexts/NotificationContext';
 
 interface InventoryEntryModalProps {
   isOpen: boolean;
@@ -10,56 +12,67 @@ interface InventoryEntryModalProps {
 }
 
 export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({ isOpen, onClose, onSuccess }) => {
+  const { addNotification } = useNotification();
+  
   const [formData, setFormData] = useState({
     productoId: '',
     numeroSerie: '',
     observaciones: '',
   });
+  
   const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loadingProducts, setLoadingProducts] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen) {
-      const fetchProducts = async () => {
-        setLoading(true);
-        try {
-          const response = await inventoryService.getProductsWithSerialNumber();
-          setProducts(response.data || []);
-        } catch (err) {
-          setError('No se pudieron cargar los productos del catálogo.');
-        } finally {
-          setLoading(false);
-        }
-      };
       fetchProducts();
     }
   }, [isOpen]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (submitting) return;
-
-    setError(null);
-    setSubmitting(true);
-
+  const fetchProducts = async () => {
+    setLoadingProducts(true);
     try {
-      if (!formData.productoId || !formData.numeroSerie) {
-        throw new Error('Debe seleccionar un producto e ingresar un número de serie.');
+      const response = await inventoryService.getProductsWithSerialNumber();
+      if (response.success && Array.isArray(response.data)) {
+        setProducts(response.data);
+      } else {
+        setProducts([]);
+        addNotification({ type: 'warning', message: 'No se encontraron productos con número de serie configurado.' });
       }
-      
+    } catch (err) {
+      console.error(err);
+      addNotification({ type: 'error', message: 'Error al cargar el catálogo de productos.' });
+    } finally {
+      setLoadingProducts(false);
+    }
+  };
+
+  const handleSubmit = async () => {
+    if (!formData.productoId) {
+      addNotification({ type: 'warning', message: 'Por favor seleccione un producto.' });
+      return;
+    }
+    if (!formData.numeroSerie || formData.numeroSerie.trim().length < 3) {
+      addNotification({ type: 'warning', message: 'El número de serie es obligatorio (mín. 3 caracteres).' });
+      return;
+    }
+
+    setSubmitting(true);
+    try {
       await inventoryService.createInventoryItem({
         producto_id: parseInt(formData.productoId),
-        numero_serie: formData.numeroSerie,
+        numero_serie: formData.numeroSerie.trim().toUpperCase(),
         observaciones: formData.observaciones,
       });
       
+      addNotification({ type: 'success', message: 'Activo registrado exitosamente.' });
       onSuccess();
       handleClose();
 
     } catch (err: any) {
-      setError(err.response?.data?.error || err.message || 'Ocurrió un error al registrar el dispositivo.');
+      const msg = err.response?.data?.error || err.message || 'Error al registrar el activo.';
+      addNotification({ type: 'error', message: msg });
     } finally {
       setSubmitting(false);
     }
@@ -68,90 +81,127 @@ export const InventoryEntryModal: React.FC<InventoryEntryModalProps> = ({ isOpen
   const handleClose = () => {
     if (submitting) return;
     setFormData({ productoId: '', numeroSerie: '', observaciones: '' });
-    setError(null);
     onClose();
-  }
+  };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-50">
-      <div className="glass-card-deep w-full max-w-lg p-6 rounded-2xl">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold text-gradient-primary">Nuevo Ingreso de Activo</h2>
-          <button onClick={handleClose} className="p-2 rounded-full hover:bg-slate-500/20">
-            <FiX />
-          </button>
+    <Modal 
+      isOpen={isOpen} 
+      onClose={handleClose} 
+      title="Registrar Nuevo Activo"
+      zIndex={50}
+    >
+      <div className="p-6 space-y-6">
+        
+        {/* Selección de Producto */}
+        <div>
+          <label htmlFor="product" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+            Producto <span className="text-red-500">*</span>
+          </label>
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+              <FiType />
+            </div>
+            <select
+              id="product"
+              value={formData.productoId}
+              onChange={(e) => setFormData(prev => ({ ...prev, productoId: e.target.value }))}
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all disabled:opacity-50 disabled:cursor-not-allowed appearance-none"
+              required
+              disabled={loadingProducts || submitting}
+            >
+              <option value="">{loadingProducts ? 'Cargando catálogo...' : 'Seleccione un producto...'}</option>
+              {products.map(p => (
+                <option key={p.id} value={p.id}>
+                  {p.nombre_marca} {p.nombre_producto}
+                </option>
+              ))}
+            </select>
+            {/* Flecha custom para select si fuera necesario, por ahora default del navegador */}
+          </div>
+          {products.length === 0 && !loadingProducts && (
+            <p className="text-xs text-amber-500 mt-1">
+              * No hay productos configurados para usar N/S. Contacte al administrador.
+            </p>
+          )}
         </div>
 
-        <form onSubmit={handleSubmit}>
-          {error && (
-            <div className="p-3 text-sm text-red-700 bg-red-100 border border-red-200 rounded-lg dark:bg-red-900/20 dark:text-red-300 dark:border-red-500/30 mb-4">
-              {error}
+        {/* Número de Serie */}
+        <div>
+          <label htmlFor="serial" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+            Número de Serie <span className="text-red-500">*</span>
+          </label>
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+              <FiTag />
             </div>
-          )}
-          
-          <div className="space-y-4">
-            <div>
-              <label htmlFor="product" className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
-                <FiType /> Producto*
-              </label>
-              <select
-                id="product"
-                value={formData.productoId}
-                onChange={(e) => setFormData(prev => ({ ...prev, productoId: e.target.value }))}
-                className="input-glass w-full"
-                required
-                disabled={loading}
-              >
-                <option value="">{loading ? 'Cargando...' : 'Seleccione un producto'}</option>
-                {products.map(p => (
-                  <option key={p.id} value={p.id}>{p.nombre_marca} {p.nombre_producto}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label htmlFor="serial" className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
-                <FiTag /> Número de Serie*
-              </label>
-              <input
-                id="serial"
-                type="text"
-                value={formData.numeroSerie}
-                onChange={(e) => setFormData(prev => ({ ...prev, numeroSerie: e.target.value.toUpperCase() }))}
-                className="input-glass w-full"
-                placeholder="Ej: SN-DELL-123XYZ"
-                required
-              />
-            </div>
-            
-            <div>
-              <label htmlFor="notes" className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-300 mb-2">
-                <FiHardDrive /> Observaciones (Opcional)
-              </label>
-              <textarea
-                id="notes"
-                value={formData.observaciones}
-                onChange={(e) => setFormData(prev => ({ ...prev, observaciones: e.target.value }))}
-                className="input-glass w-full"
-                rows={3}
-                placeholder="Detalles adicionales sobre el ingreso..."
-              />
-            </div>
+            <input
+              id="serial"
+              type="text"
+              value={formData.numeroSerie}
+              onChange={(e) => setFormData(prev => ({ ...prev, numeroSerie: e.target.value.toUpperCase() }))}
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all placeholder:text-slate-400"
+              placeholder="Ej: SN-HP-554433"
+              required
+              disabled={submitting}
+            />
           </div>
-
-          <div className="mt-6 flex justify-end gap-3">
-            <button type="button" onClick={handleClose} className="btn-secondary">
-              Cancelar
-            </button>
-            <button type="submit" disabled={submitting || loading} className="btn-primary">
-              {submitting ? 'Registrando...' : 'Registrar Activo'}
-            </button>
+          <p className="text-xs text-slate-500 mt-1">
+            Se convertirá a mayúsculas automáticamente.
+          </p>
+        </div>
+        
+        {/* Observaciones */}
+        <div>
+          <label htmlFor="notes" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+            Observaciones (Opcional)
+          </label>
+          <div className="relative">
+            <div className="absolute top-3 left-3 pointer-events-none text-slate-400">
+              <FiHardDrive />
+            </div>
+            <textarea
+              id="notes"
+              value={formData.observaciones}
+              onChange={(e) => setFormData(prev => ({ ...prev, observaciones: e.target.value }))}
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all placeholder:text-slate-400 min-h-[100px]"
+              placeholder="Detalles adicionales sobre el estado o procedencia..."
+              disabled={submitting}
+            />
           </div>
-        </form>
+        </div>
+
       </div>
-    </div>
+
+      {/* Footer con Botones */}
+      <div className="flex justify-end items-center gap-3 p-6 border-t border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 rounded-b-3xl">
+        <button 
+          type="button" 
+          onClick={handleClose} 
+          disabled={submitting}
+          className="px-4 py-2 rounded-xl text-sm font-semibold border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors disabled:opacity-50"
+        >
+          Cancelar
+        </button>
+        <button 
+          type="button"
+          onClick={handleSubmit} 
+          disabled={submitting || loadingProducts || !formData.productoId || !formData.numeroSerie} 
+          className="px-6 py-2 rounded-xl text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 focus:ring-4 focus:ring-indigo-500/30 transition-all shadow-lg shadow-indigo-500/20 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
+        >
+          {submitting ? (
+            <>
+              <FiLoader className="animate-spin" /> Registrando...
+            </>
+          ) : (
+            <>
+              <FiCheckCircle /> Registrar Activo
+            </>
+          )}
+        </button>
+      </div>
+    </Modal>
   );
 }; 
-

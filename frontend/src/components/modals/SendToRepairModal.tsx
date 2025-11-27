@@ -1,19 +1,8 @@
-// frontend/src/components/modals/SendToRepairModal.tsx
-import React, { useState, useEffect, useCallback } from 'react';
-import Modal from '../common/Modal'; // Asumiendo que Modal existe
-import Button from '../common/Button';
-import Input from '../common/Input'; // Asumiendo que Input existe
-import Textarea from '../common/Textarea'; // Asumiendo que Textarea existe
-import SelectSearch from '../common/SelectSearch'; // Componente para buscar activos
-import { FiSend, FiXCircle } from 'react-icons/fi';
-import api from '../../services/api';
-import { useAuth } from '../../contexts/AuthContext'; // Para el ID del usuario que envía
+import React, { useState } from 'react';
+import { FiTool, FiTruck, FiFileText, FiLoader, FiAlertCircle, FiPackage } from 'react-icons/fi';
+import Modal from '../common/Modal';
 import { useNotification } from '../../contexts/NotificationContext';
-
-interface AssetOption {
-  value: number; // inventario_individual_id
-  label: string; // Ej: "Notebook Dell XPS 15 - SN: XXXXXX"
-}
+import * as inventoryService from '../../services/inventory.service';
 
 interface PreselectedAsset {
   inventario_individual_id: number;
@@ -26,7 +15,7 @@ interface SendToRepairModalProps {
   isOpen: boolean;
   onClose: () => void;
   onRepairSubmitted: () => void;
-  preselectedAsset?: PreselectedAsset; // Activo preseleccionado opcional
+  preselectedAsset?: PreselectedAsset;
   zIndex?: number;
 }
 
@@ -35,160 +24,150 @@ const SendToRepairModal: React.FC<SendToRepairModalProps> = ({
   onClose, 
   onRepairSubmitted,
   preselectedAsset,
-  zIndex = 60 // Por defecto, un poco más alto que el modal base
+  zIndex = 60
 }) => {
-  const { user } = useAuth(); // Obtener usuario del contexto
-  const { addNotification } = useNotification(); // Hook para notificaciones
-  const [assetId, setAssetId] = useState<number | null>(null);
-  const [proveedor, setProveedor] = useState<string>('');
-  const [descripcionProblema, setDescripcionProblema] = useState<string>('');
-  const [assetOptions, setAssetOptions] = useState<AssetOption[]>([]);
-  const [loadingAssets, setLoadingAssets] = useState<boolean>(false);
-  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-  const [error, setError] = useState<string | null>(null);
+  const { addNotification } = useNotification();
+  
+  const [proveedor, setProveedor] = useState('');
+  const [problemaDescripcion, setProblemaDescripcion] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Cargar activos (Notebooks y Celulares en estado Disponible o Asignado)
-  const fetchAssetsForRepair = useCallback(async () => {
-    setLoadingAssets(true);
-    try {
-      const response = await api.get('/inventory/for-repair');
-      const data = response.data.data.map((asset: any) => ({
-        value: asset.id,
-        label: `${asset.categoria} ${asset.marca} ${asset.modelo} - N/S: ${asset.numero_serie} (${asset.estado})`
-      }));
-      setAssetOptions(data);
-    } catch (err) {
-      console.error('Error fetching assets for repair:', err);
-      addNotification({ type: 'error', message: 'Error al cargar activos para reparación.' });
-    } finally {
-      setLoadingAssets(false);
-    }
-  }, [addNotification]);
-
-  useEffect(() => {
-    if (isOpen) {
-      if (!preselectedAsset) {
-        fetchAssetsForRepair();
-      }
-      
-      // Si hay un activo preseleccionado, configurarlo
-      if (preselectedAsset) {
-        setAssetId(preselectedAsset.inventario_individual_id);
-      } else {
-        setAssetId(null);
-      }
-      setProveedor('');
-      setDescripcionProblema('');
-      setError(null);
-    }
-  }, [isOpen, fetchAssetsForRepair, preselectedAsset]);
-
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Prevenir doble envío
-    if (isSubmitting) {
+    if (!preselectedAsset) {
+      addNotification({ type: 'error', message: 'No hay un activo seleccionado para reparar.' });
       return;
     }
-    
-    if (!user || !user.id) {
-      addNotification({ type: 'error', message: 'Error de autenticación. Por favor, inicie sesión de nuevo.' });
-      setIsSubmitting(false);
+
+    if (!proveedor.trim() || !problemaDescripcion.trim()) {
+      addNotification({ type: 'warning', message: 'Complete todos los campos obligatorios.' });
       return;
     }
-    
+
     setIsSubmitting(true);
-    
-    if (!assetId || !proveedor || !descripcionProblema) {
-      addNotification({ type: 'error', message: 'Por favor, complete todos los campos.' });
-      setIsSubmitting(false);
-      return;
-    }
-
     try {
-      const repairData = {
-        inventario_individual_id: assetId,
-        proveedor,
-        problema_descripcion: descripcionProblema,
-        usuario_envia_id: user?.id, // ID del usuario logueado, asegurar que user exista
-      };
+      await inventoryService.createRepair({
+        inventario_individual_id: preselectedAsset.inventario_individual_id,
+        proveedor: proveedor.trim(),
+        problema_descripcion: problemaDescripcion.trim(),
+      });
 
-      await api.post('/repairs', repairData);
-
-      addNotification({ type: 'success', message: 'Activo enviado a reparación exitosamente.' });
-      onRepairSubmitted(); // Llama a la función para refrescar la lista principal
-      onClose(); // Cierra el modal
-
+      addNotification({ type: 'success', message: 'Orden de reparación creada exitosamente.' });
+      onRepairSubmitted();
+      onClose();
     } catch (err: any) {
-      console.error('Error al enviar a reparación:', err);
-      const errorMessage = err.response?.data?.message || 'Error al enviar a reparación. Intente de nuevo.';
-      addNotification({ type: 'error', message: errorMessage });
+      console.error('Error al crear reparación:', err);
+      const msg = err.response?.data?.error || 'Error al procesar el envío a reparación.';
+      addNotification({ type: 'error', message: msg });
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  if (!isOpen) return null;
+
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Registrar Envío a Reparación" zIndex={zIndex}>
-      <form onSubmit={handleSubmit} className="space-y-6 p-2">
-        <div>
-          <label htmlFor="asset" className="block text-sm font-medium text-text-secondary mb-1">Activo a Reparar (N/S)</label>
-          {preselectedAsset ? (
-            <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg">
-              <p className="text-sm font-medium text-blue-800 dark:text-blue-200">
-                {preselectedAsset.producto_info} - N/S: {preselectedAsset.numero_serie}
-              </p>
+    <Modal isOpen={isOpen} onClose={onClose} title="Enviar a Reparación" zIndex={zIndex}>
+      <div className="p-6 space-y-6">
+        
+        {/* Tarjeta del Activo */}
+        {preselectedAsset ? (
+          <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50 rounded-xl p-4 flex items-start gap-4">
+            <div className="p-3 bg-amber-100 dark:bg-amber-800/30 rounded-lg text-amber-600 dark:text-amber-400">
+              <FiTool size={24} />
+            </div>
+            <div>
+              <h4 className="font-bold text-amber-900 dark:text-amber-100">
+                {preselectedAsset.producto_info}
+              </h4>
+              <div className="flex items-center gap-2 mt-1">
+                <span className="text-xs font-bold uppercase text-amber-700 dark:text-amber-300 bg-amber-200/50 dark:bg-amber-700/30 px-2 py-0.5 rounded">
+                  SN: {preselectedAsset.numero_serie}
+                </span>
+              </div>
               {preselectedAsset.empleado_info && (
-                <p className="text-xs text-blue-600 dark:text-blue-300 mt-1">
-                  Asignado a: {preselectedAsset.empleado_info}
+                <p className="text-sm text-amber-800 dark:text-amber-200/70 mt-2 flex items-center gap-1">
+                  <span className="opacity-75">Asignado a:</span> {preselectedAsset.empleado_info}
                 </p>
               )}
             </div>
-          ) : (
-            <SelectSearch
-              options={assetOptions}
-              value={assetOptions.find(opt => opt.value === assetId) || null}
-              onChange={(option) => setAssetId(option ? Number(option.value) : null)}
-              placeholder="Buscar por N/S, tipo, marca..."
-              isLoading={loadingAssets}
-              isClearable
+          </div>
+        ) : (
+          <div className="p-4 bg-red-50 text-red-600 rounded-xl flex items-center gap-2">
+            <FiAlertCircle /> Error: No se seleccionó un activo.
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-5">
+          
+          {/* Proveedor */}
+          <div>
+            <label htmlFor="proveedor" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+              <div className="flex items-center gap-2">
+                <FiTruck className="text-indigo-500" /> Proveedor / Servicio Técnico *
+              </div>
+            </label>
+            <input
+              id="proveedor"
+              type="text"
+              value={proveedor}
+              onChange={(e) => setProveedor(e.target.value)}
+              className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all placeholder:text-slate-400"
+              placeholder="Ej: Servicio Técnico Oficial HP"
+              required
+              disabled={isSubmitting}
             />
+          </div>
+
+          {/* Descripción del Problema */}
+          <div>
+            <label htmlFor="problema" className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+              <div className="flex items-center gap-2">
+                <FiFileText className="text-indigo-500" /> Descripción de la Falla *
+              </div>
+            </label>
+            <textarea
+              id="problema"
+              value={problemaDescripcion}
+              onChange={(e) => setProblemaDescripcion(e.target.value)}
+              rows={4}
+              className="w-full px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all placeholder:text-slate-400 resize-none"
+              placeholder="Describa el problema o falla que presenta el equipo..."
+              required
+              disabled={isSubmitting}
+            />
+          </div>
+
+        </form>
+      </div>
+
+      {/* Footer */}
+      <div className="flex justify-end items-center gap-3 p-6 border-t border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 rounded-b-3xl">
+        <button 
+          type="button"
+          onClick={onClose}
+          disabled={isSubmitting}
+          className="px-5 py-2.5 rounded-xl text-sm font-medium border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors disabled:opacity-50"
+        >
+          Cancelar
+        </button>
+        <button 
+          onClick={handleSubmit}
+          disabled={isSubmitting || !proveedor || !problemaDescripcion || !preselectedAsset}
+          className="px-6 py-2.5 rounded-xl text-sm font-bold text-white bg-amber-600 hover:bg-amber-700 shadow-lg shadow-amber-500/20 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:scale-[1.02]"
+        >
+          {isSubmitting ? (
+            <>
+              <FiLoader className="animate-spin" /> Enviando...
+            </>
+          ) : (
+            <>
+              <FiTool /> Confirmar Envío
+            </>
           )}
-        </div>
-
-        <Input
-          label="Proveedor"
-          id="proveedor"
-          value={proveedor}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setProveedor(e.target.value)}
-          placeholder="Nombre del proveedor o servicio técnico"
-          required
-          maxLength={100}
-        />
-
-        <Textarea
-          label="Descripción del Problema"
-          id="descripcionProblema"
-          value={descripcionProblema}
-          onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setDescripcionProblema(e.target.value)}
-          placeholder="Detalle la falla o el motivo del envío a reparación"
-          required
-          rows={4}
-        />
-
-        {error && <p className="text-sm text-red-500 bg-red-100 p-3 rounded-md">{error}</p>}
-
-        <div className="flex justify-end space-x-4 pt-4">
-          <Button type="button" onClick={onClose} variant="secondary" className="glassmorphism-button-secondary">
-            <FiXCircle className="mr-2" />
-            Cancelar
-          </Button>
-          <Button type="submit" variant="primary" disabled={isSubmitting} className="glassmorphism-button">
-            <FiSend className="mr-2" />
-            {isSubmitting ? 'Enviando...' : 'Enviar a Reparación'}
-          </Button>
-        </div>
-      </form>
+        </button>
+      </div>
     </Modal>
   );
 };

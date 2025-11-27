@@ -1,48 +1,47 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import { AuthRequest } from '../types/auth.types';
 import { DatabaseConnection } from '../utils/database';
 import { logger } from '../utils/logger';
 import mysql from 'mysql2/promise';
-
-// Interfaz para el resultado esperado del SP de reparaciones activas
-interface RepairRecord {
-  id: number;
-  // ... otras propiedades de la reparación
-  TotalRows: number;
-}
-
-// Guarda de tipo para verificar si el objeto es un array de RepairRecord
-function isRepairRecordArray(data: unknown): data is RepairRecord[] {
-  return (
-    Array.isArray(data) &&
-    data.length > 0 &&
-    typeof data[0] === 'object' &&
-    data[0] !== null &&
-    'TotalRows' in data[0]
-  );
-}
 
 export class InventoryController {
   private db = DatabaseConnection.getInstance();
 
   // Función auxiliar para transformar datos del SP a la estructura esperada por el frontend
   private transformInventoryItem = (item: any): any => {
-    const { TotalRows, producto_marca, producto_modelo, producto_descripcion, categoria_nombre, categoria_id, ...rest } = item;
-    
+    // Creamos el objeto anidado 'producto' a partir de los campos planos
+    const producto = {
+      id: item.producto_id,
+      marca: item.producto_marca,
+      modelo: item.producto_modelo,
+      descripcion: item.producto_descripcion,
+      categoria_id: item.categoria_id,
+      categoria: item.categoria_nombre ? {
+        id: item.categoria_id,
+        nombre: item.categoria_nombre
+      } : null
+    };
+
+    // Clonamos el item original para no mutarlo directamente
+    const newItem = { ...item };
+
+    // Eliminamos los campos que ya hemos anidado para limpiar el objeto final
+    delete newItem.producto_id;
+    delete newItem.producto_marca;
+    delete newItem.producto_modelo;
+    delete newItem.producto_descripcion;
+    delete newItem.categoria_nombre;
+    delete newItem.categoria_id;
+    delete newItem.TotalRows; // Eliminar cualquier TotalRows residual
+
+    // Devolvemos el objeto limpio con la estructura anidada correcta
+    // Mapear campos de MySQL a nombres esperados por el frontend
     return {
-      ...rest,
-      // Crear el objeto producto anidado que espera el frontend
-      producto: {
-        id: item.producto_id,
-        marca: producto_marca,
-        modelo: producto_modelo,
-        descripcion: producto_descripcion,
-        categoria_id: categoria_id,
-        categoria: categoria_nombre ? {
-          id: categoria_id,
-          nombre: categoria_nombre
-        } : null
-      }
+      ...newItem,
+      producto: producto,
+      // Mapeo de nombres de campos MySQL -> Frontend
+      created_at: item.fecha_creacion || item.created_at,
+      updated_at: item.fecha_modificacion || item.updated_at
     };
   };
 
@@ -127,18 +126,108 @@ export class InventoryController {
         return;
       }
 
-      const [results] = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>(
+      const [spResult] = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>(
         'sp_InventarioIndividual_GetBySerialNumber',
         [String(serial).trim().toUpperCase()]
       );
 
-      if (!results || results.length === 0) {
+      // En MySQL2, para SPs con CALL: spResult puede ser [filas[], OkPacket]
+      // Extraer las filas reales del primer recordset
+      const rows = Array.isArray(spResult) && spResult.length > 0 && Array.isArray(spResult[0]) 
+        ? spResult[0] as any[]
+        : (Array.isArray(spResult) ? spResult : []);
+
+      if (!rows || rows.length === 0) {
         res.status(404).json({ error: 'Item de inventario no encontrado con ese número de serie.' });
         return;
       }
 
-      // Transformar los datos usando la función auxiliar
-      const transformedData = this.transformInventoryItem(results[0]);
+      const rawData = rows[0];
+      
+      // Transformar los datos básicos usando la función auxiliar
+      const transformedData = this.transformInventoryItem(rawData);
+      
+      // Si hay asignación activa, obtener detalles completos
+      if (rawData.asignacion_actual_id) {
+        try {
+          const [asignacionResult] = await this.db.executeQuery<mysql.RowDataPacket[]>(`
+            SELECT 
+              a.id, a.inventario_individual_id, a.empleado_id, a.sector_id, a.sucursal_id,
+              a.fecha_asignacion, a.fecha_devolucion, a.observaciones, a.activa,
+              e.nombre AS empleado_nombre, e.apellido AS empleado_apellido,
+              s.nombre AS sector_nombre,
+              suc.nombre AS sucursal_nombre
+            FROM Asignaciones a
+            LEFT JOIN Empleados e ON a.empleado_id = e.id
+            LEFT JOIN Sectores s ON a.sector_id = s.id
+            LEFT JOIN Sucursales suc ON a.sucursal_id = suc.id
+            WHERE a.id = ?
+          `, [rawData.asignacion_actual_id]);
+          
+          if (asignacionResult && asignacionResult.length > 0) {
+            const asig = asignacionResult[0];
+            transformedData.asignacion_actual = {
+              id: asig.id,
+              inventario_individual_id: asig.inventario_individual_id,
+              empleado_id: asig.empleado_id,
+              empleado_nombre: `${asig.empleado_nombre || ''} ${asig.empleado_apellido || ''}`.trim(),
+              sector_id: asig.sector_id,
+              sector_nombre: asig.sector_nombre,
+              sucursal_id: asig.sucursal_id,
+              sucursal_nombre: asig.sucursal_nombre,
+              fecha_asignacion: asig.fecha_asignacion,
+              fecha_devolucion: asig.fecha_devolucion,
+              observaciones: asig.observaciones,
+              activa: asig.activa,
+              empleado: {
+                id: asig.empleado_id,
+                nombre: asig.empleado_nombre,
+                apellido: asig.empleado_apellido
+              }
+            };
+          }
+        } catch (e) {
+          logger.warn('No se pudo obtener detalle de asignación actual:', e);
+        }
+      }
+      
+      // Si hay reparación activa, obtener detalles completos
+      if (rawData.reparacion_actual_id) {
+        try {
+          const [reparacionResult] = await this.db.executeQuery<mysql.RowDataPacket[]>(`
+            SELECT 
+              r.id, r.inventario_individual_id, r.fecha_envio, r.fecha_retorno,
+              r.proveedor, r.problema_descripcion, r.solucion_descripcion,
+              r.estado, r.usuario_envia_id,
+              u.nombre AS usuario_envia_nombre
+            FROM Reparaciones r
+            LEFT JOIN Usuarios u ON r.usuario_envia_id = u.id
+            WHERE r.id = ?
+          `, [rawData.reparacion_actual_id]);
+          
+          if (reparacionResult && reparacionResult.length > 0) {
+            const rep = reparacionResult[0];
+            transformedData.reparacion_actual = {
+              id: rep.id,
+              reparacion_id: rep.id,
+              inventario_individual_id: rep.inventario_individual_id,
+              numero_serie: transformedData.numero_serie,
+              marca: transformedData.producto?.marca,
+              modelo: transformedData.producto?.modelo,
+              fecha_envio: rep.fecha_envio,
+              fecha_retorno: rep.fecha_retorno,
+              proveedor: rep.proveedor,
+              problema_descripcion: rep.problema_descripcion,
+              solucion_descripcion: rep.solucion_descripcion,
+              estado_reparacion: rep.estado,
+              usuario_envia_id: rep.usuario_envia_id,
+              usuario_envia_nombre: rep.usuario_envia_nombre
+            };
+          }
+        } catch (e) {
+          logger.warn('No se pudo obtener detalle de reparación actual:', e);
+        }
+      }
 
       res.json({
         success: true,
@@ -152,70 +241,156 @@ export class InventoryController {
   };
 
   public getAvailableInventory = async (req: AuthRequest, res: Response): Promise<void> => {
+    const {
+      estado,
+      categoria_id,
+      search,
+      activos_only = 'true',
+      page = '1',
+      limit = '50'
+    } = req.query;
+
+    const pageNum = parseInt(page as string);
+    const limitNum = parseInt(limit as string);
+
+    if (isNaN(pageNum) || isNaN(limitNum) || pageNum < 1 || limitNum < 1 || limitNum > 100) {
+      res.status(400).json({ error: 'Parámetros de paginación inválidos.' });
+      return;
+    }
+
     try {
-      const { 
-        estado,
-        categoria_id,
-        search, // Nuevo parámetro para búsqueda global
-        page = '1', 
-        limit = '50' 
-      } = req.query;
-
-      const pageNum = parseInt(page as string);
-      const limitNum = parseInt(limit as string);
-
-      if (isNaN(pageNum) || isNaN(limitNum) || pageNum < 1 || limitNum < 1 || limitNum > 100) {
-        res.status(400).json({ error: 'Parámetros de paginación inválidos. Page y limit deben ser números positivos, limit no mayor a 100.' });
-        return;
-      }
-
-      const [results] = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>(
+      // Ejecutar Stored Procedure - Temporalmente usar activos_only=false para mostrar más items
+      const spResults = await this.db.executeStoredProcedure(
         'sp_InventarioIndividual_GetAll',
         [
-          estado ? String(estado) : null,
-          categoria_id ? parseInt(categoria_id as string) : null,
-          search ? String(search).trim() : null, // Parámetro de búsqueda global
+          estado,
+          categoria_id,
+          search,
+          false, // Temporalmente false para mostrar todos los items disponibles
           pageNum,
           limitNum
         ]
-      );
+      ) as mysql.RowDataPacket[][];
 
-      const data = results || [];
-      // El SP ahora devuelve TotalRows en cada fila, tomamos el primero si existe.
-      const totalItems = data.length > 0 ? data[0].TotalRows : 0; 
+      // El SP devuelve un array de result sets. El primer elemento contiene las filas del primer SELECT.
+      // spResults[0] es el objeto 'results' de la query.
+      // Al ser un CALL, 'results' es un array [Rows[], Packet].
+      const queryResults = spResults[0] as any;
+      
+      // Validamos que sea un array y extraemos el primer set de filas
+      const rows = Array.isArray(queryResults) ? queryResults[0] : [];
+      
+      // Calcular total de items (usando la primera fila si existe)
+      const firstRow = rows.length > 0 ? rows[0] : null;
+      const totalItems = firstRow ? (firstRow.TotalRows || firstRow['TotalRows'] || 0) : 0;
       const totalPages = Math.ceil(totalItems / limitNum);
+      
+      const transformedData = rows.map((row: any, index: number) => {
+        try {
+          // Ahora 'row' sí es una fila individual (RowDataPacket)
+          // El driver mysql2 normalmente devuelve objetos con nombres de columna por defecto
+          
+          let itemObj = row;
 
-      // Transformar los datos del SP para que coincidan con la estructura esperada por el frontend
-      const responseData = data.map(this.transformInventoryItem);
+          // Si por alguna razón rara viniera como array indexado (poco probable ahora que corregimos el acceso)
+          if (Array.isArray(row)) {
+             itemObj = {
+              id: row[0],
+              producto_id: row[1],
+              producto_marca: row[2],
+              producto_modelo: row[3],
+              producto_descripcion: row[4],
+              categoria_nombre: row[5],
+              categoria_id: row[6],
+              numero_serie: row[7],
+              estado: row[8],
+              fecha_ingreso: row[9],
+              fecha_baja: row[10],
+              motivo_baja: row[11],
+              fecha_creacion: row[12],
+              fecha_modificacion: row[13]
+             };
+          }
 
-      if (responseData.length === 0 && pageNum > 1 && totalItems > 0) {
-         res.status(404).json({ 
-            success: false, 
-            error: 'Página no encontrada. No hay resultados para los parámetros de paginación proporcionados.',
-            pagination: {
-                page: pageNum,
-                limit: limitNum,
-                totalItems: totalItems,
-                totalPages: totalPages
-            }
-        });
-        return;
-      }
+          const transformed = this.transformInventoryItem(itemObj);
+          return transformed;
+
+        } catch (error) {
+          return null;
+        }
+      }).filter((item: any) => item !== null);
 
       res.json({
         success: true,
-        data: responseData,
+        data: transformedData,
         pagination: {
-          page: pageNum,
-          limit: limitNum,
+          currentPage: pageNum,
+          pageSize: limitNum,
           totalItems: totalItems,
-          totalPages: totalPages
-        }
+          totalPages: totalPages,
+        },
+        source: 'sp'
       });
 
-    } catch (error: any) {
-      logger.error('Error obteniendo inventario disponible:', { errorMessage: error.message, stack: error.stack, query_params: req.query });
-      res.status(500).json({ error: 'Error interno del servidor al obtener inventario disponible.' });
+    } catch (spError: any) {
+      logger.warn('SP sp_InventarioIndividual_GetAll falló, usando consulta directa como fallback.', { error: spError.message });
+      
+      // Fallback a consulta directa si el SP no funciona
+      try {
+        let whereConditions = ['ii.estado != \'Dado de Baja\''];
+        let queryParams: any[] = [];
+
+        if (estado) {
+          whereConditions.push('ii.estado = ?');
+          queryParams.push(estado);
+        }
+        if (categoria_id) {
+          whereConditions.push('p.categoria_id = ?');
+          queryParams.push(parseInt(categoria_id as string));
+        }
+        if (search) {
+          const searchTerm = `%${String(search).trim()}%`;
+          whereConditions.push('(ii.numero_serie LIKE ? OR p.marca LIKE ? OR p.modelo LIKE ?)');
+          queryParams.push(searchTerm, searchTerm, searchTerm);
+        }
+
+        const whereClause = whereConditions.join(' AND ');
+        const offset = (pageNum - 1) * limitNum;
+
+        const countQuery = `SELECT COUNT(*) as total FROM InventarioIndividual ii INNER JOIN Productos p ON ii.producto_id = p.id WHERE ${whereClause}`;
+        const [countResult] = await this.db.executeQuery(countQuery, queryParams);
+        const totalItems = countResult[0]?.total || 0;
+        const totalPages = Math.ceil(totalItems / limitNum);
+
+        const mainQuery = `
+          SELECT ii.*, p.marca as producto_marca, p.modelo as producto_modelo, p.descripcion as producto_descripcion, c.id as categoria_id, c.nombre as categoria_nombre, ${totalItems} as TotalRows
+          FROM InventarioIndividual ii
+          INNER JOIN Productos p ON ii.producto_id = p.id
+          INNER JOIN Categorias c ON p.categoria_id = c.id
+          WHERE ${whereClause}
+          ORDER BY ii.fecha_modificacion DESC, ii.id DESC
+          LIMIT ? OFFSET ?`;
+        
+        const [directResults] = await this.db.executeQuery(mainQuery, [...queryParams, limitNum, offset]);
+        
+        const transformedData = (directResults || []).map(this.transformInventoryItem);
+
+        res.json({
+          success: true,
+          data: transformedData,
+          pagination: {
+            currentPage: pageNum,
+            pageSize: limitNum,
+            totalItems: totalItems,
+            totalPages: totalPages,
+          },
+          source: 'direct_query'
+        });
+
+      } catch (fallbackError: any) {
+        logger.error('Error en el fallback de getAvailableInventory:', { errorMessage: fallbackError.message, stack: fallbackError.stack });
+        res.status(500).json({ error: 'Error interno del servidor al obtener el inventario.' });
+      }
     }
   };
 
@@ -416,15 +591,103 @@ export class InventoryController {
   async getHistory(req: AuthRequest, res: Response): Promise<void> {
     try {
       const { id } = req.params;
+      const inventoryId = parseInt(id);
       
-      const [results] = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>(
-        'sp_LogsActividad_GetByInventarioId',
-        [parseInt(id)]
-      );
+      if (isNaN(inventoryId)) {
+        res.status(400).json({ error: 'ID de inventario inválido.' });
+        return;
+      }
 
+      // Consulta combinada: LogsActividad + Eventos de Asignaciones + Eventos de Reparaciones
+      const query = `
+        -- Logs de actividad existentes
+        SELECT 
+          la.id,
+          la.fecha_hora,
+          la.accion,
+          la.descripcion,
+          COALESCE(u.nombre, 'Sistema') AS nombre_usuario,
+          la.tabla_afectada
+        FROM LogsActividad la
+        LEFT JOIN Usuarios u ON la.usuario_id = u.id
+        WHERE (la.tabla_afectada = 'InventarioIndividual' AND la.registro_id = ?)
+           OR (la.tabla_afectada = 'Asignaciones' AND la.registro_id IN (SELECT id FROM Asignaciones WHERE inventario_individual_id = ?))
+           OR (la.tabla_afectada = 'Reparaciones' AND la.registro_id IN (SELECT id FROM Reparaciones WHERE inventario_individual_id = ?))
+        
+        UNION ALL
+        
+        -- Eventos de Asignaciones (si no hay logs)
+        SELECT 
+          a.id * 100000 + 1 AS id,
+          a.fecha_asignacion AS fecha_hora,
+          'Asignación' AS accion,
+          JSON_OBJECT(
+            'accion', 'Nueva Asignación',
+            'empleado', CONCAT(e.nombre, ' ', e.apellido),
+            'sector', s.nombre,
+            'sucursal', suc.nombre
+          ) AS descripcion,
+          COALESCE(u.nombre, 'Sistema') AS nombre_usuario,
+          'Asignaciones' AS tabla_afectada
+        FROM Asignaciones a
+        LEFT JOIN Empleados e ON a.empleado_id = e.id
+        LEFT JOIN Sectores s ON a.sector_id = s.id
+        LEFT JOIN Sucursales suc ON a.sucursal_id = suc.id
+        LEFT JOIN Usuarios u ON a.usuario_asigna_id = u.id
+        WHERE a.inventario_individual_id = ?
+        
+        UNION ALL
+        
+        -- Eventos de Reparaciones
+        SELECT 
+          r.id * 100000 + 2 AS id,
+          r.fecha_envio AS fecha_hora,
+          'Envío a Reparación' AS accion,
+          JSON_OBJECT(
+            'accion', 'Envío a Reparación',
+            'proveedor', r.proveedor,
+            'problema', r.problema_descripcion
+          ) AS descripcion,
+          COALESCE(u.nombre, 'Sistema') AS nombre_usuario,
+          'Reparaciones' AS tabla_afectada
+        FROM Reparaciones r
+        LEFT JOIN Usuarios u ON r.usuario_envia_id = u.id
+        WHERE r.inventario_individual_id = ?
+        
+        UNION ALL
+        
+        -- Retornos de Reparación (cuando fecha_retorno no es null)
+        SELECT 
+          r.id * 100000 + 3 AS id,
+          r.fecha_retorno AS fecha_hora,
+          'Retorno de Reparación' AS accion,
+          JSON_OBJECT(
+            'accion', 'Retorno de Reparación',
+            'estado_reparacion', r.estado,
+            'solucion', COALESCE(r.solucion_descripcion, 'No especificada')
+          ) AS descripcion,
+          COALESCE(u.nombre, 'Sistema') AS nombre_usuario,
+          'Reparaciones' AS tabla_afectada
+        FROM Reparaciones r
+        LEFT JOIN Usuarios u ON r.usuario_recibe_id = u.id
+        WHERE r.inventario_individual_id = ? AND r.fecha_retorno IS NOT NULL
+        
+        ORDER BY fecha_hora DESC
+      `;
+      
+      const [results] = await this.db.executeQuery<mysql.RowDataPacket[]>(query, [
+        inventoryId, inventoryId, inventoryId, // Para LogsActividad
+        inventoryId, // Para Asignaciones
+        inventoryId, // Para Reparaciones envío
+        inventoryId  // Para Reparaciones retorno
+      ]);
+
+      const data = results || [];
+      
       res.json({
         success: true,
-        data: results || []
+        data: data,
+        totalItems: data.length
       });
     } catch (error: any) {
       logger.error('Error obteniendo historial:', { error: error.message, id: req.params.id });
@@ -495,16 +758,39 @@ export class InventoryController {
         return;
       }
 
-      const [results] = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>(
+      // IMPORTANTE: El SP espera (PageNumber, PageSize, proveedor_search)
+      const [spResult] = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>(
         'sp_Repair_GetActive',
         [
-          search ? String(search).trim() : null,
           pageNum,
-          limitNum
+          limitNum,
+          search ? String(search).trim() : null
         ]
       );
 
-      const data = results || [];
+      // En MySQL2, para SPs con CALL: spResult es [filas[], OkPacket]
+      // Necesitamos extraer el primer elemento que son las filas reales
+      const rawData = Array.isArray(spResult) && spResult.length > 0 && Array.isArray(spResult[0]) 
+        ? spResult[0] as any[]
+        : (Array.isArray(spResult) ? spResult : []);
+      
+      // Mapear resultados: El SP devuelve reparacion_id, no id
+      const data = rawData.map((row: any, index: number) => ({
+        // Usar reparacion_id como id principal para el frontend
+        id: row.reparacion_id || row.ReparacionID || index + 1,
+        reparacion_id: row.reparacion_id || row.ReparacionID || index + 1,
+        inventario_individual_id: row.inventario_individual_id || row.InventarioIndividualID,
+        producto_marca: row.producto_marca || row.ProductoMarca || row.marca,
+        producto_modelo: row.producto_modelo || row.ProductoModelo || row.modelo,
+        numero_serie: row.numero_serie || row.NumeroSerie,
+        proveedor: row.proveedor || row.Proveedor,
+        fecha_envio: row.fecha_envio || row.FechaEnvio,
+        problema_descripcion: row.problema_descripcion || row.ProblemaDescripcion,
+        usuario_envia_nombre: row.usuario_envia_nombre || row.UsuarioEnvia,
+        dias_en_reparacion: row.dias_en_reparacion || row.DiasEnReparacion,
+        TotalRows: row.TotalRows
+      }));
+
       const totalItems = data.length > 0 ? data[0].TotalRows : 0;
       const totalPages = Math.ceil(totalItems / limitNum);
 

@@ -50,11 +50,10 @@ BEGIN
             -- Si no se especifica un estado, aplica la lógica por defecto
             (
                 p_estado IS NULL 
-                AND ii.estado != 'Asignado'
-                AND (p_activos_only = FALSE OR ii.estado != 'Dado de Baja')
+                AND (p_activos_only = FALSE OR (ii.estado IN ('Disponible', 'disponible', 'En Reparacion', 'en_reparacion')))
             )
         )
-        AND (p_categoria_id IS NULL OR p.categoria_id = p_categoria_id)
+        AND (p_categoria_id IS NULL OR c.id = p_categoria_id)
         AND (p_search IS NULL OR (
             ii.numero_serie LIKE CONCAT('%', p_search, '%')
             OR p.marca LIKE CONCAT('%', p_search, '%')

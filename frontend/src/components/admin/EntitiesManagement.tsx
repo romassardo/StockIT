@@ -194,14 +194,14 @@ const EntitiesManagement: React.FC = () => {
   };
 
   const renderTableBody = () => {
-    if (loading && filteredData.length === 0) return <tbody><tr><td colSpan={3} className="py-10 text-center"><FiLoader className="mx-auto text-4xl text-primary-500 animate-spin" /></td></tr></tbody>;
-    if (error) return <tbody><tr><td colSpan={3} className="py-10 text-center text-red-400"><FiAlertCircle className="mx-auto mb-2 text-4xl" /><p>{error}</p></td></tr></tbody>;
-    if (filteredData.length === 0) return <tbody><tr><td colSpan={3} className="py-10 text-center text-slate-400"><FiAlertCircle className="mx-auto mb-2 text-4xl" /><p>No se encontraron resultados.</p></td></tr></tbody>;
+    if (loading && filteredData.length === 0) return <tbody><tr key="loading"><td colSpan={3} className="py-10 text-center"><FiLoader className="mx-auto text-4xl text-primary-500 animate-spin" /></td></tr></tbody>;
+    if (error) return <tbody><tr key="error"><td colSpan={3} className="py-10 text-center text-red-400"><FiAlertCircle className="mx-auto mb-2 text-4xl" /><p>{error}</p></td></tr></tbody>;
+    if (filteredData.length === 0) return <tbody><tr key="empty"><td colSpan={3} className="py-10 text-center text-slate-400"><FiAlertCircle className="mx-auto mb-2 text-4xl" /><p>No se encontraron resultados.</p></td></tr></tbody>;
 
     return (
         <tbody className="divide-y divide-white/10">
-            {filteredData.map((item: EntityType) => (
-                <tr key={item.id} className="text-sm text-slate-200 transition-colors duration-200 hover:bg-black/20">
+            {filteredData.map((item: EntityType, index: number) => (
+                <tr key={item.id ?? `item-${index}`} className="text-sm text-slate-200 transition-colors duration-200 hover:bg-black/20">
                     <td className="px-6 py-3 whitespace-nowrap">
                         {editing.id === item.id ? (
                             <div className="flex gap-2">

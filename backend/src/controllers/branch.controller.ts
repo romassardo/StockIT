@@ -74,7 +74,9 @@ export class BranchController {
 
       const result = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>('sp_Branch_GetAll', params);
       
-      const [data] = result;
+      // MySQL devuelve [[rows], OkPacket] para SPs
+      const rawData = result[0];
+      const data = Array.isArray(rawData[0]) ? rawData[0] : rawData;
       res.status(200).json({ success: true, data: data || [] });
 
     } catch (error: any) {

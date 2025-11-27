@@ -116,32 +116,40 @@ const MainLayout: React.FC = () => {
       
       <aside
         style={{ width: isSidebarOpen ? (window.innerWidth < 768 ? '280px' : '260px') : '73px' }}
-        className={`fixed md:relative top-0 left-0 h-full bg-slate-900/95 dark:bg-slate-800/80 backdrop-blur-xl border-r ${
-          theme === 'dark' ? 'border-slate-700/50' : 'border-slate-200/80'
-        } z-40 flex flex-col shadow-2xl transition-all duration-300 ease-in-out`}
+        className={`fixed md:relative top-0 left-0 h-full bg-slate-900 dark:bg-slate-950 border-r ${
+          theme === 'dark' ? 'border-slate-800' : 'border-slate-200'
+        } z-40 flex flex-col transition-all duration-300 ease-in-out shadow-xl`}
       >
-        <div className="flex items-center justify-between h-20 px-4 shrink-0">
+        <div className="flex items-center justify-between h-14 px-5 shrink-0">
           {isSidebarOpen && (
-              <img 
-                src="/LogoStockITHoriz.png" 
-                alt="StockIT" 
-                className="h-10"
-              />
-            )}
+            <div className="flex items-center gap-3 overflow-hidden">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center shrink-0 shadow-lg shadow-indigo-500/30">
+                <FiPackage className="text-white w-5 h-5" />
+              </div>
+              <div className="flex flex-col">
+                <span className="text-lg font-bold text-slate-100 tracking-tight leading-none">
+                  StockIT
+                </span>
+                <span className="text-[9px] font-medium text-indigo-400 tracking-widest uppercase">
+                  Enterprise
+                </span>
+              </div>
+            </div>
+          )}
           <button 
             onClick={() => setSidebarOpen(!isSidebarOpen)} 
-            className={`hidden md:flex items-center justify-center w-8 h-8 rounded-full transition-all duration-300 ${
+            className={`hidden md:flex items-center justify-center w-8 h-8 rounded-xl transition-all duration-300 ${
               isSidebarOpen 
-                ? 'bg-slate-700/50 hover:bg-slate-600/50'
-                : 'bg-transparent hover:bg-slate-700/50'
+                ? 'bg-slate-800 text-slate-400 hover:bg-slate-700 hover:text-white'
+                : 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/30 hover:bg-indigo-500'
             }`}
           >
-            {isSidebarOpen ? <FiX className="w-5 h-5 text-slate-400" /> : <FiMenu className="w-5 h-5 text-slate-400" />}
+            {isSidebarOpen ? <FiX className="w-5 h-5" /> : <FiMenu className="w-5 h-5" />}
           </button>
         </div>
 
-        <nav className="flex-1 px-4 pb-4 overflow-y-auto overflow-x-hidden">
-          <ul className="space-y-2">
+        <nav className="flex-1 px-3 pb-4 overflow-y-auto overflow-x-hidden custom-scrollbar">
+          <ul className="space-y-1.5">
             {[...navItems, ...(user?.rol === 'admin' ? [adminNavItem] : [])].map(item => {
               const isActive = isMenuActive(item);
               const isSubmenuOpen = openSubmenus.includes(item.id);
@@ -149,20 +157,34 @@ const MainLayout: React.FC = () => {
               return (
                 <li key={item.id}>
                   <div
-                    className={`relative flex items-center justify-between p-2.5 rounded-xl transition-all duration-300 cursor-pointer group ${
-                      isActive ? 'bg-gradient-to-r from-primary-500/10 to-secondary-500/10' : 'hover:bg-slate-700/50'
+                    title={!isSidebarOpen ? item.label : ''}
+                    className={`relative flex items-center justify-between p-3 rounded-xl transition-all duration-300 cursor-pointer group select-none ${
+                      isActive 
+                        ? 'bg-indigo-600 shadow-lg shadow-indigo-900/20' 
+                        : 'hover:bg-slate-800/50'
                     }`}
-                    onClick={() => item.submenu ? toggleSubmenu(item.id) : (item.to && navigate(item.to))}
+                    onClick={() => {
+                      if (item.submenu) {
+                        if (!isSidebarOpen) setSidebarOpen(true);
+                        toggleSubmenu(item.id);
+                      } else if (item.to) {
+                        navigate(item.to);
+                      }
+                    }}
                   >
-                    <div className="flex items-center gap-3">
-                      <item.Icon className={`w-5 h-5 shrink-0 transition-colors duration-300 ${isActive ? 'text-primary-400' : 'text-slate-400 group-hover:text-slate-300'}`} />
-                        {isSidebarOpen && (
-                          <span 
-                            className={`font-semibold text-sm whitespace-nowrap ${isActive ? 'text-slate-100' : 'text-slate-300 group-hover:text-slate-200'}`}
-                          >
-                            {item.label}
-                          </span>
-                        )}
+                    <div className="flex items-center gap-3.5">
+                      <item.Icon className={`w-5 h-5 shrink-0 transition-colors duration-300 ${
+                        isActive ? 'text-white' : 'text-slate-400 group-hover:text-indigo-400'
+                      }`} />
+                      {isSidebarOpen && (
+                        <span 
+                          className={`font-medium text-sm whitespace-nowrap transition-colors duration-300 ${
+                            isActive ? 'text-white' : 'text-slate-400 group-hover:text-slate-200'
+                          }`}
+                        >
+                          {item.label}
+                        </span>
+                      )}
                     </div>
                     {item.submenu && isSidebarOpen && (
                       <FiChevronDown
@@ -218,47 +240,38 @@ const MainLayout: React.FC = () => {
                   </div>
                 )}
             </div>
-              {isSidebarOpen && (
+            
+            {/* Acciones Footer Sidebar */}
+            {isSidebarOpen && (
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={toggleTheme}
+                  title={theme === 'dark' ? 'Modo Claro' : 'Modo Oscuro'}
+                  className="p-2 text-slate-400 hover:text-yellow-400 hover:bg-slate-700/50 rounded-lg transition-colors"
+                >
+                  {theme === 'dark' ? <FiSun className="w-5 h-5" /> : <FiMoon className="w-5 h-5" />}
+                </button>
                 <button 
                   onClick={handleLogout} 
-                  className="p-2 text-slate-400 hover:text-slate-200 hover:bg-slate-700/50 rounded-lg"
+                  className="p-2 text-slate-400 hover:text-red-400 hover:bg-slate-700/50 rounded-lg transition-colors"
                   title="Cerrar sesión"
                 >
                   <FiLogOut className="w-5 h-5" />
                 </button>
-              )}
+              </div>
+            )}
           </div>
         </div>
       </aside>
 
       <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="flex items-center justify-between h-20 px-6 shrink-0 border-b border-slate-200/80 dark:border-slate-800/80 bg-slate-100/80 dark:bg-slate-900/80 backdrop-blur-lg relative z-20">
-          <button onClick={() => setSidebarOpen(!isSidebarOpen)} className="md:hidden p-2 -ml-2">
+        {/* Header visible SOLO en móvil para el botón de menú */}
+        <header className="md:hidden flex items-center justify-between h-14 px-4 shrink-0 border-b border-slate-200/80 dark:border-slate-800/80 bg-slate-100/80 dark:bg-slate-900/80 backdrop-blur-lg relative z-20">
+          <button onClick={() => setSidebarOpen(!isSidebarOpen)} className="p-2 -ml-2 text-slate-600 dark:text-slate-300">
             <FiMenu className="w-6 h-6" />
           </button>
-          <div className="flex-1"></div>
-          
-          <div className="flex items-center gap-3">
-            <button
-              title={theme === 'dark' ? 'Modo Claro' : 'Modo Oscuro'}
-              onClick={toggleTheme} 
-              className="w-10 h-10 flex items-center justify-center rounded-full text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700/50 transition-colors"
-            >
-              {theme === 'dark' ? <FiSun className="w-5 h-5" /> : <FiMoon className="w-5 h-5" />}
-            </button>
-            <button
-              title="Notificaciones"
-              className="w-10 h-10 flex items-center justify-center rounded-full text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700/50 transition-colors relative"
-            >
-              <FiBell className="w-5 h-5" />
-            </button>
-            <button
-              title="Configuración"
-              className="w-10 h-10 flex items-center justify-center rounded-full text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-700/50 transition-colors"
-            >
-              <FiSettings className="w-5 h-5" />
-            </button>
-          </div>
+          <span className="font-bold text-slate-700 dark:text-slate-200">StockIT</span>
+          <div className="w-8"></div> {/* Espaciador para centrar título */}
         </header>
 
         <main className="flex-1 overflow-y-auto p-6">
@@ -271,4 +284,4 @@ const MainLayout: React.FC = () => {
   );
 };
 
-export default MainLayout; 
+export default MainLayout;

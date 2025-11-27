@@ -74,23 +74,28 @@ export class ProductController {
         return;
       }
 
-      // Usar stored procedure para obtener productos
-      const result = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>(
-        'sp_Producto_GetAll',
-        [
-          categoria_id ? parseInt(categoria_id as string) : null,
-          categoria_nombre ? (categoria_nombre as string).trim() : null,
-          usa_numero_serie !== undefined ? usa_numero_serie === 'true' : null,
-          activo === 'true',
-          pageNum,
-          limitNum
-        ]
-      );
-
-      const [data] = result;
+      // Usar consulta directa en lugar de SP (SP tiene problemas con columnas inexistentes)
+      let query = `
+        SELECT p.id, p.categoria_id, c.nombre as categoria_nombre, p.marca, p.modelo, 
+               p.descripcion, p.stock_minimo, p.usa_numero_serie, p.activo
+        FROM Productos p
+        LEFT JOIN Categorias c ON p.categoria_id = c.id
+        WHERE 1=1
+      `;
+      const params: any[] = [];
       
+      if (categoria_id) { query += ' AND p.categoria_id = ?'; params.push(parseInt(categoria_id as string)); }
+      if (usa_numero_serie !== undefined) { query += ' AND p.usa_numero_serie = ?'; params.push(usa_numero_serie === 'true' ? 1 : 0); }
+      if (activo === 'true') { query += ' AND p.activo = 1'; }
+      
+      query += ' ORDER BY p.marca, p.modelo LIMIT ? OFFSET ?';
+      params.push(limitNum, (pageNum - 1) * limitNum);
+
+      const [rows] = await this.db.executeQuery<mysql.RowDataPacket[]>(query, params);
+      const data = rows;
+
       // Si el SP no incluye paginación, calculamos básica
-      const totalItems = data.length;
+      const totalItems = Array.isArray(data) ? data.length : 0;
       const totalPages = Math.ceil(totalItems / limitNum);
 
       res.json({
@@ -264,15 +269,28 @@ export class ProductController {
 
   public getSerialNumberProducts = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-      const result = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>(
-        'sp_Productos_GetByUsaNumeroSerie',
-        [1]
-      );
+      const query = `
+        SELECT 
+          p.id, 
+          p.categoria_id, 
+          c.nombre as categoria_nombre, 
+          p.marca as nombre_marca, 
+          p.modelo as nombre_producto, 
+          p.descripcion, 
+          p.stock_minimo, 
+          p.usa_numero_serie, 
+          p.activo
+        FROM Productos p
+        LEFT JOIN Categorias c ON p.categoria_id = c.id
+        WHERE p.usa_numero_serie = 1 AND p.activo = 1
+        ORDER BY p.marca, p.modelo
+      `;
 
-      const [data] = result;
+      const [rows] = await this.db.executeQuery<mysql.RowDataPacket[]>(query);
+      
       res.status(200).json({
         success: true,
-        data: data || []
+        data: rows || []
       });
 
     } catch (error: any) {
@@ -513,155 +531,59 @@ export class ProductController {
   };
 
   /**
-   * Obtener todas las categorías
-   * GET /api/products/categories
+   * Obtener todas las categorías - GET /api/products/categories
    */
   public getCategories = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-      const {
-        incluir_inactivas = 'false',
-        page = '1',
-        limit = '50'
-      } = req.query;
-
+      const { incluir_inactivas = 'false', page = '1', limit = '50' } = req.query;
       const pageNum = parseInt(page as string);
       const limitNum = parseInt(limit as string);
 
-      if (isNaN(pageNum) || isNaN(limitNum) || pageNum < 1 || limitNum < 1 || limitNum > 100) {
-        res.status(400).json({ 
-          success: false,
-          message: 'Parámetros de paginación inválidos' 
-        });
-        return;
-      }
-
-      logger.info('Obteniendo categorías', {
-        incluir_inactivas: incluir_inactivas === 'true',
-        page: pageNum,
-        limit: limitNum,
-        usuario: req.user?.id
-      });
-
-      const result = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>(
-        'sp_Categoria_GetAll',
-        [
-          incluir_inactivas === 'true' ? 2 : 1,
-          pageNum,
-          limitNum,
-          'ruta_completa',
-          'ASC'
-        ]
-      );
-
-      const [rawData] = result;
+      // Usar consulta directa (SP tiene problemas con columnas inexistentes)
+      let query = `
+        SELECT c.id, c.nombre, c.categoria_padre_id, c.requiere_serie, 
+               c.permite_asignacion, c.permite_reparacion, c.activo,
+               cp.nombre as categoria_padre_nombre
+        FROM Categorias c
+        LEFT JOIN Categorias cp ON c.categoria_padre_id = cp.id
+        WHERE 1=1
+      `;
+      if (incluir_inactivas !== 'true') { query += ' AND c.activo = 1'; }
+      query += ' ORDER BY c.nombre LIMIT ? OFFSET ?';
       
-      // 🔧 MAPEAR CORRECTAMENTE los datos del SP a la interface Category del frontend
-      const mappedCategories = rawData.map((row: any) => ({
-        id: row.id,
-        nombre: row.nombre,
-        categoria_padre_id: row.categoria_padre_id,
-        requiere_serie: row.requiere_serie === 1 || row.requiere_serie === true,
-        permite_asignacion: row.permite_asignacion === 1 || row.permite_asignacion === true,
-        permite_reparacion: row.permite_reparacion === 1 || row.permite_reparacion === true,
-        activo: row.activo === 1 || row.activo === true,
-        nivel: row.nivel || 0,
-        ruta_completa: row.ruta_completa || row.nombre,
-        fecha_creacion: row.fecha_creacion,
-        fecha_modificacion: row.fecha_modificacion
+      const [rows] = await this.db.executeQuery<mysql.RowDataPacket[]>(query, [limitNum, (pageNum - 1) * limitNum]);
+      const categories = rows.map((row: any) => ({
+        id: row.id, nombre: row.nombre, categoria_padre_id: row.categoria_padre_id,
+        requiere_serie: row.requiere_serie === 1, permite_asignacion: row.permite_asignacion === 1,
+        permite_reparacion: row.permite_reparacion === 1, activo: row.activo === 1
       }));
-
-      const totalItems = rawData.length > 0 ? (rawData[0] as any).TotalRows : 0;
-      const totalPages = Math.ceil(totalItems / limitNum);
-
-      logger.info(`✅ Categorías mapeadas correctamente: ${mappedCategories.length} items`);
-
-      res.status(200).json({
-        success: true,
-        data: mappedCategories,
-        pagination: {
-          page: pageNum,
-          limit: limitNum,
-          totalItems: totalItems,
-          totalPages: totalPages
-        }
-      });
-
+      res.status(200).json({ success: true, data: categories, pagination: { page: pageNum, limit: limitNum, totalItems: categories.length } });
     } catch (error: any) {
       logger.error('Error obteniendo categorías:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Error interno del servidor al obtener categorías'
-      });
+      res.status(500).json({ success: false, message: 'Error interno del servidor al obtener categorías' });
     }
   };
 
   /**
-   * Crear nueva categoría
-   * POST /api/products/categories
+   * Crear nueva categoría - POST /api/products/categories
    */
   public createCategory = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-      const {
-        nombre,
-        categoria_padre_id,
-        requiere_serie = false,
-        permite_asignacion = false,
-        permite_reparacion = false
-      } = req.body;
-
-      if (!nombre) {
-        res.status(400).json({
-          success: false,
-          message: 'El nombre de la categoría es obligatorio'
-        });
-        return;
-      }
-
-      logger.info('Creando nueva categoría', {
-        nombre,
-        categoria_padre_id,
-        usuario: req.user?.id
-      });
-
+      const { nombre, categoria_padre_id, requiere_serie = false, permite_asignacion = false, permite_reparacion = false } = req.body;
+      if (!nombre) { res.status(400).json({ success: false, message: 'El nombre de la categoría es obligatorio' }); return; }
       const result = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>(
-        'sp_Categoria_Create',
-        [
-          nombre.trim(),
-          categoria_padre_id ? parseInt(categoria_padre_id) : null,
-          requiere_serie ? 1 : 0,
-          permite_asignacion ? 1 : 0,
-          permite_reparacion ? 1 : 0,
-          req.user?.id
-        ]
+        'sp_Categoria_Create', [nombre.trim(), categoria_padre_id ? parseInt(categoria_padre_id) : null, requiere_serie ? 1 : 0, permite_asignacion ? 1 : 0, permite_reparacion ? 1 : 0, req.user?.id]
       );
-
       const [data] = result;
-      res.status(201).json({
-        success: true,
-        message: 'Categoría creada exitosamente',
-        data: data[0]
-      });
-
+      res.status(201).json({ success: true, message: 'Categoría creada exitosamente', data: data[0] });
     } catch (error: any) {
       logger.error('Error creando categoría:', error);
-      
-      if (error.message?.includes('Ya existe una categoría')) {
-        res.status(409).json({
-          success: false,
-          message: error.message
-        });
-      } else {
-        res.status(500).json({
-          success: false,
-          message: 'Error interno del servidor al crear categoría'
-        });
-      }
+      res.status(500).json({ success: false, message: 'Error interno del servidor al crear categoría' });
     }
   };
 
   /**
-   * Actualizar categoría existente
-   * PUT /api/products/categories/:id
+   * Actualizar categoría existente - PUT /api/products/categories/:id
    */
   public updateCategory = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
@@ -806,4 +728,4 @@ export class ProductController {
       }
     }
   };
-} 
+}

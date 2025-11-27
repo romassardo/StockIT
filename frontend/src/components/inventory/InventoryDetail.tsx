@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { 
   FiX, 
@@ -8,15 +8,10 @@ import {
   FiPackage,
   FiHash,
   FiRefreshCw,
+  FiActivity,
   FiCheckCircle,
-  FiUserCheck,
-  FiTool,
-  FiXCircle,
-  FiHelpCircle,
-  FiZap,
-  FiCornerUpLeft,
-  FiUserPlus,
-  FiCheckSquare
+  FiAlertCircle,
+  FiXCircle
 } from 'react-icons/fi';
 import { InventoryItem } from '../../types';
 import * as inventoryService from '../../services/inventory.service';
@@ -54,7 +49,7 @@ const parseLogToAction = (log: ActivityLog): TimelineEvent => {
     const desc = JSON.parse(log.descripcion);
     
     if (log.tabla_afectada === 'InventarioIndividual') {
-      if (desc.accion === 'CreaciÃ³n') {
+      if (desc.accion === 'Creación' || desc.accion === 'Creacion') {
         accion = 'Activo Creado';
         observaciones = `Item registrado en el sistema con S/N: ${desc.numero_serie}`;
       } else if (desc.accion === 'Cambio de Estado') {
@@ -62,25 +57,24 @@ const parseLogToAction = (log: ActivityLog): TimelineEvent => {
         observaciones = `Estado anterior: ${desc.estado_anterior}. ${desc.observaciones || ''}`;
       }
     } else if (log.tabla_afectada === 'Asignaciones') {
-      if (desc.accion === 'Nueva AsignaciÃ³n') {
+      if (desc.accion === 'Nueva Asignación' || desc.accion === 'Nueva Asignacion') {
         accion = `Asignado a ${desc.empleado}`;
-        observaciones = `UbicaciÃ³n: ${desc.sector} / ${desc.sucursal}.`;
-      } else if (desc.accion === 'DevoluciÃ³n') {
+        observaciones = `Ubicación: ${desc.sector} / ${desc.sucursal}.`;
+      } else if (desc.accion === 'Devolución' || desc.accion === 'Devolucion') {
         accion = 'Activo Devuelto';
-        observaciones = `El activo fue devuelto y estÃ¡ disponible.`;
+        observaciones = `El activo fue devuelto y está disponible.`;
       }
     } else if (log.tabla_afectada === 'Reparaciones') {
-      console.log('Procesando log de reparaciÃ³n:', log);
-      if (desc.accion === 'EnvÃ­o a ReparaciÃ³n') {
-        accion = `Enviado a ReparaciÃ³n`;
+      if (desc.accion === 'Envío a Reparación' || desc.accion === 'Envio a Reparacion') {
+        accion = `Enviado a Reparación`;
         observaciones = `Proveedor: ${desc.proveedor || 'No especificado'}. Problema: ${desc.problema || 'No especificado'}`;
-      } else if (desc.accion === 'Retorno de ReparaciÃ³n') {
-        accion = `Retorno de ReparaciÃ³n (${desc.estado_reparacion || 'N/A'})`;
-        observaciones = `SoluciÃ³n: ${desc.solucion || 'No especificada'}. El activo ahora estÃ¡ ${desc.estado_inventario || 'N/A'}.`;
+      } else if (desc.accion === 'Retorno de Reparación' || desc.accion === 'Retorno de Reparacion') {
+        accion = `Retorno de Reparación (${desc.estado_reparacion || 'N/A'})`;
+        observaciones = `Solución: ${desc.solucion || 'No especificada'}. El activo ahora está ${desc.estado_inventario || 'N/A'}.`;
       }
     }
   } catch (error) {
-    // Si la descripciÃ³n no es un JSON, o es un log simple.
+    // Si la descripción no es un JSON, o es un log simple.
     accion = `${log.tabla_afectada} - ${log.accion}`;
     observaciones = log.descripcion;
   }
@@ -108,15 +102,18 @@ const InventoryDetail: React.FC<InventoryDetailProps> = ({ item, onClose, onRefr
 
   // Cargar historial del item
   useEffect(() => {
+    if (!item || !item.id) {
+      setHistory([]);
+      return;
+    }
+
     const loadHistory = async () => {
       try {
         setLoading(true);
         const response = await inventoryService.getInventoryHistory(item.id);
         
-        console.log('Respuesta completa del historial desde la API:', JSON.stringify(response, null, 2));
-
-        if (response.success && response.data && response.data.activityLogs) {
-          const allEvents = response.data.activityLogs
+        if (response.success && Array.isArray(response.data)) {
+          const allEvents = response.data
             .map(parseLogToAction)
             .sort((a: TimelineEvent, b: TimelineEvent) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
           
@@ -143,22 +140,33 @@ const InventoryDetail: React.FC<InventoryDetailProps> = ({ item, onClose, onRefr
 
   const handleActionSuccess = () => {
     onRefresh();
-    onClose();
+    // No cerramos el modal principal para permitir ver el cambio en el historial, 
+    // pero recargamos el historial
+    if (item.id) {
+      setLoading(true);
+      inventoryService.getInventoryHistory(item.id)
+        .then(response => {
+          if (response.success && Array.isArray(response.data)) {
+            setHistory(response.data.map(parseLogToAction).sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime()));
+          }
+        })
+        .finally(() => setLoading(false));
+    }
   };
 
-  // FunciÃ³n para obtener el color del estado
+  // Función para obtener el color del estado
   const getStatusColor = (estado: string) => {
     switch (estado) {
       case 'Disponible':
-        return 'bg-emerald-100 text-emerald-700 border-emerald-200';
+        return 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20';
       case 'Asignado':
-        return 'bg-blue-100 text-blue-700 border-blue-200';
-      case 'En reparaciÃ³n':
-        return 'bg-amber-100 text-amber-700 border-amber-200';
+        return 'bg-blue-500/10 text-blue-500 border-blue-500/20';
+      case 'En Reparación':
+        return 'bg-amber-500/10 text-amber-500 border-amber-500/20';
       case 'Dado de Baja':
-        return 'bg-red-100 text-red-700 border-red-200';
+        return 'bg-red-500/10 text-red-500 border-red-500/20';
       default:
-        return 'bg-slate-100 text-slate-700 border-slate-200';
+        return 'bg-slate-500/10 text-slate-500 border-slate-500/20';
     }
   };
 
@@ -175,201 +183,184 @@ const InventoryDetail: React.FC<InventoryDetailProps> = ({ item, onClose, onRefr
 
   const modalContent = (
     <>
-      {/* ðŸŽ­ Modal Backdrop */}
+      {/* 🔒 Modal Backdrop */}
       <div 
-        className="fixed inset-0 bg-black/60 backdrop-blur-sm"
-        style={{ zIndex: 9998 }}
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9998]"
         onClick={onClose}
       />
       
-      {/* ðŸ”® Modal Container */}
+      {/* 🔒 Modal Container */}
       <div 
-        className="fixed inset-0 flex items-center justify-center p-3"
-        style={{ zIndex: 9999 }}
+        className="fixed inset-0 flex items-center justify-center p-4 z-[9999]"
       >
-        <div className={`border rounded-3xl max-w-4xl w-full max-h-[90vh] overflow-hidden shadow-2xl transition-all duration-300 ${
-          theme === 'dark'
-            ? 'bg-slate-800/90 backdrop-blur-20 border-slate-700/30'
-            : 'bg-white/90 backdrop-blur-20 border-white/30'
-        }`} onClick={(e) => e.stopPropagation()}>
+        <div 
+          className={`glass-card w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl ${
+            theme === 'dark' ? 'bg-slate-900/90 border-slate-700' : 'bg-white/95 border-white/50'
+          }`}
+          onClick={(e) => e.stopPropagation()}
+        >
           {/* Header */}
-          <div className={`flex items-center justify-between p-6 border-b transition-all duration-300 ${
-            theme === 'dark' ? 'border-slate-700/20' : 'border-white/20'
-          }`}>
+          <div className="p-5 border-b border-white/10 flex justify-between items-center shrink-0 bg-white/5">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-2xl flex items-center justify-center">
+              <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
                 <FiPackage className="w-6 h-6 text-white" />
               </div>
               <div>
                 <h2 className={`text-xl font-bold ${
-                  theme === 'dark' ? 'text-slate-200' : 'text-slate-700'
-                }`}>Detalle del Item</h2>
-                <p className={`text-sm ${
-                  theme === 'dark' ? 'text-slate-400' : 'text-slate-500'
-                }`}>{item.numero_serie}</p>
+                  theme === 'dark' ? 'text-white' : 'text-slate-800'
+                }`}>
+                  Detalle del Activo
+                </h2>
+                <div className="flex items-center gap-2 text-sm opacity-80">
+                  <span className="font-mono bg-white/10 px-1.5 rounded text-xs">{item.numero_serie}</span>
+                  <span className="text-xs">•</span>
+                  <span>{item.producto?.categoria?.nombre}</span>
+                </div>
               </div>
             </div>
             
             <button
               onClick={onClose}
-              className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors duration-200 ${
-                theme === 'dark'
-                  ? 'bg-slate-700 hover:bg-slate-600'
-                  : 'bg-slate-100 hover:bg-slate-200'
-              }`}
+              className="p-2 rounded-full hover:bg-white/10 transition-colors"
             >
-              <FiX className={`w-5 h-5 ${
-                theme === 'dark' ? 'text-slate-300' : 'text-slate-600'
+              <FiX className={`w-6 h-6 ${
+                theme === 'dark' ? 'text-slate-400' : 'text-slate-500'
               }`} />
             </button>
           </div>
 
           {/* Contenido */}
-          <div className="flex-1 overflow-y-auto p-6 space-y-8">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {/* Columna Izquierda: InformaciÃ³n y Acciones */}
-              <div className="space-y-8">
-                {/* InformaciÃ³n principal */}
-                <div className="space-y-6">
-                  {/* Datos bÃ¡sicos */}
-                  <div className={`border rounded-xl p-6 transition-all duration-300 ${
-                    theme === 'dark' ? 'border-slate-700/50 bg-slate-800/50' : 'border-slate-200/80 bg-slate-50/50'
-                  }`}>
-                    <div className="grid grid-cols-2 gap-x-4 gap-y-5">
-                      {/* Estado */}
-                      <div className="col-span-2">
-                        <p className={`text-sm font-medium ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>Estado Actual</p>
-                        <div className={`inline-flex items-center gap-2 mt-1 px-3 py-1 rounded-full text-sm font-semibold ${getStatusColor(item.estado)}`}>
-                          {item.estado}
-                        </div>
-                      </div>
-                      
-                      {/* Info bÃ¡sica */}
-                      <div className="flex items-center gap-3">
-                        <FiTag className={`w-5 h-5 ${theme === 'dark' ? 'text-indigo-400' : 'text-indigo-500'}`} />
-                        <div>
-                          <p className={`text-xs ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>Marca</p>
-                          <p className={`font-semibold ${theme === 'dark' ? 'text-slate-200' : 'text-slate-700'}`}>{item.producto?.marca ?? 'N/A'}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <FiPackage className={`w-5 h-5 ${theme === 'dark' ? 'text-indigo-400' : 'text-indigo-500'}`} />
-                        <div>
-                          <p className={`text-xs ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>Modelo</p>
-                          <p className={`font-semibold ${theme === 'dark' ? 'text-slate-200' : 'text-slate-700'}`}>{item.producto?.modelo ?? 'N/A'}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <FiHash className={`w-5 h-5 ${theme === 'dark' ? 'text-indigo-400' : 'text-indigo-500'}`} />
-                        <div>
-                          <p className={`text-xs ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>CategorÃ­a</p>
-                          <p className={`font-semibold ${theme === 'dark' ? 'text-slate-200' : 'text-slate-700'}`}>{item.producto?.categoria?.nombre ?? 'N/A'}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <FiCalendar className={`w-5 h-5 ${theme === 'dark' ? 'text-indigo-400' : 'text-indigo-500'}`} />
-                        <div>
-                          <p className={`text-xs ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>Fecha de Ingreso</p>
-                          <p className={`font-semibold ${theme === 'dark' ? 'text-slate-200' : 'text-slate-700'}`}>{formatDate(item.created_at)}</p>
-                        </div>
+          <div className="flex-1 overflow-y-auto p-6 scrollbar-hide">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 h-full">
+              
+              {/* Columna Izquierda: Info y Acciones (1/3 ancho) */}
+              <div className="lg:col-span-1 space-y-6">
+                
+                {/* Tarjeta de Estado */}
+                <div className={`p-5 rounded-2xl border ${
+                  theme === 'dark' ? 'bg-slate-800/50 border-slate-700' : 'bg-slate-50 border-slate-200'
+                }`}>
+                  <div className="mb-4">
+                    <span className="text-xs font-semibold uppercase tracking-wider opacity-60">Estado Actual</span>
+                    <div className={`mt-2 inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-bold border ${getStatusColor(item.estado)}`}>
+                      <div className={`w-2 h-2 rounded-full ${getStatusColor(item.estado).replace('bg-', 'bg-').split(' ')[0].replace('/10', '')}`} />
+                      {item.estado}
+                    </div>
+                  </div>
+
+                  <div className="space-y-4 pt-4 border-t border-white/10">
+                    <div>
+                      <span className="text-xs opacity-60 block mb-1">Marca</span>
+                      <p className="font-semibold text-lg">{item.producto?.marca}</p>
+                    </div>
+                    <div>
+                      <span className="text-xs opacity-60 block mb-1">Modelo</span>
+                      <p className="font-semibold text-lg">{item.producto?.modelo}</p>
+                    </div>
+                    <div>
+                      <span className="text-xs opacity-60 block mb-1">Ingresado</span>
+                      <div className="flex items-center gap-2">
+                        <FiCalendar />
+                        <span>{formatDate(item.created_at)}</span>
                       </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Acciones RÃ¡pidas */}
+                {/* Botones de Acción */}
                 {item.estado !== 'Dado de Baja' && (
-                  <div>
-                    <h3 className={`text-lg font-bold mb-4 ${
-                        theme === 'dark' ? 'text-slate-300' : 'text-slate-600'
-                      }`}>Acciones RÃ¡pidas</h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      {item.estado === 'Disponible' && (
-                        <>
-                          <Button 
-                            variant="primary" 
-                            onClick={() => setShowAssignModal(true)}
-                          >
-                            Asignar Activo
-                          </Button>
-                          <Button 
-                            variant="warning"
-                            onClick={() => handleSendToRepair(item)}
-                          >
-                            Enviar a Reparar
-                          </Button>
-                        </>
-                      )}
-                      {item.estado === 'Asignado' && (
-                        <>
-                          <Button 
-                            variant="secondary"
-                            onClick={() => setShowReturnAssignmentModal(true)}
-                          >
-                            Registrar DevoluciÃ³n
-                          </Button>
-                          <Button 
-                            variant="warning"
-                            onClick={() => handleSendToRepair(item)}
-                          >
-                            Enviar a Reparar
-                          </Button>
-                        </>
-                      )}
-                      {item.estado === 'En reparaciÃ³n' && (
-                        <Button 
-                          variant="success"
-                          onClick={() => setShowRepairReturnModal(true)}
+                  <div className="space-y-3">
+                    <h3 className="text-sm font-bold uppercase tracking-wider opacity-60 px-1">Acciones Rápidas</h3>
+                    
+                    {item.estado === 'Disponible' && (
+                      <>
+                        <button 
+                          onClick={() => setShowAssignModal(true)}
+                          className="w-full py-3 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold shadow-lg shadow-indigo-500/20 transition-all flex items-center justify-center gap-2"
                         >
-                          Gestionar Retorno
-                        </Button>
-                      )}
-                    </div>
+                          <FiCheckCircle /> Asignar Activo
+                        </button>
+                        <button 
+                          onClick={() => handleSendToRepair(item)}
+                          className="w-full py-3 px-4 rounded-xl border border-amber-500/30 text-amber-500 hover:bg-amber-500/10 font-semibold transition-all flex items-center justify-center gap-2"
+                        >
+                          <FiAlertCircle /> Enviar a Reparación
+                        </button>
+                      </>
+                    )}
+
+                    {item.estado === 'Asignado' && (
+                      <>
+                        <button 
+                          onClick={() => setShowReturnAssignmentModal(true)}
+                          className="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-2"
+                        >
+                          <FiRefreshCw /> Registrar Devolución
+                        </button>
+                        <button 
+                          onClick={() => handleSendToRepair(item)}
+                          className="w-full py-3 px-4 rounded-xl border border-amber-500/30 text-amber-500 hover:bg-amber-500/10 font-semibold transition-all flex items-center justify-center gap-2"
+                        >
+                          <FiAlertCircle /> Enviar a Reparación
+                        </button>
+                      </>
+                    )}
+
+                    {item.estado === 'En Reparación' && (
+                      <button 
+                        onClick={() => setShowRepairReturnModal(true)}
+                        className="w-full py-3 px-4 rounded-xl bg-green-600 hover:bg-green-700 text-white font-semibold shadow-lg shadow-green-500/20 transition-all flex items-center justify-center gap-2"
+                      >
+                        <FiCheckCircle /> Gestionar Retorno
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
               
-              {/* Columna Derecha: Historial */}
-              <div className="space-y-6">
-                <div className={`border rounded-xl p-6 transition-all duration-300 h-full ${
-                  theme === 'dark' ? 'border-slate-700/50 bg-slate-800/50' : 'border-slate-200/80 bg-slate-50/50'
+              {/* Columna Derecha: Historial (2/3 ancho) */}
+              <div className="lg:col-span-2 flex flex-col h-full">
+                <div className={`flex-1 rounded-2xl border overflow-hidden flex flex-col ${
+                  theme === 'dark' ? 'bg-slate-800/30 border-slate-700' : 'bg-slate-50 border-slate-200'
                 }`}>
-                  <div className="flex items-center gap-3 mb-4">
-                    <FiClock className={`w-5 h-5 ${
-                      theme === 'dark' ? 'text-purple-400' : 'text-purple-500'
-                    }`} />
-                    <h3 className={`text-lg font-bold ${
-                      theme === 'dark' ? 'text-slate-300' : 'text-slate-600'
-                    }`}>Historial del Activo</h3>
+                  <div className="p-4 border-b border-white/10 flex items-center gap-2 bg-white/5">
+                    <FiActivity className="text-indigo-500" />
+                    <h3 className="font-bold">Línea de Tiempo</h3>
                   </div>
-                  {loading ? (
-                    <div className="flex justify-center items-center h-48">
-                      <FiRefreshCw className="animate-spin text-2xl text-slate-400" />
-                    </div>
-                  ) : (
-                    <AssetTimeline history={history} loading={loading} />
-                  )}
+                  
+                  <div className="flex-1 overflow-y-auto p-4 relative">
+                    {loading ? (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center opacity-50">
+                        <FiRefreshCw className="w-8 h-8 animate-spin mb-2" />
+                        <p>Cargando historial...</p>
+                      </div>
+                    ) : history.length > 0 ? (
+                      <AssetTimeline history={history} loading={loading} />
+                    ) : (
+                      <div className="absolute inset-0 flex flex-col items-center justify-center opacity-40">
+                        <FiClock className="w-12 h-12 mb-3" />
+                        <p>No hay actividad registrada</p>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
+
             </div>
           </div>
 
           {/* Footer */}
-          <div className={`border-t p-6 transition-all duration-300 ${
-            theme === 'dark' ? 'border-slate-700/20' : 'border-white/20'
-          }`}>
-            <div className="flex justify-end">
-              <button
-                onClick={onClose}
-                className={`py-2 px-6 rounded-xl font-semibold transition-colors duration-200 ${
-                  theme === 'dark'
-                    ? 'bg-slate-600 hover:bg-slate-500 text-slate-200'
-                    : 'bg-slate-200 hover:bg-slate-300 text-slate-700'
-                }`}
-              >
-                Cerrar
-              </button>
-            </div>
+          <div className="p-5 border-t border-white/10 flex justify-end bg-white/5">
+            <button
+              onClick={onClose}
+              className={`px-6 py-2.5 rounded-xl font-medium transition-colors ${
+                theme === 'dark'
+                  ? 'bg-slate-700 hover:bg-slate-600 text-white'
+                  : 'bg-slate-200 hover:bg-slate-300 text-slate-800'
+              }`}
+            >
+              Cerrar
+            </button>
           </div>
         </div>
       </div>
@@ -380,13 +371,12 @@ const InventoryDetail: React.FC<InventoryDetailProps> = ({ item, onClose, onRefr
     <>
       {createPortal(modalContent, document.body)}
       
-      {/* ðŸŸ£ Portales de Modales Secundarios (fuera del principal) */}
+      {/* Modales Secundarios */}
       {showAssignModal && (
         <AssignmentModal
           isOpen={showAssignModal}
           onClose={() => setShowAssignModal(false)}
           onSuccess={handleActionSuccess}
-          zIndex={10010}
         />
       )}
       {showSendToRepairModal && selectedAssetForRepair && (
@@ -433,5 +423,4 @@ const InventoryDetail: React.FC<InventoryDetailProps> = ({ item, onClose, onRefr
   ) : null;
 };
 
-export default InventoryDetail; 
-
+export default InventoryDetail;

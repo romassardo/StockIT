@@ -29,10 +29,10 @@ const sanitizeNumericFields = (obj: any): any => {
 import { ActiveRepair, ApiResponse } from '../types';
 import api from './api';
 
-export const getActiveRepairs = async (page: number = 1, pageSize: number = 10): Promise<ApiResponse<ActiveRepair[]>> => {
+export const getActiveRepairs = async (page: number = 1, pageSize: number = 10, search?: string): Promise<ApiResponse<ActiveRepair[]>> => {
   try {
-    const response = await api.get<ApiResponse<ActiveRepair[]>>(`/repairs/active`, {
-      params: { page, pageSize }
+    const response = await api.get<ApiResponse<ActiveRepair[]>>(`/inventory/repairs/active`, {
+      params: { page, limit: pageSize, search }
     });
     return sanitizeNumericFields(response.data);
   } catch (error) {

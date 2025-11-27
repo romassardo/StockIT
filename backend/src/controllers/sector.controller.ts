@@ -70,7 +70,9 @@ export class SectorController {
 
       const result = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>('sp_Sector_GetAll', params);
       
-      const [data] = result;
+      // MySQL devuelve [[rows], OkPacket] para SPs
+      const rawData = result[0];
+      const data = Array.isArray(rawData[0]) ? rawData[0] : rawData;
       if (data) {
         logger.debug(`Sectores obtenidos. Total: ${data.length}`);
         res.status(200).json({

@@ -2,8 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   FiUsers, 
   FiPlus, 
-  FiEdit2, 
-  FiLock, 
+  FiEdit2,  
   FiToggleLeft, 
   FiToggleRight,
   FiSearch,
@@ -12,11 +11,10 @@ import {
   FiUserX,
   FiShield,
   FiUser,
-  FiEye,
   FiRefreshCw
 } from 'react-icons/fi';
 import userService, { UserCreateData, UserUpdateData, UserFilters, UserStats } from '../../services/user.service';
-import type { SystemUser, PaginatedResponse } from '../../types';
+import type { SystemUser } from '../../types';
 import { useNotification } from '../../contexts/NotificationContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import Modal from '../common/Modal';
@@ -84,10 +82,19 @@ const UserForm: React.FC<UserFormProps> = ({ user, onSave, onCancel, isLoading }
       if (!available) {
         setErrors(prev => ({ ...prev, email: 'Este email ya está registrado' }));
       } else {
-        setErrors(prev => ({ ...prev, email: undefined }));
+        // Eliminar el error de email del objeto
+        setErrors(prev => {
+          const { email, ...rest } = prev;
+          return rest;
+        });
       }
     } catch (error) {
       console.error('Error validando email:', error);
+      // En caso de error, no bloquear el formulario
+      setErrors(prev => {
+        const { email, ...rest } = prev;
+        return rest;
+      });
     } finally {
       setEmailValidating(false);
     }
@@ -111,9 +118,13 @@ const UserForm: React.FC<UserFormProps> = ({ user, onSave, onCancel, isLoading }
   const handleInputChange = (field: keyof UserFormData, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
     
-    // Limpiar error del campo
+    // Limpiar error del campo eliminando la key
     if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: undefined }));
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[field];
+        return newErrors;
+      });
     }
 
     // Validar email en tiempo real
@@ -147,7 +158,7 @@ const UserForm: React.FC<UserFormProps> = ({ user, onSave, onCancel, isLoading }
             error={errors.email}
             required
             placeholder="usuario@empresa.com"
-            loading={emailValidating}
+            disabled={emailValidating}
           />
         </div>
 
@@ -226,7 +237,7 @@ const UserForm: React.FC<UserFormProps> = ({ user, onSave, onCancel, isLoading }
         <Button 
           type="submit" 
           variant="primary" 
-          loading={isLoading}
+          isLoading={isLoading}
           disabled={Object.keys(errors).length > 0 || emailValidating}
         >
           {user ? 'Actualizar Usuario' : 'Crear Usuario'}
@@ -277,9 +288,14 @@ const UserManagement: React.FC = () => {
         filters
       });
       
-      setUsers(response.data.data);
-      setTotalPages(response.data.totalPages);
-      setTotalItems(response.data.totalItems);
+      // La respuesta puede venir en diferentes formatos dependiendo del backend
+      const userData = (response as any)?.data?.data || (response as any)?.data || response || [];
+      const pages = (response as any)?.data?.totalPages || (response as any)?.totalPages || 1;
+      const items = (response as any)?.data?.totalItems || (response as any)?.totalItems || userData.length;
+      
+      setUsers(Array.isArray(userData) ? userData : []);
+      setTotalPages(pages);
+      setTotalItems(items);
     } catch (error) {
       addNotification({
         type: 'error',
@@ -310,10 +326,10 @@ const UserManagement: React.FC = () => {
   }, [users]);
 
   // Handlers CRUD
-  const handleCreateUser = async (userData: UserCreateData) => {
+  const handleCreateUser = async (userData: UserCreateData | UserUpdateData) => {
     try {
       setActionLoading(true);
-      await userService.create(userData);
+      await userService.create(userData as UserCreateData);
       
       addNotification({
         type: 'success',
@@ -554,7 +570,7 @@ const UserManagement: React.FC = () => {
             <Button 
               onClick={() => setShowCreateModal(true)}
               variant="primary"
-              icon={<FiPlus className="h-4 w-4" />}
+              leftIcon={<FiPlus className="h-4 w-4" />}
             >
               Nuevo Usuario
             </Button>
@@ -688,14 +704,14 @@ const UserManagement: React.FC = () => {
                   placeholder="Buscar por nombre o email..."
                   value={filters.search || ''}
                   onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
-                  icon={<FiSearch className="h-4 w-4" />}
+                  leftIcon={<FiSearch className="h-4 w-4" />}
                   className="w-80"
                 />
                 
                 <Button
                   variant="secondary"
                   onClick={() => setShowFilters(!showFilters)}
-                  icon={<FiFilter className="h-4 w-4" />}
+                  leftIcon={<FiFilter className="h-4 w-4" />}
                 >
                   Filtros
                 </Button>
@@ -703,7 +719,7 @@ const UserManagement: React.FC = () => {
                 <Button
                   variant="secondary"
                   onClick={loadUsers}
-                  icon={<FiRefreshCw className="h-4 w-4" />}
+                  leftIcon={<FiRefreshCw className="h-4 w-4" />}
                 >
                   Actualizar
                 </Button>
@@ -793,7 +809,7 @@ const UserManagement: React.FC = () => {
               <DataTable
                 data={users}
                 columns={columns}
-                keyExtractor={(user) => user.id.toString()}
+                keyExtractor={(user) => user?.id?.toString() || Math.random().toString()}
                 pagination={{
                   currentPage,
                   pageSize,

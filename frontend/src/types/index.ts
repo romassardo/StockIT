@@ -54,7 +54,7 @@ export interface InventoryItem {
   id: number;
   producto_id: number;
   numero_serie: string;
-  estado: 'Disponible' | 'Asignado' | 'En reparación' | 'Dado de Baja';
+  estado: 'Disponible' | 'Asignado' | 'En Reparación' | 'Dado de Baja';
   observaciones?: string;
   fecha_compra?: string;
   fecha_ingreso: string;

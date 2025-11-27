@@ -1,5 +1,4 @@
-import { Request, Response } from 'express';
-import mysql from 'mysql2/promise';
+import { Response } from 'express';
 import { DatabaseConnection } from '../utils/database';
 import { logger } from '../utils/logger';
 import { AuthRequest } from '../types/auth.types';
@@ -79,40 +78,14 @@ export class DashboardController {
         return;
       }
 
-      let statsData: SystemStats | null = null;
-
-      // Intentar ejecutar el stored procedure primero
-      try {
-        logger.info('Intentando obtener estadísticas con el SP sp_Dashboard_GetSystemStats');
-        const spResult = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>('sp_Dashboard_GetSystemStats', []);
-        
-        const [data] = spResult;
-        if (data && data.length > 0) {
-          logger.info('Estadísticas obtenidas exitosamente con SP sp_Dashboard_GetSystemStats');
-          statsData = data[0] as SystemStats;
-          
-          // 🚀 GUARDAR EN CACHÉ (5 minutos)
-          await cacheService.set(cacheKey, statsData, 5 * 60 * 1000);
-          res.status(200).json({
-            success: true,
-            data: statsData,
-            source: 'stored_procedure'
-          });
-          return;
-        }
-      } catch (spError: any) {
-        // Si el SP falla, registrar el error y continuar con el método alternativo
-        logger.warn(`Error al usar SP sp_Dashboard_GetSystemStats: ${spError.message}. Usando consultas directas como fallback.`);
-      }
+      // Consultas directas a la base de datos
+      logger.info('Obteniendo estadísticas del dashboard');
       
-      // Método alternativo: Consultas directas a la base de datos
-      logger.info('Obteniendo estadísticas con consultas directas (fallback)');
-      
-      // 1. Total de usuarios activos
-      const usersQuery = `SELECT COUNT(id) AS TotalUsuariosActivos 
-                          FROM Usuarios 
-                          WHERE activo = 1`;
-      const usersResult = await this.db.executeQuery(usersQuery);
+      // 1. Total de empleados activos (más relevante que usuarios)
+      const employeesQuery = `SELECT COUNT(id) AS TotalEmpleadosActivos 
+                              FROM Empleados 
+                              WHERE activo = 1`;
+      const employeesResult = await this.db.executeQuery(employeesQuery);
       
       // 2. Total de categorías activas
       const categoriesQuery = `SELECT COUNT(id) AS TotalCategoriasActivas 
@@ -169,7 +142,7 @@ export class DashboardController {
       const repairsResult = await this.db.executeQuery(repairsQuery);
       
       // Combinar todos los resultados
-      const [usersData] = usersResult;
+      const [employeesData] = employeesResult;
       const [categoriesData] = categoriesResult;
       const [productsData] = productsResult;
       const [inventoryData] = inventoryResult;
@@ -179,7 +152,7 @@ export class DashboardController {
       const [repairsData] = repairsResult;
       
       const stats: SystemStats = {
-        TotalUsuariosActivos: usersData[0]?.TotalUsuariosActivos || 0,
+        TotalUsuariosActivos: employeesData[0]?.TotalEmpleadosActivos || 0,
         TotalCategoriasActivas: categoriesData[0]?.TotalCategoriasActivas || 0,
         TotalProductosDistintosActivos: productsData[0]?.TotalProductosDistintosActivos || 0,
         TotalItemsInventarioIndividual: inventoryData[0]?.TotalItemsInventarioIndividual || 0,
@@ -193,15 +166,13 @@ export class DashboardController {
         TotalReparacionesActivas: repairsData[0]?.TotalReparacionesActivas || 0
       };
       
-      logger.info('Estadísticas obtenidas exitosamente con consultas directas');
-      logger.info(`Estadísticas calculadas: ${JSON.stringify(stats)}`);
+      logger.info('Estadísticas del dashboard obtenidas exitosamente');
       
       // 🚀 GUARDAR EN CACHÉ (5 minutos)
       await cacheService.set(cacheKey, stats, 5 * 60 * 1000);
       res.status(200).json({
         success: true,
-        data: stats,
-        source: 'direct_queries'
+        data: stats
       });
       
     } catch (error: any) {
@@ -219,28 +190,8 @@ export class DashboardController {
    */
   public getStockAlerts = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-      try {
-        // Intentar ejecutar el stored procedure primero
-        logger.info('Intentando obtener alertas de stock con el SP sp_Dashboard_GetStockAlerts');
-        const spResult = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>('sp_Dashboard_GetStockAlerts', []);
-        
-        const [data] = spResult;
-        if (data && data.length >= 0) { // Uso >= 0 ya que un array vacío es válido
-          logger.info('Alertas de stock obtenidas exitosamente con SP sp_Dashboard_GetStockAlerts');
-          res.status(200).json({
-            success: true,
-            data: data,
-            source: 'stored_procedure'
-          });
-          return;
-        }
-      } catch (spError: any) {
-        // Si el SP falla, registrar el error y continuar con el método alternativo
-        logger.warn(`Error al usar SP sp_Dashboard_GetStockAlerts: ${spError.message}. Usando consulta directa como fallback.`);
-      }
-      
-      // Método alternativo: Consulta directa a la base de datos
-      logger.info('Obteniendo alertas de stock con consulta directa (fallback)');
+      // Consulta directa a la base de datos
+      logger.info('Obteniendo alertas de stock');
       
       const query = `
         SELECT 
@@ -273,11 +224,10 @@ export class DashboardController {
       
       const [data] = result;
       
-      logger.info('Alertas de stock obtenidas exitosamente con consulta directa');
+      logger.info('Alertas de stock obtenidas exitosamente');
       res.status(200).json({
         success: true,
-        data: data || [],
-        source: 'direct_query'
+        data: data || []
       });
       
     } catch (error: any) {

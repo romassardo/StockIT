@@ -1,0 +1,23 @@
+categoria_id; marca; modelo; descripcion; stock_minimo; usa_numero_serie
+2;Samsung;Galaxy A56;Celular Android - 8Gb RAM - 256Gb Almacenamiento;5;true
+2;Samsung;Galaxy A36;Celular Android - 8Gb RAM - 256Gb Almacenamiento;5;true
+2;Samsung;Galaxy A35;Celular Android - 8Gb RAM - 256Gb Almacenamiento;5;true
+2;Samsung;Galaxy A55;Celular Android - 8Gb RAM - 256Gb Almacenamiento;0;true
+2;Samsung;Galaxy A54;Celular Android - 8Gb RAM - 256Gb Almacenamiento;0;true
+2;Samsung;Galaxy A34;Celular Android - 8Gb RAM - 256Gb Almacenamiento;0;true
+16;TP-Link;Omada EAP 235 Wall;AP de pared TP?Link Omada AC1200 (EAP235?Wall): Wi?Fi 2.4?GHz?300?Mbps +?5?GHz?867?Mbps, 1?GbE uplink PoE?in +?3?GbE (1?PoE pass?through), montaje en caja eléctrica estándar;3;false
+11;Logitech;H390;Auricular USB-A Logitech H390: sonido estéreo digital 20Hz 20kHz (drivers 30mm), micrófono boom con cancelación de ruido100Hz10kHz, controles de volumen,mute en el cable, diadema y almohadillas acolchadas para uso prolongado;3;false
+22;Logitech;MK270;"Combo inalámbrico teclado + mouse Logitech MK270: conexión 2.4 GHz con nano-receptor USB (alcance 10 m), teclado tamaño completo con numérico y 8 teclas multimedia, diseño resistente a salpicaduras; baterías: 36 meses (teclado) / 12 meses (mouse)";5;false
+29;Samsung;Cargador 25W;Cargador tipo USB-C de carga rapida;5;false
+18;Generico;Cable HDMI 3 mts;Cable HDMI 3 mts;5;false
+18;Generico;Cable HDMI 1,5 mts;Cable HDMI 1,5 mts;5;false
+8;ScanDisk;Micro SD 32Gb Ultra;"clase 10, UHS-I, hasta 100?MB/s de lectura, ideal para fotos, videos Full HD y apps móviles; incluye adaptador SD. Apta para smartphones, tablets y cámaras";3;false
+12;Brother;HL-1617DN RED;impresión A4 hasta 20?ppm, resolución 2400?×?600?dpi, dúplex automático, red Ethernet y USB 2.0, bandeja 250 hojas, ideal para oficinas pequeñas.;2;false
+12;Brother;HL-1200 USB;impresión hasta 20?ppm, resolución 2400?×?600?dpi, conexión USB 2.0, bandeja de 150 hojas, diseño compacto ideal para uso doméstico o pequeñas oficinas.;2;false
+4;Samsung;"Monitor 24"" T35F";pantalla IPS Full HD (1920?×?1080), 75?Hz, tiempo de respuesta 5?ms, diseño sin bordes, tecnología AMD FreeSync, conexiones HDMI y VGA, ideal para trabajo y entretenimiento.;3;false
+4;Philips;"Monitor 19"" 193V5";pantalla LED HD+ (1366?×?768), relación de aspecto 16:9, tiempo de respuesta 5?ms, entrada VGA, tecnología SmartContrast para mayor nitidez, ideal para tareas básicas de oficina.;3;false
+3;Generica;Pc Completa;Pc lista para cajas;5;false
+13;Kingston;FURY Beast DDR4 16Gb ;Kingston FURY™ Beast DDR4 potencia los juegos, la edición y el renderizado con velocidades de hasta 3600MT/seg. Está disponible en capacidades de hasta 128 GB, cuenta con soporte Intel® XMP y AMD Ryzen™. Su elegante difusor de calor de bajo perfil garantiza el enfriamiento, y está 100% probado para velocidad con una garantía de por vida.;5;false
+13;Kingston;FURY Beast DDR4 8Gb ;Kingston FURY™ Beast DDR4 potencia los juegos, la edición y el renderizado con velocidades de hasta 3600MT/seg. Está disponible en capacidades de hasta 128 GB, cuenta con soporte Intel® XMP y AMD Ryzen™. Su elegante difusor de calor de bajo perfil garantiza el enfriamiento, y está 100% probado para velocidad con una garantía de por vida.;5;false
+26;Generico;Pilas AA;;8;false
+26;Generico;Pilas AAA;;8;false

@@ -3,7 +3,7 @@ import { assignmentService } from '../../services/assignment.service';
 import { Assignment, InventoryItem } from '../../types';
 import DataTable from '../common/DataTable';
 import { FaEye } from 'react-icons/fa';
-import { FiTool, FiCornerDownLeft, FiClock } from 'react-icons/fi';
+import { FiTool, FiCornerDownLeft } from 'react-icons/fi';
 import { useDebouncedSearch } from '../../hooks/useDebouncedSearch';
 import SendToRepairModal from '../modals/SendToRepairModal';
 import ReturnAssignmentModal from '../modals/ReturnAssignmentModal';

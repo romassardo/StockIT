@@ -1,5 +1,5 @@
 ---
-trigger: model_decision
+trigger: always_on
 ---
 
 # 📘 Rule: Evaluate and Use All Available MCP Tools in Cursor as Needed
@@ -55,4 +55,3 @@ These tools are designed to enrich the agent's contextual understanding, provide
 - MCP (Model Context Protocol) is deeply integrated in Cursor.
 - Tools appear automatically in the side panel or suggestion system.
 - No manual installation is required.
-

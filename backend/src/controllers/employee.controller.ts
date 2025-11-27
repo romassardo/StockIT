@@ -112,7 +112,9 @@ export class EmployeeController {
       
       const result = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>('sp_Employee_GetAll', params);
       
-      const [data] = result;
+      // MySQL devuelve [[rows], OkPacket] para SPs
+      const rawData = result[0];
+      const data = Array.isArray(rawData[0]) ? rawData[0] : rawData;
       const employees = data || [];
       const totalItems = employees.length > 0 ? employees[0].TotalItems || employees.length : 0;
       const totalPages = Math.ceil(totalItems / pageSizeNumber);

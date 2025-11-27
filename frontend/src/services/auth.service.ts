@@ -15,11 +15,16 @@ class AuthService {
 
       if (responseData && responseData.accessToken) {
         localStorage.setItem('token', responseData.accessToken);
-        if (responseData.user) {
-          localStorage.setItem('user', JSON.stringify(responseData.user));
+        // Mapear nombre_usuario a nombre para compatibilidad con el frontend
+        const user = responseData.user ? {
+          ...responseData.user,
+          nombre: (responseData.user as any).nombre_usuario || responseData.user.nombre
+        } : responseData.user;
+        if (user) {
+          localStorage.setItem('user', JSON.stringify(user));
         }
         return { 
-          user: responseData.user, 
+          user, 
           token: responseData.accessToken,
           message: responseData.message,
           success: responseData.success 

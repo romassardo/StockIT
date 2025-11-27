@@ -1,6 +1,6 @@
-﻿import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { FiX, FiUser, FiHome, FiMapPin, FiLock, FiPhone, FiMail, FiShield, FiSmartphone, FiPackage, FiChevronDown, FiSearch } from 'react-icons/fi';
+import { FiX, FiUser, FiHome, FiMapPin, FiLock, FiShield, FiSmartphone, FiPackage, FiChevronDown, FiSearch, FiCheckCircle, FiLoader } from 'react-icons/fi';
 import { assignmentService, type AssignmentRequest } from '../../services/assignment.service';
 import { employeeService } from '../../services/employee.service';
 import { sectorService } from '../../services/sector.service';
@@ -9,9 +9,7 @@ import type { Employee, Sector, Branch } from '../../types';
 import { getAllInventory } from '../../services/inventory.service';
 import { useTheme } from '../../contexts/ThemeContext';
 import { type InventoryItem } from '../../types';
-import Modal from '../common/Modal';
 
-// 🧠 Constantes de configuración
 const Z_INDEX = {
   MODAL_BACKDROP: 9998,
   MODAL_CONTENT: 9999,
@@ -19,19 +17,11 @@ const Z_INDEX = {
   DROPDOWN_OVERLAY: 99998
 } as const;
 
-const VALIDATION_RULES = {
-  MIN_PASSWORD_LENGTH: 8,
-  MIN_PHONE_LENGTH: 10,
-  IMEI_LENGTH: 15,
-  MIN_EMAIL_LENGTH: 5
-} as const;
-
 interface AssignmentModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
-  inventoryItem?: InventoryItem | null; // Para asignación desde tarjeta
-  // Si no hay inventoryItem, será un formulario general de asignación
+  inventoryItem?: InventoryItem | null;
 }
 
 interface SearchableSelectProps {
@@ -86,7 +76,6 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
     setIsOpen(!isOpen);
   };
 
-  // Actualizar posición cuando se abra o se redimensione la ventana
   useEffect(() => {
     if (isOpen) {
       updateDropdownPosition();
@@ -102,11 +91,10 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
 
   const dropdownContent = isOpen && (
     <>
-      {/* 🔍 Dropdown con Portal */}
       <div 
         className={`fixed animate-glass-appear ${
           theme === 'dark' ? 'glass-dark' : 'glass-card'
-        } border border-white/20 shadow-2xl max-h-60 overflow-hidden`}
+        } border border-white/20 shadow-2xl max-h-60 overflow-hidden rounded-xl`}
         style={{
           top: dropdownPosition.top,
           left: dropdownPosition.left,
@@ -114,76 +102,66 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
           zIndex: Z_INDEX.DROPDOWN
         }}
       >
-        {/* 🔍 Search input compacto */}
         <div className="p-3 border-b border-white/10">
           <div className="relative">
-            <FiSearch className="absolute left-2.5 top-1/2 transform -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+            <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Buscar..."
-              className={`input-glass pl-8 pr-3 py-2 text-sm ${
+              className={`w-full pl-9 pr-3 py-2 text-sm rounded-lg outline-none transition-all ${
                 theme === 'dark' 
-                  ? 'bg-slate-800/50 placeholder-slate-400' 
-                  : 'bg-white/50 placeholder-slate-500'
+                  ? 'bg-slate-700/50 text-white placeholder-slate-400 focus:bg-slate-700' 
+                  : 'bg-slate-100 text-slate-800 placeholder-slate-500 focus:bg-white ring-1 ring-slate-200'
               }`}
               autoFocus
             />
           </div>
         </div>
 
-        {/* 🔍 Options list compacto */}
-        <div className="max-h-40 overflow-y-auto scrollbar-hide">
-          {/* Empty option */}
+        <div className="max-h-48 overflow-y-auto scrollbar-hide p-1">
           <button
             type="button"
             onClick={() => handleSelect(undefined)}
-            className={`w-full px-3 py-2.5 text-left transition-all duration-200 border-b border-white/5 text-sm ${
-              !value ? 'bg-primary-500/20 text-primary-600 dark:text-primary-400' : ''
+            className={`w-full px-3 py-2 text-left text-sm rounded-lg transition-colors ${
+              !value ? 'bg-indigo-500/10 text-indigo-500' : ''
             } ${
               theme === 'dark'
                 ? 'hover:bg-slate-700/50 text-slate-300'
-                : 'hover:bg-slate-100/50 text-slate-700'
+                : 'hover:bg-slate-100 text-slate-700'
             }`}
           >
-            <span className="font-medium">{emptyLabel}</span>
+            <span className="font-medium opacity-70">{emptyLabel}</span>
           </button>
 
-          {/* Filtered options */}
           {filteredOptions.map((option) => (
             <button
               key={option.id}
               type="button"
               onClick={() => handleSelect(option.id)}
-              className={`w-full px-3 py-2.5 text-left transition-all duration-200 border-b border-white/5 text-sm ${
-                value === option.id ? 'bg-primary-500/20 text-primary-600 dark:text-primary-400' : ''
+              className={`w-full px-3 py-2 text-left text-sm rounded-lg transition-colors ${
+                value === option.id ? 'bg-indigo-500 text-white' : ''
               } ${
-                theme === 'dark'
-                  ? 'hover:bg-slate-700/50 text-slate-300'
-                  : 'hover:bg-slate-100/50 text-slate-700'
+                value !== option.id && theme === 'dark' ? 'hover:bg-slate-700/50 text-slate-300' : ''
+              } ${
+                value !== option.id && theme === 'light' ? 'hover:bg-slate-100 text-slate-700' : ''
               }`}
             >
               <span className="font-medium">{option.label}</span>
             </button>
           ))}
 
-          {/* No results compacto */}
           {filteredOptions.length === 0 && searchTerm && (
             <div className={`px-3 py-4 text-center ${
               theme === 'dark' ? 'text-slate-400' : 'text-slate-500'
             }`}>
-              <div className="w-8 h-8 mx-auto mb-2 rounded-full bg-slate-500/10 flex items-center justify-center">
-                <FiSearch className="w-4 h-4" />
-              </div>
-              <p className="text-sm font-medium">No se encontraron resultados</p>
-              <p className="text-xs opacity-75 mt-1">Intenta con otros términos</p>
+              <p className="text-sm">No se encontraron resultados</p>
             </div>
           )}
         </div>
       </div>
 
-      {/* 🔍 Overlay para cerrar dropdown */}
       <div
         className="fixed inset-0 bg-transparent"
         style={{ zIndex: Z_INDEX.DROPDOWN_OVERLAY }}
@@ -194,40 +172,30 @@ const SearchableSelect: React.FC<SearchableSelectProps> = ({
 
   return (
     <div className="relative">
-      {/* 🔍 Trigger button compacto */}
       <button
         ref={buttonRef}
         type="button"
         onClick={handleToggle}
-        className={`w-full flex items-center justify-between px-4 py-3 text-left transition-all duration-200 input-glass ${
+        className={`w-full flex items-center justify-between px-4 py-3 text-left transition-all duration-200 rounded-xl border ${
           theme === 'dark'
-            ? 'hover:bg-slate-700/50 focus:bg-slate-700/50'
-            : 'hover:bg-slate-100/50 focus:bg-slate-100/50'
-        } ${
-          isOpen ? 'ring-2 ring-primary-500/30' : ''
-        }`}
+            ? 'bg-slate-800/50 border-slate-700 hover:border-indigo-500/50 text-slate-200'
+            : 'bg-white border-slate-200 hover:border-indigo-500/50 text-slate-800'
+        } ${isOpen ? 'ring-2 ring-indigo-500/20 border-indigo-500' : ''}`}
       >
-        <span className={`text-sm ${
-          selectedOption 
-            ? (theme === 'dark' ? 'text-slate-200' : 'text-slate-800')
-            : (theme === 'dark' ? 'text-slate-400' : 'text-slate-500')
-        }`}>
+        <span className={`text-sm truncate ${!selectedOption ? 'opacity-50' : ''}`}>
           {selectedOption ? selectedOption.label : placeholder}
         </span>
         <FiChevronDown 
-          className={`w-4 h-4 transition-transform duration-200 ${
+          className={`w-4 h-4 transition-transform duration-200 opacity-50 ${
             isOpen ? 'rotate-180' : ''
-          } ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`} 
+          }`} 
         />
       </button>
-
-      {/* Portal para el dropdown */}
       {dropdownContent && createPortal(dropdownContent, document.body)}
     </div>
   );
 };
 
-// Función para obtener items disponibles
 const getInventoryItems = async () => {
   try {
     const response = await getAllInventory();
@@ -252,12 +220,12 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
 }) => {
   const { theme } = useTheme();
   
-  // Estados para los datos del formulario
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [sectors, setSectors] = useState<Sector[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [availableItems, setAvailableItems] = useState<InventoryItem[]>([]);
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
+  const [activeTab, setActiveTab] = useState<'empleado' | 'sector' | 'sucursal'>('empleado');
   
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -268,16 +236,13 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
     sector_id: undefined,
     sucursal_id: undefined,
     observaciones: '',
-    // Campos específicos para notebooks
     password_encriptacion: '',
-    // Campos específicos para celulares
     numero_telefono: '',
     cuenta_gmail: '',
     password_gmail: '',
     codigo_2fa_whatsapp: ''
   });
 
-  // Cargar datos iniciales cuando se abre el modal
   useEffect(() => {
     if (isOpen) {
       loadInitialData();
@@ -287,7 +252,6 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
     }
   }, [isOpen, inventoryItem]);
 
-  // Pre-seleccionar item si viene como prop
   useEffect(() => {
     if (inventoryItem && inventoryItem.id) {
       setSelectedItem(inventoryItem);
@@ -311,65 +275,36 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
         codigo_2fa_whatsapp: ''
       }));
       setErrors({});
+      setActiveTab('empleado');
     }
   }, [selectedItem?.id, inventoryItem?.id]);
 
+  // Resetear otros campos de destino cuando cambia el tab
+  useEffect(() => {
+    setFormData(prev => ({
+      ...prev,
+      empleado_id: undefined,
+      sector_id: undefined,
+      sucursal_id: undefined
+    }));
+  }, [activeTab]);
+
   const loadInitialData = async () => {
     try {
-      console.log('🔍 Cargando datos iniciales...');
-      
-      // Cargar empleados
-      try {
-        const employeesRes = await employeeService.getActiveEmployees();
-        console.log('🎉 Empleados response:', employeesRes);
-        if (employeesRes.success) {
-          // Asegurarse de que sea un array; manejar posibles envoltorios tipo { employees: [...] } o { data: [...] }
-          const empList = Array.isArray(employeesRes.data)
-            ? employeesRes.data
-            : (employeesRes.data as any)?.employees || (employeesRes.data as any)?.data || [];
-          setEmployees(empList);
-          console.log('✅ Empleados cargados:', empList.length);
-        } else {
-          console.error('❌ Error empleados:', employeesRes.message);
-        }
-      } catch (empError) {
-        console.error('❌ Error cargando empleados:', empError);
+      const employeesRes = await employeeService.getActiveEmployees();
+      if (employeesRes.success && employeesRes.data) {
+        const empList = Array.isArray(employeesRes.data.employees) ? employeesRes.data.employees : [];
+        setEmployees(empList);
       }
 
-      // Cargar sectores
-      try {
-        const sectorsRes = await sectorService.getActiveSectors();
-        console.log('🏢 Sectores response:', sectorsRes);
-        if (sectorsRes.success) {
-          setSectors(sectorsRes.data);
-          console.log('✅ Sectores cargados:', sectorsRes.data.length);
-        } else {
-          console.error('❌ Error sectores:', sectorsRes.message);
-        }
-      } catch (secError) {
-        console.error('❌ Error cargando sectores:', secError);
-      }
+      const sectorsRes = await sectorService.getActiveSectors();
+      if (sectorsRes.success) setSectors(sectorsRes.data);
 
-      // Cargar sucursales
-      try {
-        const branchesRes = await branchService.getActiveBranches();
-        console.log('🏪 Branches response:', branchesRes);
-        if (branchesRes.success) {
-          setBranches(branchesRes.data);
-          console.log('✅ Sucursales cargadas:', branchesRes.data.length);
-        } else {
-          console.error('❌ Error sucursales:', branchesRes.message);
-        }
-      } catch (branchError) {
-        console.error('❌ Error cargando sucursales:', branchError);
-      }
+      const branchesRes = await branchService.getActiveBranches();
+      if (branchesRes.success) setBranches(branchesRes.data);
 
     } catch (error) {
-      console.error('❌ Error general cargando datos:', error);
-      setErrors(prev => ({
-        ...prev,
-        loading: 'Error cargando datos iniciales. Por favor, recarga la página.'
-      }));
+      console.error('Error cargando datos:', error);
     }
   };
 
@@ -396,29 +331,26 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
   const validateForm = (): boolean => {
     const newErrors: any = {};
 
-    // 1. Validar que se haya seleccionado un item
     if (!formData.inventario_individual_id || formData.inventario_individual_id === 0) {
-      newErrors.item = 'Debes seleccionar un producto para asignar.';
+      newErrors.item = 'Debes seleccionar un producto.';
     }
 
-    // 2. Validar que se haya seleccionado al menos un destino
     const destinationCount = [formData.empleado_id, formData.sector_id, formData.sucursal_id].filter(Boolean).length;
     if (destinationCount === 0) {
-      newErrors.destination = 'Debes seleccionar al menos un destino (Empleado, Sector o Sucursal).';
+      newErrors.destination = 'Seleccione un destinatario válido.';
     }
 
-    // 3. Validaciones condicionales basadas en la categoría del producto
-    const selectedItem = availableItems.find(item => item.id === formData.inventario_individual_id);
+    const selectedItem = availableItems.find(item => item.id === formData.inventario_individual_id) || inventoryItem;
     if (selectedItem) {
       const categoryName = selectedItem.producto?.categoria?.nombre.toLowerCase();
       if (categoryName === 'notebooks') {
         if (!formData.password_encriptacion) {
-          newErrors.password_encriptacion = 'La contraseña de encriptación es obligatoria para notebooks.';
+          newErrors.password_encriptacion = 'La contraseña de encriptación es obligatoria.';
         }
       } else if (categoryName === 'celulares') {
-        if (!formData.numero_telefono) newErrors.numero_telefono = 'El número de teléfono es obligatorio para celulares.';
-        if (!formData.cuenta_gmail) newErrors.cuenta_gmail = 'La cuenta de Gmail es obligatoria para celulares.';
-        if (!formData.password_gmail) newErrors.password_gmail = 'La contraseña de Gmail es obligatoria para celulares.';
+        if (!formData.numero_telefono) newErrors.numero_telefono = 'El número de teléfono es obligatorio.';
+        if (!formData.cuenta_gmail) newErrors.cuenta_gmail = 'La cuenta de Gmail es obligatoria.';
+        if (!formData.password_gmail) newErrors.password_gmail = 'La contraseña de Gmail es obligatoria.';
       }
     }
     
@@ -428,10 +360,7 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const isValid = validateForm();
-    if (!isValid) {
-      return;
-    }
+    if (!validateForm()) return;
 
     setLoading(true);
     setErrors({});
@@ -441,38 +370,14 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
       if (response.success) {
         onSuccess();
         onClose();
-        // Limpiar formulario
-        setFormData({
-          inventario_individual_id: 0,
-          empleado_id: undefined,
-          sector_id: undefined,
-          sucursal_id: undefined,
-          observaciones: '',
-          password_encriptacion: '',
-          numero_telefono: '',
-          cuenta_gmail: '',
-          password_gmail: '',
-          codigo_2fa_whatsapp: ''
-        });
-        setSelectedItem(null);
       }
     } catch (error) {
-      let errorMessage = 'Error al crear la asignación. Por favor intente nuevamente.';
-      
-      // Manejo específico de errores
+      let errorMessage = 'Error al crear la asignación.';
       if (error instanceof Error) {
-        if (error.message.includes('network') || error.message.includes('fetch')) {
-          errorMessage = 'Error de conexión. Verifica tu conexión a internet.';
-        } else if (error.message.includes('validation')) {
-          errorMessage = 'Datos inválidos. Revisa los campos e intenta nuevamente.';
-        } else if (error.message.includes('permission')) {
-          errorMessage = 'No tienes permisos para realizar esta acción.';
-        }
+        if (error.message.includes('network')) errorMessage = 'Error de conexión.';
+        else if (error.message.includes('validation')) errorMessage = 'Datos inválidos.';
       }
-      
-      setErrors({
-        submit: errorMessage
-      });
+      setErrors({ submit: errorMessage });
     } finally {
       setLoading(false);
     }
@@ -480,391 +385,296 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
 
   const handleInputChange = (field: keyof AssignmentRequest, value: any) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-    // Limpiar error del campo cuando el usuario empiece a escribir
-    if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: '' }));
-    }
+    if (errors[field]) setErrors(prev => ({ ...prev, [field]: '' }));
   };
 
   if (!isOpen) return null;
 
-  const modalContent = (
+  const categoryName = selectedItem?.producto?.categoria?.nombre?.toLowerCase() || '';
+
+  return (
     <>
-      {/* 🔒 Modal Backdrop con z-index máximo */}
       <div 
         className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9998]"
         onClick={onClose}
         style={{ zIndex: Z_INDEX.MODAL_BACKDROP }}
       />
       
-      {/* 🔒 Modal Container con z-index máximo */}
       <div 
-        className="fixed inset-0 flex items-center justify-center p-3 z-[9999]"
+        className="fixed inset-0 flex items-center justify-center p-4 z-[9999]"
         style={{ zIndex: Z_INDEX.MODAL_CONTENT }}
       >
         <div 
-          className="glass-card animate-glass-appear relative w-full max-w-5xl max-h-[92vh] overflow-hidden"
+          className={`glass-card w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl ${
+            theme === 'dark' ? 'bg-slate-900/90 border-slate-700' : 'bg-white/95 border-white/50'
+          }`}
           onClick={(e) => e.stopPropagation()}
         >
-          {/* ✅ Header compacto */}
-          <div className="relative p-4 border-b border-white/10">
-            {/* Gradiente de fondo del header */}
-            <div className="absolute inset-0 bg-gradient-to-r from-primary-500/10 via-purple-500/5 to-transparent pointer-events-none" />
+          {/* Header */}
+          <div className="p-5 border-b border-white/10 flex justify-between items-center shrink-0">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-indigo-500/20 flex items-center justify-center text-indigo-500">
+                <FiUser size={20} />
+              </div>
+              <div>
+                <h2 className={`text-lg font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>
+                  Nueva Asignación
+                </h2>
+                <p className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
+                  Registrar entrega de equipo
+                </p>
+              </div>
+            </div>
+            <button onClick={onClose} className="p-2 rounded-full hover:bg-white/10 transition-colors">
+              <FiX size={20} className={theme === 'dark' ? 'text-slate-400' : 'text-slate-500'} />
+            </button>
+          </div>
+
+          {/* Body */}
+          <div className="flex-1 overflow-y-auto p-6 space-y-6 scrollbar-hide">
             
-            <div className="relative flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 bg-gradient-to-br from-primary-500 to-purple-500 rounded-xl flex items-center justify-center shadow-primary animate-pulse-glow">
-                  <FiUser className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold bg-gradient-to-r from-primary-600 via-primary-500 to-purple-500 bg-clip-text text-transparent">
-                    Nueva Asignación
-                  </h2>
-                  <p className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
-                    Asignar dispositivo a empleado, sector o sucursal
-                  </p>
-                </div>
-              </div>
-              
-              <button
-                onClick={onClose}
-                className={`p-2.5 rounded-xl transition-all duration-200 hover:scale-105 ${
-                  theme === 'dark'
-                    ? 'bg-slate-800/50 hover:bg-slate-700/70 text-slate-300 hover:text-white'
-                    : 'bg-slate-100/50 hover:bg-slate-200/70 text-slate-600 hover:text-slate-800'
-                }`}
-              >
-                <FiX className="w-5 h-5" />
-              </button>
-            </div>
-          </div>
-
-          {/* ✅ Content scrolleable */}
-          <div className="flex-1 overflow-y-auto max-h-[calc(92vh-140px)] scrollbar-hide">
-            <form onSubmit={handleSubmit} className="p-6 space-y-6">
-              
-              {/* ✅ Selección de Producto */}
-              {!inventoryItem && (
-                <div className="space-y-3">
-                  <label className={`block text-sm font-semibold ${
-                    theme === 'dark' ? 'text-slate-200' : 'text-slate-800'
-                  }`}>
-                    <FiPackage className="inline w-4 h-4 mr-2" />
-                    Producto a Asignar
-                  </label>
-                  
-                  <SearchableSelect
-                    value={formData.inventario_individual_id || ''}
-                    onChange={handleItemSelection}
-                    options={availableItems.map(item => ({
-                      id: item.id,
-                      label: `${item.producto?.marca} ${item.producto?.modelo} - ${item.numero_serie}`
-                    }))}
-                    placeholder="Buscar producto disponible..."
-                    theme={theme}
-                    emptyLabel="Ningún producto seleccionado"
-                  />
-                  
-                  {errors.item && (
-                    <p className="text-red-500 text-sm flex items-center gap-1">
-                      <span className="w-1 h-1 bg-red-500 rounded-full"></span>
-                      {errors.item}
-                    </p>
-                  )}
-                </div>
-              )}
-
-              {/* ✅ Información del producto seleccionado */}
-              {selectedItem && (
-                <div className={`p-4 rounded-xl border ${
-                  theme === 'dark' 
-                    ? 'bg-slate-800/30 border-slate-700/50' 
-                    : 'bg-slate-100/30 border-slate-300/50'
-                }`}>
-                  <h4 className={`font-semibold mb-2 ${
-                    theme === 'dark' ? 'text-slate-200' : 'text-slate-800'
-                  }`}>
-                    Producto Seleccionado
-                  </h4>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <span className={`font-medium ${
-                        theme === 'dark' ? 'text-slate-300' : 'text-slate-700'
-                      }`}>
-                        Marca/Modelo:
-                      </span>
-                      <p className={theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}>
-                        {selectedItem.producto?.marca} {selectedItem.producto?.modelo}
-                      </p>
-                    </div>
-                    <div>
-                      <span className={`font-medium ${
-                        theme === 'dark' ? 'text-slate-300' : 'text-slate-700'
-                      }`}>
-                        Número de Serie:
-                      </span>
-                      <p className={theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}>
-                        {selectedItem.numero_serie}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* ✅ Destino de la Asignación */}
-              <div className="space-y-4">
-                <h3 className={`text-lg font-semibold ${
-                  theme === 'dark' ? 'text-slate-200' : 'text-slate-800'
-                }`}>
-                  Destino de la Asignación
-                </h3>
-                
-                <div className="grid md:grid-cols-3 gap-4">
-                  {/* Empleado */}
-                  <div className="space-y-2">
-                    <label className={`block text-sm font-medium ${
-                      theme === 'dark' ? 'text-slate-300' : 'text-slate-700'
-                    }`}>
-                      <FiUser className="inline w-4 h-4 mr-2" />
-                      Empleado
-                    </label>
-                    <SearchableSelect
-                      value={formData.empleado_id || ''}
-                      onChange={(value) => handleInputChange('empleado_id', value)}
-                      options={employees.map(emp => ({
-                        id: emp.id,
-                        label: `${emp.nombre} ${emp.apellido}`
-                      }))}
-                      placeholder="Seleccionar empleado..."
-                      theme={theme}
-                      emptyLabel="Sin empleado"
-                    />
-                  </div>
-
-                  {/* Sector */}
-                  <div className="space-y-2">
-                    <label className={`block text-sm font-medium ${
-                      theme === 'dark' ? 'text-slate-300' : 'text-slate-700'
-                    }`}>
-                      <FiHome className="inline w-4 h-4 mr-2" />
-                      Sector
-                    </label>
-                    <SearchableSelect
-                      value={formData.sector_id || ''}
-                      onChange={(value) => handleInputChange('sector_id', value)}
-                      options={sectors.map(sector => ({
-                        id: sector.id,
-                        label: sector.nombre
-                      }))}
-                      placeholder="Seleccionar sector..."
-                      theme={theme}
-                      emptyLabel="Sin sector"
-                    />
-                  </div>
-
-                  {/* Sucursal */}
-                  <div className="space-y-2">
-                    <label className={`block text-sm font-medium ${
-                      theme === 'dark' ? 'text-slate-300' : 'text-slate-700'
-                    }`}>
-                      <FiMapPin className="inline w-4 h-4 mr-2" />
-                      Sucursal
-                    </label>
-                    <SearchableSelect
-                      value={formData.sucursal_id || ''}
-                      onChange={(value) => handleInputChange('sucursal_id', value)}
-                      options={branches.map(branch => ({
-                        id: branch.id,
-                        label: branch.nombre
-                      }))}
-                      placeholder="Seleccionar sucursal..."
-                      theme={theme}
-                      emptyLabel="Sin sucursal"
-                    />
-                  </div>
-                </div>
-
-                {errors.destination && (
-                  <p className="text-red-500 text-sm flex items-center gap-1">
-                    <span className="w-1 h-1 bg-red-500 rounded-full"></span>
-                    {errors.destination}
-                  </p>
-                )}
-              </div>
-
-              {/* ✅ Campos específicos para Notebooks */}
-              {selectedItem?.producto?.categoria?.nombre.toLowerCase() === 'notebooks' && (
-                <div className="space-y-3">
-                  <h4 className={`font-semibold flex items-center gap-2 ${
-                    theme === 'dark' ? 'text-slate-200' : 'text-slate-800'
-                  }`}>
-                    <FiLock className="w-4 h-4" />
-                    Información de Notebook
-                  </h4>
-                  
-                  <div className="space-y-2">
-                    <label className={`block text-sm font-medium ${
-                      theme === 'dark' ? 'text-slate-300' : 'text-slate-700'
-                    }`}>
-                      Contraseña de Encriptación *
-                    </label>
-                    <input
-                      type="password"
-                      value={formData.password_encriptacion}
-                      onChange={(e) => handleInputChange('password_encriptacion', e.target.value)}
-                      className="input-glass w-full"
-                      placeholder="Contraseña de encriptación del disco..."
-                    />
-                    {errors.password_encriptacion && (
-                      <p className="text-red-500 text-sm">{errors.password_encriptacion}</p>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* ✅ Campos específicos para Celulares */}
-              {selectedItem?.producto?.categoria?.nombre.toLowerCase() === 'celulares' && (
-                <div className="space-y-4">
-                  <h4 className={`font-semibold flex items-center gap-2 ${
-                    theme === 'dark' ? 'text-slate-200' : 'text-slate-800'
-                  }`}>
-                    <FiSmartphone className="w-4 h-4" />
-                    Información de Celular
-                  </h4>
-                  
-                  <div className="grid md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <label className={`block text-sm font-medium ${
-                        theme === 'dark' ? 'text-slate-300' : 'text-slate-700'
-                      }`}>
-                        <FiPhone className="inline w-4 h-4 mr-2" />
-                        Número de Teléfono *
-                      </label>
-                      <input
-                        type="tel"
-                        value={formData.numero_telefono}
-                        onChange={(e) => handleInputChange('numero_telefono', e.target.value)}
-                        className="input-glass w-full"
-                        placeholder="+54 9 XXX XXX XXXX"
-                      />
-                      {errors.numero_telefono && (
-                        <p className="text-red-500 text-sm">{errors.numero_telefono}</p>
-                      )}
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className={`block text-sm font-medium ${
-                        theme === 'dark' ? 'text-slate-300' : 'text-slate-700'
-                      }`}>
-                        <FiShield className="inline w-4 h-4 mr-2" />
-                        Código 2FA WhatsApp
-                      </label>
-                      <input
-                        type="text"
-                        value={formData.codigo_2fa_whatsapp}
-                        onChange={(e) => handleInputChange('codigo_2fa_whatsapp', e.target.value)}
-                        className="input-glass w-full"
-                        placeholder="Código de verificación en 2 pasos"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className={`block text-sm font-medium ${
-                        theme === 'dark' ? 'text-slate-300' : 'text-slate-700'
-                      }`}>
-                        <FiMail className="inline w-4 h-4 mr-2" />
-                        Cuenta Gmail *
-                      </label>
-                      <input
-                        type="email"
-                        value={formData.cuenta_gmail}
-                        onChange={(e) => handleInputChange('cuenta_gmail', e.target.value)}
-                        className="input-glass w-full"
-                        placeholder="usuario@gmail.com"
-                      />
-                      {errors.cuenta_gmail && (
-                        <p className="text-red-500 text-sm">{errors.cuenta_gmail}</p>
-                      )}
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className={`block text-sm font-medium ${
-                        theme === 'dark' ? 'text-slate-300' : 'text-slate-700'
-                      }`}>
-                        <FiLock className="inline w-4 h-4 mr-2" />
-                        Contraseña Gmail *
-                      </label>
-                      <input
-                        type="password"
-                        value={formData.password_gmail}
-                        onChange={(e) => handleInputChange('password_gmail', e.target.value)}
-                        className="input-glass w-full"
-                        placeholder="Contraseña de la cuenta Gmail"
-                      />
-                      {errors.password_gmail && (
-                        <p className="text-red-500 text-sm">{errors.password_gmail}</p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* ✅ Observaciones */}
+            {/* Selección de Producto */}
+            {!inventoryItem && (
               <div className="space-y-2">
-                <label className={`block text-sm font-medium ${
-                  theme === 'dark' ? 'text-slate-300' : 'text-slate-700'
-                }`}>
-                  Observaciones
+                <label className={`text-sm font-medium ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
+                  Producto a Asignar
                 </label>
-                <textarea
-                  value={formData.observaciones}
-                  onChange={(e) => handleInputChange('observaciones', e.target.value)}
-                  className="input-glass w-full min-h-[80px] resize-none"
-                  placeholder="Observaciones adicionales sobre la asignación..."
-                  rows={3}
+                <SearchableSelect
+                  value={formData.inventario_individual_id || ''}
+                  onChange={handleItemSelection}
+                  options={availableItems.map(item => ({
+                    id: item.id,
+                    label: `${item.producto?.marca} ${item.producto?.modelo} - ${item.numero_serie}`
+                  }))}
+                  placeholder="Buscar producto..."
+                  theme={theme}
+                  emptyLabel="Sin selección"
                 />
+                {errors.item && <p className="text-xs text-red-500 mt-1">{errors.item}</p>}
+              </div>
+            )}
+
+            {/* Info del Producto */}
+            {selectedItem && (
+              <div className={`p-4 rounded-xl border ${
+                theme === 'dark' ? 'bg-slate-800/50 border-slate-700' : 'bg-slate-50 border-slate-200'
+              }`}>
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-500">
+                    <FiPackage size={18} />
+                  </div>
+                  <div>
+                    <h3 className={`font-semibold ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>
+                      {selectedItem.producto?.marca} {selectedItem.producto?.modelo}
+                    </h3>
+                    <p className={`text-xs ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
+                      {selectedItem.producto?.categoria?.nombre}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 text-sm font-mono bg-black/20 w-fit px-2 py-1 rounded text-slate-400">
+                  SN: {selectedItem.numero_serie}
+                </div>
+              </div>
+            )}
+
+            {/* Destino (Tabs) */}
+            <div className="space-y-3">
+              <label className={`text-sm font-medium ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
+                Asignar a
+              </label>
+              
+              <div className={`grid grid-cols-3 gap-1 p-1 rounded-xl ${
+                theme === 'dark' ? 'bg-slate-800' : 'bg-slate-100'
+              }`}>
+                {[
+                  { id: 'empleado', label: 'Empleado', icon: FiUser },
+                  { id: 'sector', label: 'Sector', icon: FiHome },
+                  { id: 'sucursal', label: 'Sucursal', icon: FiMapPin }
+                ].map(tab => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setActiveTab(tab.id as any)}
+                    className={`flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-all ${
+                      activeTab === tab.id
+                        ? 'bg-indigo-600 text-white shadow-lg'
+                        : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
+                    }`}
+                  >
+                    <tab.icon size={14} />
+                    {tab.label}
+                  </button>
+                ))}
               </div>
 
-              {/* ✅ Error general */}
-              {errors.submit && (
-                <div className="p-4 bg-red-500/10 border border-red-500/30 rounded-xl">
-                  <p className="text-red-500 text-sm font-medium">{errors.submit}</p>
+              <div className="mt-3">
+                {activeTab === 'empleado' && (
+                  <SearchableSelect
+                    value={formData.empleado_id || ''}
+                    onChange={(v) => handleInputChange('empleado_id', v)}
+                    options={employees.map(e => ({ id: e.id, label: `${e.nombre} ${e.apellido}` }))}
+                    placeholder="Buscar empleado..."
+                    theme={theme}
+                    emptyLabel="Seleccione un empleado"
+                  />
+                )}
+                {activeTab === 'sector' && (
+                  <SearchableSelect
+                    value={formData.sector_id || ''}
+                    onChange={(v) => handleInputChange('sector_id', v)}
+                    options={sectors.map(s => ({ id: s.id, label: s.nombre }))}
+                    placeholder="Buscar sector..."
+                    theme={theme}
+                    emptyLabel="Seleccione un sector"
+                  />
+                )}
+                {activeTab === 'sucursal' && (
+                  <SearchableSelect
+                    value={formData.sucursal_id || ''}
+                    onChange={(v) => handleInputChange('sucursal_id', v)}
+                    options={branches.map(b => ({ id: b.id, label: b.nombre }))}
+                    placeholder="Buscar sucursal..."
+                    theme={theme}
+                    emptyLabel="Seleccione una sucursal"
+                  />
+                )}
+                {errors.destination && <p className="text-xs text-red-500 mt-1">{errors.destination}</p>}
+              </div>
+            </div>
+
+            {/* Campos Específicos */}
+            {categoryName === 'notebooks' && (
+              <div className="space-y-3 pt-2 border-t border-white/10">
+                <h4 className={`text-sm font-semibold flex items-center gap-2 ${theme === 'dark' ? 'text-slate-200' : 'text-slate-700'}`}>
+                  <FiLock className="text-amber-500" /> Seguridad
+                </h4>
+                <div>
+                  <input
+                    type="text"
+                    value={formData.password_encriptacion}
+                    onChange={(e) => handleInputChange('password_encriptacion', e.target.value)}
+                    placeholder="Contraseña de encriptación (BitLocker)"
+                    className={`w-full px-4 py-2.5 rounded-xl text-sm outline-none border transition-all ${
+                      theme === 'dark'
+                        ? 'bg-slate-800/50 border-slate-700 text-white focus:border-indigo-500'
+                        : 'bg-white border-slate-200 text-slate-800 focus:border-indigo-500'
+                    }`}
+                  />
+                  {errors.password_encriptacion && <p className="text-xs text-red-500 mt-1">{errors.password_encriptacion}</p>}
                 </div>
-              )}
-            </form>
+              </div>
+            )}
+
+            {categoryName === 'celulares' && (
+              <div className="space-y-4 pt-2 border-t border-white/10">
+                <h4 className={`text-sm font-semibold flex items-center gap-2 ${theme === 'dark' ? 'text-slate-200' : 'text-slate-700'}`}>
+                  <FiSmartphone className="text-blue-500" /> Configuración Móvil
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <input
+                      type="tel"
+                      value={formData.numero_telefono}
+                      onChange={(e) => handleInputChange('numero_telefono', e.target.value)}
+                      placeholder="Número de línea"
+                      className={`w-full px-4 py-2.5 rounded-xl text-sm outline-none border transition-all ${
+                        theme === 'dark'
+                          ? 'bg-slate-800/50 border-slate-700 text-white focus:border-indigo-500'
+                          : 'bg-white border-slate-200 text-slate-800 focus:border-indigo-500'
+                      }`}
+                    />
+                    {errors.numero_telefono && <p className="text-xs text-red-500 mt-1">{errors.numero_telefono}</p>}
+                  </div>
+                  <input
+                    type="text"
+                    value={formData.codigo_2fa_whatsapp}
+                    onChange={(e) => handleInputChange('codigo_2fa_whatsapp', e.target.value)}
+                    placeholder="PIN WhatsApp (2FA)"
+                    className={`w-full px-4 py-2.5 rounded-xl text-sm outline-none border transition-all ${
+                      theme === 'dark'
+                        ? 'bg-slate-800/50 border-slate-700 text-white focus:border-indigo-500'
+                        : 'bg-white border-slate-200 text-slate-800 focus:border-indigo-500'
+                    }`}
+                  />
+                  <input
+                    type="email"
+                    value={formData.cuenta_gmail}
+                    onChange={(e) => handleInputChange('cuenta_gmail', e.target.value)}
+                    placeholder="Cuenta Google"
+                    className={`w-full px-4 py-2.5 rounded-xl text-sm outline-none border transition-all ${
+                      theme === 'dark'
+                        ? 'bg-slate-800/50 border-slate-700 text-white focus:border-indigo-500'
+                        : 'bg-white border-slate-200 text-slate-800 focus:border-indigo-500'
+                    }`}
+                  />
+                  <input
+                    type="text"
+                    value={formData.password_gmail}
+                    onChange={(e) => handleInputChange('password_gmail', e.target.value)}
+                    placeholder="Contraseña Google"
+                    className={`w-full px-4 py-2.5 rounded-xl text-sm outline-none border transition-all ${
+                      theme === 'dark'
+                        ? 'bg-slate-800/50 border-slate-700 text-white focus:border-indigo-500'
+                        : 'bg-white border-slate-200 text-slate-800 focus:border-indigo-500'
+                    }`}
+                  />
+                </div>
+                {(errors.cuenta_gmail || errors.password_gmail) && (
+                  <p className="text-xs text-red-500">Complete los datos de la cuenta Google.</p>
+                )}
+              </div>
+            )}
+
+            {/* Observaciones */}
+            <div className="space-y-2">
+              <label className={`text-sm font-medium ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
+                Observaciones
+              </label>
+              <textarea
+                value={formData.observaciones}
+                onChange={(e) => handleInputChange('observaciones', e.target.value)}
+                placeholder="Comentarios adicionales..."
+                rows={3}
+                className={`w-full px-4 py-2.5 rounded-xl text-sm outline-none border transition-all resize-none ${
+                  theme === 'dark'
+                    ? 'bg-slate-800/50 border-slate-700 text-white focus:border-indigo-500'
+                    : 'bg-white border-slate-200 text-slate-800 focus:border-indigo-500'
+                }`}
+              />
+            </div>
+
+            {errors.submit && (
+              <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-500 text-sm flex items-center gap-2">
+                <FiShield /> {errors.submit}
+              </div>
+            )}
           </div>
 
-          {/* ✅ Footer con botones */}
-          <div className="flex-shrink-0 p-4 border-t border-white/10">
-            <div className="flex gap-3 justify-end">
-              <button
-                type="button"
-                onClick={onClose}
-                className="btn-glass-secondary-modern"
-                disabled={loading}
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleSubmit}
-                disabled={loading}
-                className="btn-glass-primary-modern"
-              >
-                {loading ? (
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    Creando...
-                  </div>
-                ) : (
-                  'Crear Asignación'
-                )}
-              </button>
-            </div>
+          {/* Footer */}
+          <div className="p-5 border-t border-white/10 flex justify-end gap-3 shrink-0 bg-white/5">
+            <button
+              onClick={onClose}
+              disabled={loading}
+              className={`px-5 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                theme === 'dark'
+                  ? 'text-slate-300 hover:bg-white/5'
+                  : 'text-slate-600 hover:bg-slate-100'
+              }`}
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handleSubmit}
+              disabled={loading}
+              className="px-6 py-2.5 rounded-xl text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-500/20 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all hover:scale-[1.02]"
+            >
+              {loading ? <FiLoader className="animate-spin" /> : <FiCheckCircle />}
+              Confirmar Asignación
+            </button>
           </div>
         </div>
       </div>
     </>
   );
-
-  return createPortal(modalContent, document.body);
-}; 
+};

@@ -1,5 +1,5 @@
 ---
-trigger: always_on
+trigger: manual
 ---
 
 # 🔒 Mandatory UI Design Rule for the Code Agent
@@ -35,5 +35,3 @@ trigger: always_on
 ---
 
 ### 🛑 This is a strict enforcement rule. Failure to comply is considered a breach of project standards.
-
-

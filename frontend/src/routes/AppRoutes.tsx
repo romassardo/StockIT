@@ -2,6 +2,7 @@
 import { Routes, Route } from 'react-router-dom';
 import ProtectedRoute from '../components/auth/ProtectedRoute';
 import Loading from '../components/common/Loading';
+import ErrorBoundary from '../components/common/ErrorBoundary';
 import Login from '../pages/Login';
 import Dashboard from '../pages/Dashboard';
 import Inventory from '../pages/Inventory';
@@ -34,7 +35,11 @@ const AppRoutes: React.FC = () => {
           <Route element={<ProtectedRoute />}>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/inventory" element={<Inventory />} />
+            <Route path="/inventory" element={
+              <ErrorBoundary>
+                <Inventory />
+              </ErrorBoundary>
+            } />
             <Route path="/assignments" element={<Assignments />} />
             <Route path="/repairs" element={<RepairsPage />} />
             <Route path="/stock" element={<Stock />} />

@@ -29,8 +29,10 @@ export class UserController {
         ]
       );
 
-      const [users] = result;
-      const totalItems = users.length > 0 ? users[0].TotalRecords || 0 : 0;
+      // MySQL devuelve [[rows], OkPacket] para SPs, así que tomamos el primer array
+      const rawResult = result[0];
+      const users = Array.isArray(rawResult[0]) ? rawResult[0] : rawResult;
+      const totalItems = users.length > 0 ? users[0]?.TotalRecords || users.length : 0;
       const totalPages = Math.ceil(totalItems / parseInt(pageSize as string));
 
       res.json({
@@ -88,7 +90,9 @@ export class UserController {
         []
       );
 
-      const [data] = result;
+      // MySQL devuelve [[rows], OkPacket] para SPs
+      const rawData = result[0];
+      const data = Array.isArray(rawData[0]) ? rawData[0] : rawData;
       const stats = data[0] || {
         total: 0,
         admins: 0,
@@ -125,7 +129,9 @@ export class UserController {
         ]
       );
 
-      const [data] = result;
+      // MySQL devuelve [[rows], OkPacket] para SPs
+      const rawData = result[0];
+      const data = Array.isArray(rawData[0]) ? rawData[0] : rawData;
       const available = data[0]?.available || false;
 
       res.json({
