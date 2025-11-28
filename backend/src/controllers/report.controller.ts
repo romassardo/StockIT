@@ -32,7 +32,7 @@ class ReportController {
 
   private getPaginationParams(query: any) {
     const page = parseInt(query.page as string) || 1;
-    const limit = parseInt(query.limit as string) || 25;
+    const limit = parseInt(query.limit as string) || parseInt(query.pageSize as string) || 25;
     return { page, limit };
   }
 
@@ -82,20 +82,44 @@ class ReportController {
 
   public getFullInventoryReport = async (req: Request, res: Response) => {
     try {
-      const [results] = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>('sp_Report_Inventory_Full', [
-        1, // page
-        10000, // limit (valor alto para obtener todos)
-        req.query.categoriaId || null,
-        req.query.estado || null,
-        req.query.fechaDesde || null,
-        req.query.fechaHasta || null
+      const { page, limit } = this.getPaginationParams(req.query);
+      const filterType = req.query.FilterType as string || null;
+      const filterCategoria = req.query.FilterCategoria as string || null;
+      const sortBy = req.query.SortBy as string || 'Categoria';
+      const sortOrder = req.query.SortOrder as string || 'ASC';
+
+      const [rows] = await this.db.executeStoredProcedure<any>('sp_Report_StockDisponible', [
+        page,
+        limit,
+        filterType,
+        filterCategoria,
+        sortBy,
+        sortOrder
       ]);
 
-      const data = Array.isArray(results) ? results : [];
+      // Handle potential nested array from mysql2
+      const items = (Array.isArray(rows) && Array.isArray(rows[0])) ? rows[0] : rows;
+      
+      // DEBUG: Inspect result structure
+      logger.info(`[DEBUG] FullInventory Report - Rows isArray: ${Array.isArray(rows)}, Rows length: ${rows.length}`);
+      if (rows.length > 0) {
+         logger.info(`[DEBUG] FullInventory Report - First element isArray: ${Array.isArray(rows[0])}`);
+      }
+      logger.info(`[DEBUG] FullInventory Report - Extracted items length: ${items.length}`);
+      if (items.length > 0) {
+         logger.info(`[DEBUG] FullInventory Report - First item keys: ${Object.keys(items[0]).join(', ')}`);
+         logger.info(`[DEBUG] FullInventory Report - TotalRecords val: ${items[0].TotalRecords}`);
+      }
+
+      // Get total records from the first item (window function result)
+      const totalRecords = items.length > 0 ? items[0].TotalRecords : 0;
 
       res.status(200).json({
         success: true,
-        data: data
+        items: items,
+        totalItems: totalRecords,
+        totalPages: Math.ceil(totalRecords / limit),
+        currentPage: page
       });
     } catch (error: any) {
       this.handleControllerError(res, error, 'Error al obtener el reporte completo de inventario');
@@ -137,25 +161,41 @@ class ReportController {
   public getStockAlertsReport = async (req: AuthRequest, res: Response) => {
     try {
       const { page, limit } = this.getPaginationParams(req.query);
+      const tipoAlerta = req.query.tipoAlerta as string;
       
-      const [results] = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>('sp_Report_StockAlerts', [
-        req.query.tipoAlerta || null,
-        req.query.categoriaId ? Number(req.query.categoriaId) : null,
-        req.query.diasParaAgotarse ? Number(req.query.diasParaAgotarse) : null,
-        page,
-        limit
+      // Determinar flags basado en tipoAlerta ('critical', 'low', o null/undefined para ambos)
+      const incluirSinStock = !tipoAlerta || tipoAlerta === 'critical' || tipoAlerta === 'all';
+      const incluirStockBajo = !tipoAlerta || tipoAlerta === 'low' || tipoAlerta === 'all';
+
+      const [rows] = await this.db.executeStoredProcedure<any>('sp_Report_StockAlerts', [
+        req.query.categoriaId ? Number(req.query.categoriaId) : null, // p_CategoriaID
+        null, // p_UmbralPersonalizado (no implementado en frontend aún)
+        incluirSinStock, // p_IncluirSinStock
+        incluirStockBajo, // p_IncluirStockBajo
+        page, // p_PageNumber
+        limit // p_PageSize
       ]);
 
-      const data = Array.isArray(results) ? results : [];
-      const totalRows = data.length > 0 ? data[0].TotalRows : 0;
+      // rows[0] son los items, rows[1] es el resumen
+      const items = Array.isArray(rows) && rows[0] ? rows[0] : [];
+      
+      // DEBUG: Log keys of first item to check casing
+      if (items.length > 0) {
+        logger.info(`[DEBUG] StockAlerts keys: ${Object.keys(items[0]).join(', ')}`);
+      }
+
+      const summary = Array.isArray(rows) && rows[1] && rows[1][0] ? rows[1][0] : {};
+      
+      const totalRows = items.length > 0 ? items[0].TotalRows : 0;
 
       res.status(200).json({
         success: true,
-        data: data,
+        items: items,
+        summary: summary,
         pagination: {
           page,
           limit,
-          totalRows,
+          totalItems: totalRows,
           totalPages: Math.ceil(totalRows / limit)
         }
       });
@@ -252,43 +292,43 @@ class ReportController {
       
       switch (reportType) {
         case 'inventory':
-          const [inventoryResults] = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>('sp_Report_Inventory', [
+          const [inventoryRows] = await this.db.executeStoredProcedure<any>('sp_Report_Inventory', [
             1, // PageNumber
-            10000, // PageSize - valor alto para obtener todos los registros
+            100000, // PageSize
             queryParams.categoriaId ? Number(queryParams.categoriaId) : null,
             queryParams.fechaDesde || null,
             queryParams.fechaHasta || null
           ]);
           
-          reportData = Array.isArray(inventoryResults) ? inventoryResults : [];
+          reportData = (Array.isArray(inventoryRows) && Array.isArray(inventoryRows[0])) ? inventoryRows[0] : inventoryRows;
           fileName = 'Reporte_Inventario';
           break;
           
         case 'assignmentsByDestination':
-          const [assignmentsResults] = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>('sp_Report_AssignmentsByDestination', [
+          const [assignmentsRows] = await this.db.executeStoredProcedure<any>('sp_Report_AssignmentsByDestination', [
             queryParams.tipoDestino || null,
             queryParams.destinoId ? Number(queryParams.destinoId) : null,
             queryParams.estadoAsignacion || null,
             queryParams.fechaDesde || null,
             queryParams.fechaHasta || null,
             1, // PageNumber
-            10000 // PageSize
+            100000 // PageSize
           ]);
           
-          reportData = Array.isArray(assignmentsResults) ? assignmentsResults : [];
+          reportData = (Array.isArray(assignmentsRows) && Array.isArray(assignmentsRows[0])) ? assignmentsRows[0] : assignmentsRows;
           fileName = 'Reporte_Asignaciones_Por_Destino';
           break;
           
         case 'stockAlerts':
-          const [stockAlertsResults] = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>('sp_Report_StockAlerts', [
+          const [stockAlertsRows] = await this.db.executeStoredProcedure<any>('sp_Report_StockAlerts', [
             queryParams.tipoAlerta || null,
             queryParams.categoriaId ? Number(queryParams.categoriaId) : null,
             queryParams.diasParaAgotarse ? Number(queryParams.diasParaAgotarse) : null,
             1, // PageNumber
-            10000 // PageSize
+            100000 // PageSize
           ]);
           
-          reportData = Array.isArray(stockAlertsResults) ? stockAlertsResults : [];
+          reportData = (Array.isArray(stockAlertsRows) && Array.isArray(stockAlertsRows[0])) ? stockAlertsRows[0] : stockAlertsRows;
           fileName = 'Reporte_Alertas_Stock';
           break;
           
@@ -372,16 +412,16 @@ class ReportController {
   public exportStockDisponible = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
       // Obtener todos los datos sin paginación
-      const [results] = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>('sp_Report_StockDisponible', [
+      const [rows] = await this.db.executeStoredProcedure<any>('sp_Report_StockDisponible', [
         1, // PageNumber
-        10000, // PageSize - valor alto para obtener todos
+        100000, // PageSize - Increased to match SP limit
         req.query.FilterType || null,
         req.query.FilterCategoria || null,
         req.query.SortBy || 'Categoria',
         req.query.SortOrder || 'ASC'
       ]);
 
-      const data = Array.isArray(results) ? results : [];
+      const data = (Array.isArray(rows) && Array.isArray(rows[0])) ? rows[0] : rows;
 
       // Generar Excel
       const excelBuffer = ExportService.generateExcel({

@@ -1,5 +1,14 @@
 import api from './api';
-import { InventoryReportItem, StockAlertItem, PaginatedStockAlerts, PaginatedFullInventoryReport, StockDisponibleReportItem, PaginatedStockDisponibleReport } from '../types';
+import { 
+  InventoryReportItem, 
+  StockAlertItem, 
+  PaginatedStockAlerts, 
+  StockDisponibleReportItem, 
+  PaginatedStockDisponibleReport,
+  PaginatedRepairHistoryReport,
+  PaginatedStockMovementsReport,
+  StockMovementFilters
+} from '../types';
 
 export interface PaginatedInventoryReport {
   items: InventoryReportItem[];
@@ -80,28 +89,22 @@ const convertBigIntToNumber = (value: any): number => {
   return typeof value === 'number' ? value : 0;
 };
 
-// 🔧 SOLUCIÓN BIGINT: Función para sanitizar FullInventoryReportItem
-const sanitizeFullInventoryItem = (item: any): any => {
-  // Asumiendo que campos numéricos podrían venir como bigint
-  return {
-    ...item,
-    ProductoId: convertBigIntToNumber(item.ProductoId),
-    cantidad_actual: convertBigIntToNumber(item.cantidad_actual),
-  };
-};
-
 // 🔧 SOLUCIÓN BIGINT: Función para sanitizar StockAlertItem
 const sanitizeStockAlertItem = (item: any): StockAlertItem => {
   return {
     ...item,
-    ProductoID: convertBigIntToNumber(item.ProductoID),
-    CategoriaID: convertBigIntToNumber(item.CategoriaID),
-    CantidadActual: convertBigIntToNumber(item.CantidadActual),
-    StockMinimo: convertBigIntToNumber(item.StockMinimo),
-    UmbralPersonalizado: convertBigIntToNumber(item.UmbralPersonalizado),
-    DiasParaAgotarse: convertBigIntToNumber(item.DiasParaAgotarse),
-    PromedioSalidaDiaria: convertBigIntToNumber(item.PromedioSalidaDiaria),
-    TotalRows: convertBigIntToNumber(item.TotalRows),
+    ProductoID: convertBigIntToNumber(item.ProductoID || item.productoid || item.ProductoId),
+    ProductoNombre: item.ProductoNombre || item.productonombre || item.producto_nombre || '',
+    Categoria: item.Categoria || item.categoria || '',
+    CategoriaID: convertBigIntToNumber(item.CategoriaID || item.categoriaid || item.CategoriaId),
+    CantidadActual: convertBigIntToNumber(item.CantidadActual || item.cantidadactual || item.cantidad_actual),
+    StockMinimo: convertBigIntToNumber(item.StockMinimo || item.stockminimo || item.stock_minimo),
+    UmbralPersonalizado: convertBigIntToNumber(item.UmbralPersonalizado || item.umbralpersonalizado || item.umbral_personalizado),
+    DiasParaAgotarse: convertBigIntToNumber(item.DiasParaAgotarse || item.diasparaagotarse || item.dias_para_agotarse),
+    PromedioSalidaDiaria: convertBigIntToNumber(item.PromedioSalidaDiaria || item.promediosalidadiaria || item.promedio_salida_diaria),
+    TotalRows: convertBigIntToNumber(item.TotalRows || item.totalrows || item.TotalRecords),
+    TipoAlerta: item.TipoAlerta || item.tipoalerta || item.tipo_alerta || '',
+    UltimoMovimiento: item.UltimoMovimiento || item.ultimomovimiento || item.ultimo_movimiento
   };
 };
 

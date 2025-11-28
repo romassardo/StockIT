@@ -1,17 +1,37 @@
-import React, { useMemo, useState, useEffect } from 'react';
-import { useTable, usePagination, Column } from 'react-table';
+import React, { useState, useEffect } from 'react';
+import { Package, Filter, Download, ChevronLeft, ChevronRight, Search, RefreshCw, SlidersHorizontal } from 'lucide-react';
 import { getStockDisponibleReport } from '../../services/report.service';
 import { StockDisponibleReportItem, PaginatedStockDisponibleReport } from '../../types';
-import { FiChevronLeft, FiChevronRight, FiChevronsLeft, FiChevronsRight, FiFilter, FiDownload, FiGrid, FiList, FiPackage } from 'react-icons/fi';
+import { useTheme } from '../../contexts/ThemeContext';
+import Loading from '../../components/common/Loading';
 
-const StockDisponibleReport: React.FC = () => {
+const GlassCard = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => {
+  const { theme } = useTheme();
+  return (
+    <div className={`
+      relative overflow-hidden rounded-2xl transition-all duration-300
+      ${theme === 'dark' 
+        ? 'bg-slate-900/60 border border-slate-700/50 shadow-lg shadow-slate-900/20 backdrop-blur-xl' 
+        : 'bg-white/80 border border-slate-200/60 shadow-xl shadow-slate-200/40 backdrop-blur-xl'
+      }
+      ${className}
+    `}>
+      {children}
+    </div>
+  );
+};
+
+const FullInventoryReport: React.FC = () => {
+  const { theme } = useTheme();
+  
   const [data, setData] = useState<StockDisponibleReportItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [pageCount, setPageCount] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [totalItems, setTotalItems] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(15);
   
-  // Estados de filtros
+  // Filtros
   const [filterType, setFilterType] = useState<string>('');
   const [filterCategoria, setFilterCategoria] = useState<string>('');
   const [sortBy, setSortBy] = useState<string>('Categoria');
@@ -19,11 +39,34 @@ const StockDisponibleReport: React.FC = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [exportLoading, setExportLoading] = useState(false);
 
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const result = await getStockDisponibleReport({ 
+        page: currentPage, 
+        pageSize: pageSize,
+        FilterType: filterType as any,
+        FilterCategoria: filterCategoria || undefined,
+        SortBy: sortBy as any,
+        SortOrder: sortOrder as any
+      });
+      setData(result.items);
+      setTotalPages(result.totalPages);
+      setTotalItems(result.totalItems || 0);
+    } catch (error) {
+      console.error('Error fetching full inventory report:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, [currentPage, pageSize, filterType, filterCategoria, sortBy, sortOrder]);
+
   const handleExport = async () => {
     try {
       setExportLoading(true);
-      
-      // Construir parámetros de consulta
       const params = new URLSearchParams({
         FilterType: filterType,
         FilterCategoria: filterCategoria,
@@ -31,7 +74,6 @@ const StockDisponibleReport: React.FC = () => {
         SortOrder: sortOrder
       });
 
-      // Hacer la llamada a la API
       const response = await fetch(`/api/reports/stock-disponible/export?${params}`, {
         method: 'GET',
         headers: {
@@ -39,24 +81,18 @@ const StockDisponibleReport: React.FC = () => {
         },
       });
 
-      if (!response.ok) {
-        throw new Error('Error al exportar el reporte');
-      }
+      if (!response.ok) throw new Error('Error al exportar');
 
-      // Crear blob y descargar archivo
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
       
-      // Obtener nombre del archivo del header Content-Disposition
       const contentDisposition = response.headers.get('Content-Disposition');
       let filename = 'stock_disponible.xlsx';
       if (contentDisposition) {
-        const filenameMatch = contentDisposition.match(/filename="([^"]+)"/);
-        if (filenameMatch) {
-          filename = filenameMatch[1];
-        }
+        const match = contentDisposition.match(/filename="([^"]+)"/);
+        if (match) filename = match[1];
       }
       
       link.download = filename;
@@ -64,344 +100,254 @@ const StockDisponibleReport: React.FC = () => {
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
-      
-      console.log('Archivo exportado exitosamente');
-      
     } catch (error) {
-      console.error('Error al exportar:', error);
-      alert('Error al exportar el reporte. Inténtelo nuevamente.');
+      console.error('Error exporting:', error);
     } finally {
       setExportLoading(false);
     }
   };
 
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        const result: PaginatedStockDisponibleReport = await getStockDisponibleReport({ 
-          page: currentPage, 
-          pageSize: pageSize,
-          FilterType: filterType as any,
-          FilterCategoria: filterCategoria || undefined,
-          SortBy: sortBy as any,
-          SortOrder: sortOrder as any
-        });
-        setData(result.items);
-        setPageCount(result.totalPages);
-      } catch (error) {
-        console.error('Error fetching full inventory report:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, [currentPage, pageSize, filterType, filterCategoria, sortBy, sortOrder]);
-
-  const columns: Column<StockDisponibleReportItem>[] = useMemo(
-    () => [
-      {
-        Header: 'Tipo',
-        accessor: 'TipoInventario',
-        Cell: ({ value }: { value: string }) => (
-          <span
-            className={`px-2 py-1 text-xs font-semibold rounded-full ${
-              value === 'Serializado'
-                ? 'bg-blue-500/20 text-blue-300'
-                : 'bg-green-500/20 text-green-300'
-            }`}
-          >
-            {value}
-          </span>
-        ),
-      },
-      {
-        Header: 'Categoría',
-        accessor: 'Categoria',
-      },
-      {
-        Header: 'Marca',
-        accessor: 'marca',
-      },
-      {
-        Header: 'Modelo',
-        accessor: 'modelo',
-      },
-      {
-        Header: 'Descripción',
-        accessor: 'descripcion',
-        Cell: ({ value }: { value: string | null }) => value || <span className="text-slate-500">-</span>,
-      },
-      {
-        Header: 'Cantidad Disponible',
-        accessor: 'cantidad_disponible',
-        Cell: ({ value }: { value: number }) => (
-          <span className="font-semibold text-success-400">
-            {value} {value === 1 ? 'unidad' : 'unidades'}
-          </span>
-        ),
-      },
-    ],
-    []
-  );
-
-  const {
-    getTableProps,
-    getTableBodyProps,
-    headerGroups,
-    prepareRow,
-    page,
-    canPreviousPage,
-    canNextPage,
-    pageOptions,
-    gotoPage,
-    nextPage,
-    previousPage,
-    state: { pageIndex },
-  } = useTable(
-    {
-      columns,
-      data,
-      initialState: { pageIndex: 0, pageSize: 15 },
-      manualPagination: true,
-      pageCount,
-    },
-    usePagination
-  );
-
-  useEffect(() => {
-    gotoPage(currentPage - 1);
-  }, [currentPage, gotoPage]);
-
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center h-screen bg-slate-900">
-        <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-primary-500"></div>
-      </div>
-    );
-  }
-
   return (
-    <div className="relative min-h-screen text-white p-4 sm:p-6 md:p-8 bg-gradient-to-br from-slate-900 via-slate-900/90 to-slate-900">
-      {/* 🌌 ORBES DE FONDO OBLIGATORIAS - ESTÁNDAR DEL PROYECTO */}
-      <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute top-20 left-10 w-32 h-32 rounded-full blur-2xl bg-primary-500/20 animate-pulse" />
-        <div className="absolute top-40 right-20 w-24 h-24 rounded-full blur-xl bg-secondary-500/20 animate-pulse" style={{animationDelay: '2s'}} />
-        <div className="absolute bottom-32 left-1/4 w-20 h-20 rounded-full blur-lg bg-success-500/20 animate-pulse" style={{animationDelay: '4s'}} />
-        <div className="absolute bottom-20 right-1/3 w-28 h-28 rounded-full blur-xl bg-info-500/20 animate-pulse" style={{animationDelay: '1s'}} />
-      </div>
+    <div className={`min-h-screen p-6 transition-colors duration-300 ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
       
-      {/* Contenido principal */}
-      <div className="relative z-10">
-        <header className="mb-8">
-          <div className="flex items-center space-x-4">
-            <FiPackage className="w-8 h-8 text-primary-400" />
-            <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-slate-100 font-display">
-              Stock Disponible
-            </h1>
+      {/* Header */}
+      <header className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+        <div>
+          <div className="flex items-center gap-3 mb-1">
+             <div className="p-2 rounded-xl bg-indigo-500/10 text-indigo-500">
+               <Package size={24} />
+             </div>
+             <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-500 to-purple-600">
+               Stock Disponible
+             </h1>
           </div>
-          <p className="mt-2 text-slate-400 max-w-2xl">
-            Reporte de productos disponibles para asignar (excluye activos ya asignados o en reparación)
+          <p className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
+            Inventario completo de productos disponibles para asignación
           </p>
-        </header>
-        
-        <div className="p-6 rounded-2xl bg-slate-800/60 backdrop-blur-lg border border-slate-700 shadow-xl">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-            <div>
-              <h1 className="text-2xl font-bold text-slate-100 font-display">
-                Stock Disponible
-              </h1>
-              <p className="text-slate-400 text-sm mt-1">
-                Solo productos disponibles para asignar (no incluye asignados)
-              </p>
-            </div>
-            
-            {/* Panel de filtros y exportación */}
-            <div className="flex flex-wrap gap-3">
-              <button
-                onClick={() => setShowFilters(!showFilters)}
-                className="flex items-center gap-2 px-4 py-2 bg-primary-500/20 text-primary-300 rounded-lg hover:bg-primary-500/30 transition-colors"
-              >
-                <FiFilter className="w-4 h-4" />
-                Filtros
-              </button>
-              
-              <button
-                onClick={handleExport}
-                disabled={exportLoading}
-                className="flex items-center gap-2 px-4 py-2 bg-success-500/20 text-success-300 rounded-lg hover:bg-success-500/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <FiDownload className={`w-4 h-4 ${exportLoading ? 'animate-pulse' : ''}`} />
-                {exportLoading ? 'Exportando...' : 'Exportar Excel'}
-              </button>
-            </div>
-          </div>
-
-          {/* Panel de filtros expandible */}
-          {showFilters && (
-            <div className="mb-6 p-4 bg-slate-700/50 rounded-lg border border-slate-600">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">Tipo</label>
-                  <select
-                    value={filterType}
-                    onChange={(e) => setFilterType(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-800 text-slate-100 border border-slate-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                  >
-                    <option value="">Todos</option>
-                    <option value="Serializado">Serializados</option>
-                    <option value="General">Stock General</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">Ordenar por</label>
-                  <select
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-800 text-slate-100 border border-slate-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                  >
-                    <option value="Categoria">Categoría</option>
-                    <option value="Marca">Marca</option>
-                    <option value="Modelo">Modelo</option>
-                    <option value="Cantidad">Cantidad Disponible</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">Orden</label>
-                  <select
-                    value={sortOrder}
-                    onChange={(e) => setSortOrder(e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-800 text-slate-100 border border-slate-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                  >
-                    <option value="ASC">Ascendente</option>
-                    <option value="DESC">Descendente</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">Items por página</label>
-                  <select
-                    value={pageSize}
-                    onChange={(e) => setPageSize(Number(e.target.value))}
-                    className="w-full px-3 py-2 bg-slate-800 text-slate-100 border border-slate-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                  >
-                    <option value={10}>10</option>
-                    <option value={15}>15</option>
-                    <option value={25}>25</option>
-                    <option value={50}>50</option>
-                  </select>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
 
-        <div className="bg-slate-800/50 backdrop-blur-lg border border-slate-700 rounded-2xl p-4">
-          <div className="overflow-x-auto">
-            <table {...getTableProps()} className="w-full text-sm">
-              <thead>
-                {headerGroups.map(headerGroup => {
-                  const { key: headerGroupKey, ...headerGroupProps } = headerGroup.getHeaderGroupProps();
-                  return (
-                    <tr key={headerGroupKey} {...headerGroupProps}>
-                      {headerGroup.headers.map(column => {
-                        const { key: columnKey, ...columnProps } = column.getHeaderProps();
-                        return (
-                          <th
-                            key={columnKey}
-                            {...columnProps}
-                            className="p-3 text-left font-semibold text-slate-400 border-b border-slate-700"
-                          >
-                            {column.render('Header')}
-                          </th>
-                        );
-                      })}
-                    </tr>
-                  );
-                })}
-              </thead>
-              <tbody {...getTableBodyProps()}>
-                {page.map(row => {
-                  prepareRow(row);
-                  const { key: rowKey, ...rowProps } = row.getRowProps();
-                  return (
-                    <tr key={rowKey} {...rowProps} className="hover:bg-slate-700/50 transition-colors duration-200">
-                      {row.cells.map(cell => {
-                        const { key: cellKey, ...cellProps } = cell.getCellProps();
-                        return (
-                          <td
-                            key={cellKey}
-                            {...cellProps}
-                            className="p-3 border-b border-slate-700/50"
-                          >
-                            {cell.render('Cell')}
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+        <div className="flex items-center gap-3">
+           <button 
+             onClick={() => setShowFilters(!showFilters)}
+             className={`px-4 py-2 rounded-xl border flex items-center gap-2 font-medium text-sm transition-colors ${
+               theme === 'dark' 
+                 ? 'bg-slate-800/50 border-slate-700 hover:bg-slate-700 text-slate-300' 
+                 : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-600'
+             }`}
+           >
+             <SlidersHorizontal size={16} /> Filtros
+           </button>
+           
+           <button 
+             onClick={handleExport}
+             disabled={exportLoading}
+             className={`px-4 py-2 rounded-xl flex items-center gap-2 font-medium text-sm transition-colors ${
+               theme === 'dark'
+                 ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20'
+                 : 'bg-emerald-50 text-emerald-600 border border-emerald-200 hover:bg-emerald-100'
+             }`}
+           >
+             <Download size={16} className={exportLoading ? 'animate-pulse' : ''} />
+             {exportLoading ? 'Exportando...' : 'Excel'}
+           </button>
+        </div>
+      </header>
 
-          {/* Paginación */}
-          <div className="flex items-center justify-between mt-4 text-sm text-slate-400">
+      {/* Filtros */}
+      {showFilters && (
+        <GlassCard className="mb-6 p-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div>
-              <span>
-                Página{' '}
-                <strong>
-                  {pageIndex + 1} de {pageOptions.length}
-                </strong>{' '}
-              </span>
-            </div>
-            <div className="flex items-center gap-1">
-              <button onClick={() => setCurrentPage(1)} disabled={currentPage === 1} className="p-2 rounded-md hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed">
-                <FiChevronsLeft />
-              </button>
-              <button onClick={() => setCurrentPage(p => p - 1)} disabled={!canPreviousPage} className="p-2 rounded-md hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed">
-                <FiChevronLeft />
-              </button>
-              <span className="px-2">
-                <input
-                  type="number"
-                  value={currentPage}
-                  onChange={e => {
-                    const page = e.target.value ? Number(e.target.value) : 1;
-                    if (page > 0 && page <= pageOptions.length) {
-                      setCurrentPage(page);
-                    }
-                  }}
-                  className="w-12 text-center bg-slate-700 rounded-md p-1"
-                  min="1"
-                  max={pageOptions.length}
-                />
-              </span>
-              <button onClick={() => setCurrentPage(p => p + 1)} disabled={!canNextPage} className="p-2 rounded-md hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed">
-                <FiChevronRight />
-              </button>
-              <button onClick={() => setCurrentPage(pageCount)} disabled={currentPage === pageCount} className="p-2 rounded-md hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed">
-                <FiChevronsRight />
-              </button>
-            </div>
-            <div>
+              <label className="block text-xs font-medium mb-1.5 opacity-70">Tipo</label>
               <select
-                value={pageSize}
-                onChange={e => setPageSize(Number(e.target.value))}
-                className="bg-slate-700 rounded-md p-1"
+                value={filterType}
+                onChange={(e) => setFilterType(e.target.value)}
+                className={`w-full px-3 py-2 rounded-lg border text-sm outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all ${
+                  theme === 'dark' 
+                    ? 'bg-slate-800/50 border-slate-700 text-slate-200' 
+                    : 'bg-white border-slate-200 text-slate-700'
+                }`}
               >
-                {[15, 25, 50, 100].map(size => (
-                  <option key={size} value={size}>
-                    Mostrar {size}
-                  </option>
-                ))}
+                <option value="">Todos</option>
+                <option value="Serializado">Serializados</option>
+                <option value="General">Stock General</option>
               </select>
             </div>
+            <div>
+              <label className="block text-xs font-medium mb-1.5 opacity-70">Categoría</label>
+              <input
+                type="text"
+                value={filterCategoria}
+                onChange={(e) => setFilterCategoria(e.target.value)}
+                placeholder="Buscar categoría..."
+                className={`w-full px-3 py-2 rounded-lg border text-sm outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all ${
+                  theme === 'dark' 
+                    ? 'bg-slate-800/50 border-slate-700 text-slate-200' 
+                    : 'bg-white border-slate-200 text-slate-700'
+                }`}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium mb-1.5 opacity-70">Ordenar por</label>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                className={`w-full px-3 py-2 rounded-lg border text-sm outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all ${
+                  theme === 'dark' 
+                    ? 'bg-slate-800/50 border-slate-700 text-slate-200' 
+                    : 'bg-white border-slate-200 text-slate-700'
+                }`}
+              >
+                <option value="Categoria">Categoría</option>
+                <option value="Marca">Marca</option>
+                <option value="Modelo">Modelo</option>
+                <option value="Cantidad">Cantidad</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium mb-1.5 opacity-70">Orden</label>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setSortOrder('ASC')}
+                  className={`flex-1 py-2 rounded-lg text-sm border transition-all ${
+                    sortOrder === 'ASC'
+                      ? 'bg-indigo-500 text-white border-indigo-500'
+                      : theme === 'dark' ? 'bg-slate-800/50 border-slate-700' : 'bg-white border-slate-200'
+                  }`}
+                >
+                  ASC
+                </button>
+                <button
+                  onClick={() => setSortOrder('DESC')}
+                  className={`flex-1 py-2 rounded-lg text-sm border transition-all ${
+                    sortOrder === 'DESC'
+                      ? 'bg-indigo-500 text-white border-indigo-500'
+                      : theme === 'dark' ? 'bg-slate-800/50 border-slate-700' : 'bg-white border-slate-200'
+                  }`}
+                >
+                  DESC
+                </button>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
+        </GlassCard>
+      )}
+
+      {/* Content */}
+      <GlassCard className="!p-0 overflow-hidden">
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-20">
+            <Loading text="Cargando inventario..." />
+          </div>
+        ) : !data.length ? (
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <div className="p-4 rounded-full bg-slate-100 dark:bg-slate-800 mb-4">
+              <Package className="w-12 h-12 text-slate-400" />
+            </div>
+            <h3 className={`text-lg font-bold mb-1 ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+              No hay datos
+            </h3>
+            <p className="text-slate-500 text-sm">
+              No se encontraron productos con los filtros actuales.
+            </p>
+          </div>
+        ) : (
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead className={`border-b ${theme === 'dark' ? 'bg-slate-800/50 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
+                  <tr>
+                    <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500 tracking-wider">Tipo</th>
+                    <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500 tracking-wider">Categoría</th>
+                    <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500 tracking-wider">Marca</th>
+                    <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500 tracking-wider">Modelo</th>
+                    <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500 tracking-wider">Descripción</th>
+                    <th className="px-6 py-4 text-center text-xs font-bold uppercase text-slate-500 tracking-wider">Disponible</th>
+                  </tr>
+                </thead>
+                <tbody className={`divide-y ${theme === 'dark' ? 'divide-slate-700/50' : 'divide-slate-200/50'}`}>
+                  {data.map((item, index) => (
+                    <tr key={index} className={`transition-colors ${theme === 'dark' ? 'hover:bg-slate-800/30' : 'hover:bg-slate-50'}`}>
+                      <td className="px-6 py-4">
+                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                          item.TipoInventario === 'Serializado'
+                            ? 'bg-blue-500/10 text-blue-500 border border-blue-500/20'
+                            : 'bg-purple-500/10 text-purple-500 border border-purple-500/20'
+                        }`}>
+                          {item.TipoInventario}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-sm font-medium">
+                        {item.Categoria}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-slate-500">
+                        {item.marca}
+                      </td>
+                      <td className="px-6 py-4 text-sm">
+                        {item.modelo}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-slate-500 max-w-[200px] truncate">
+                        {item.descripcion || '-'}
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        <span className={`text-lg font-bold font-mono ${
+                          item.cantidad_disponible > 0 
+                            ? 'text-emerald-500' 
+                            : 'text-slate-400'
+                        }`}>
+                          {item.cantidad_disponible}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Paginación */}
+            <div className="p-4 border-t border-slate-200 dark:border-slate-700 flex flex-col md:flex-row justify-between items-center gap-4">
+               <div className="flex items-center gap-4">
+                 <p className={`text-sm ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>
+                   Total: {totalItems} items
+                 </p>
+                 <select
+                    value={pageSize}
+                    onChange={(e) => setPageSize(Number(e.target.value))}
+                    className={`text-sm rounded px-2 py-1 outline-none border ${
+                      theme === 'dark' ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-white border-slate-200 text-slate-700'
+                    }`}
+                  >
+                    <option value={15}>15 por pág.</option>
+                    <option value={25}>25 por pág.</option>
+                    <option value={50}>50 por pág.</option>
+                  </select>
+               </div>
+               
+               <div className="flex items-center gap-2">
+                 <button
+                   onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                   disabled={currentPage <= 1}
+                   className={`p-2 rounded-lg transition-all border ${theme === 'dark' ? 'border-slate-700 hover:bg-slate-800 text-slate-400 disabled:opacity-30' : 'border-slate-200 hover:bg-slate-100 text-slate-600 disabled:opacity-30'}`}
+                 >
+                   <ChevronLeft size={18} />
+                 </button>
+                 <span className={`px-4 py-2 text-sm font-medium rounded-lg border ${theme === 'dark' ? 'bg-slate-800/50 border-slate-700 text-slate-300' : 'bg-white border-slate-200 text-slate-700'}`}>
+                   {currentPage} / {totalPages || 1}
+                 </span>
+                 <button
+                   onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                   disabled={currentPage >= totalPages}
+                   className={`p-2 rounded-lg transition-all border ${theme === 'dark' ? 'border-slate-700 hover:bg-slate-800 text-slate-400 disabled:opacity-30' : 'border-slate-200 hover:bg-slate-100 text-slate-600 disabled:opacity-30'}`}
+                 >
+                   <ChevronRight size={18} />
+                 </button>
+               </div>
+            </div>
+          </>
+        )}
+      </GlassCard>
     </div>
   );
 };
 
-export default StockDisponibleReport;
+export default FullInventoryReport;

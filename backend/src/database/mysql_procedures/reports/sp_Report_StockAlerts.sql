@@ -10,6 +10,7 @@ CREATE PROCEDURE `sp_Report_StockAlerts`(
 )
 BEGIN
     DECLARE v_Offset INT;
+    DECLARE v_TotalRows INT;
 
     -- Iniciar transacción y manejo de errores
     DECLARE EXIT HANDLER FOR SQLEXCEPTION
@@ -45,8 +46,8 @@ BEGIN
         )
         SELECT 
             p.id AS ProductoID,
-            CONCAT(p.marca, ' ', p.modelo) AS ProductoNombre,
-            c.nombre AS Categoria,
+            CONCAT_WS(' ', p.marca, p.modelo) AS ProductoNombre,
+            IFNULL(c.nombre, 'Sin Categoría') AS Categoria,
             c.id AS CategoriaID,
             sg.cantidad_actual AS CantidadActual,
             p.stock_minimo AS StockMinimo,
@@ -85,8 +86,8 @@ BEGIN
         )
         SELECT 
             p.id AS ProductoID,
-            CONCAT(p.marca, ' ', p.modelo) AS ProductoNombre,
-            c.nombre AS Categoria,
+            CONCAT_WS(' ', p.marca, p.modelo) AS ProductoNombre,
+            IFNULL(c.nombre, 'Sin Categoría') AS Categoria,
             c.id AS CategoriaID,
             sg.cantidad_actual AS CantidadActual,
             p.stock_minimo AS StockMinimo,
@@ -123,10 +124,13 @@ BEGIN
           AND (p_CategoriaID IS NULL OR c.id = p_CategoriaID);
     END IF;
 
+    -- Calcular total de filas
+    SELECT COUNT(*) INTO v_TotalRows FROM TempAlerts;
+
     -- Devolver los resultados paginados
     SELECT 
         *,
-        (SELECT COUNT(*) FROM TempAlerts) AS TotalRows
+        v_TotalRows AS TotalRows
     FROM TempAlerts
     ORDER BY 
         CASE TipoAlerta 
