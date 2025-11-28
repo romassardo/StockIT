@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { AlertTriangle, Package, ChevronLeft, ChevronRight, Search, RefreshCw } from 'lucide-react';
 import { getStockAlerts } from '../../services/report.service';
-import { StockAlertItem, PaginatedStockAlerts } from '../../types';
+import { PaginatedStockAlerts } from '../../types';
 import { useNotification } from '../../contexts/NotificationContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import Loading from '../../components/common/Loading';
@@ -30,11 +30,12 @@ const StockAlertsReport: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [pageSize] = useState(20);
+  const [searchTerm, setSearchTerm] = useState('');
 
   const fetchAlerts = async (pageNum: number) => {
     setLoading(true);
     try {
-      const result = await getStockAlerts({ page: pageNum, pageSize });
+      const result = await getStockAlerts({ page: pageNum, pageSize, searchTerm });
       
       // Sanitización
       const sanitizedResult = {
@@ -68,6 +69,18 @@ const StockAlertsReport: React.FC = () => {
     fetchAlerts(page);
   }, [page]);
 
+  // Búsqueda con debounce
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (page === 1) {
+        fetchAlerts(1);
+      } else {
+        setPage(1);
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
   const handlePageChange = (newPage: number) => {
     if (data && newPage >= 1 && newPage <= data.totalPages) {
       setPage(newPage);
@@ -93,7 +106,25 @@ const StockAlertsReport: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col md:flex-row items-center gap-3">
+           {/* Buscador Global */}
+           <div className="relative group w-full md:w-64">
+             <input
+               type="text"
+               value={searchTerm}
+               onChange={(e) => setSearchTerm(e.target.value)}
+               placeholder="Buscar..."
+               className={`w-full pl-10 pr-4 py-2 rounded-xl border text-sm outline-none focus:ring-2 focus:ring-red-500/50 transition-all ${
+                 theme === 'dark' 
+                   ? 'bg-slate-800/50 border-slate-700 text-slate-200 focus:bg-slate-800' 
+                   : 'bg-white border-slate-200 text-slate-700 focus:bg-white'
+               }`}
+             />
+             <Search className={`absolute left-3 top-2.5 w-4 h-4 transition-colors ${
+               theme === 'dark' ? 'text-slate-500 group-focus-within:text-red-400' : 'text-slate-400 group-focus-within:text-red-500'
+             }`} />
+           </div>
+
            <button 
              onClick={() => fetchAlerts(page)}
              className={`px-4 py-2 rounded-xl border flex items-center gap-2 font-medium text-sm transition-colors ${
@@ -142,7 +173,6 @@ const StockAlertsReport: React.FC = () => {
                 <tbody className={`divide-y ${theme === 'dark' ? 'divide-slate-700/50' : 'divide-slate-200/50'}`}>
                   {data.items.map((item, index) => {
                     const isCritical = item.CantidadActual === 0;
-                    const isLow = item.CantidadActual > 0 && item.CantidadActual <= item.StockMinimo;
                     
                     return (
                       <tr key={index} className={`transition-colors ${theme === 'dark' ? 'hover:bg-slate-800/30' : 'hover:bg-slate-50'}`}>

@@ -6,7 +6,8 @@ CREATE PROCEDURE `sp_Report_StockAlerts`(
     IN `p_IncluirSinStock` BOOLEAN,
     IN `p_IncluirStockBajo` BOOLEAN,
     IN `p_PageNumber` INT,
-    IN `p_PageSize` INT
+    IN `p_PageSize` INT,
+    IN `p_SearchTerm` VARCHAR(100)
 )
 BEGIN
     DECLARE v_Offset INT;
@@ -74,7 +75,11 @@ BEGIN
         WHERE sg.cantidad_actual = 0
           AND p.usa_numero_serie = 0
           AND p.activo = 1
-          AND (p_CategoriaID IS NULL OR c.id = p_CategoriaID);
+          AND (p_CategoriaID IS NULL OR c.id = p_CategoriaID)
+          AND (p_SearchTerm IS NULL OR p_SearchTerm = '' OR
+               CONCAT_WS(' ', p.marca, p.modelo) LIKE CONCAT('%', p_SearchTerm, '%') OR
+               c.nombre LIKE CONCAT('%', p_SearchTerm, '%')
+          );
     END IF;
 
     -- Insertar productos con stock bajo
@@ -121,7 +126,11 @@ BEGIN
           AND sg.cantidad_actual < IFNULL(p_UmbralPersonalizado, p.stock_minimo)
           AND p.usa_numero_serie = 0
           AND p.activo = 1
-          AND (p_CategoriaID IS NULL OR c.id = p_CategoriaID);
+          AND (p_CategoriaID IS NULL OR c.id = p_CategoriaID)
+          AND (p_SearchTerm IS NULL OR p_SearchTerm = '' OR
+               CONCAT_WS(' ', p.marca, p.modelo) LIKE CONCAT('%', p_SearchTerm, '%') OR
+               c.nombre LIKE CONCAT('%', p_SearchTerm, '%')
+          );
     END IF;
 
     -- Calcular total de filas

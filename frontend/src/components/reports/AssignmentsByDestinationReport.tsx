@@ -1,8 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { FiDownload, FiFilter, FiRefreshCw } from 'react-icons/fi';
+import { Filter, Download, RefreshCw, ChevronLeft, ChevronRight, Calendar, Search } from 'lucide-react';
 import { useNotification } from '../../contexts/NotificationContext';
 import { getAssignmentsByDestination, GetAssignmentsByDestinationParams, AssignmentReportItem } from '../../services/report.service';
+import { branchService } from '../../services/branch.service';
+import { sectorService } from '../../services/sector.service';
+import { employeeService } from '../../services/employee.service';
 import Loading from '../common/Loading';
+import { useTheme } from '../../contexts/ThemeContext';
 
 interface AssignmentsByDestinationReportProps {
   reportType: 'Empleado' | 'Sector' | 'Sucursal';
@@ -12,6 +16,22 @@ interface AssignmentsByDestinationReportProps {
   color: string;
 }
 
+const GlassCard = ({ children, className = "" }: { children: React.ReactNode; className?: string }) => {
+  const { theme } = useTheme();
+  return (
+    <div className={`
+      relative overflow-hidden rounded-2xl transition-all duration-300
+      ${theme === 'dark' 
+        ? 'bg-slate-900/60 border border-slate-700/50 shadow-lg shadow-slate-900/20 backdrop-blur-xl' 
+        : 'bg-white/80 border border-slate-200/60 shadow-xl shadow-slate-200/40 backdrop-blur-xl'
+      }
+      ${className}
+    `}>
+      {children}
+    </div>
+  );
+};
+
 const AssignmentsByDestinationReport: React.FC<AssignmentsByDestinationReportProps> = ({
   reportType,
   title,
@@ -19,20 +39,56 @@ const AssignmentsByDestinationReport: React.FC<AssignmentsByDestinationReportPro
   icon: IconComponent,
   color
 }) => {
+  const { theme } = useTheme();
   const { addNotification } = useNotification();
   const [assignments, setAssignments] = useState<AssignmentReportItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [totalItems, setTotalItems] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
+  const [pageSize, setPageSize] = useState(20);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [destinations, setDestinations] = useState<any[]>([]);
+  
   const [filters, setFilters] = useState<Omit<GetAssignmentsByDestinationParams, 'tipoDestino'>>({
     estadoAsignacion: '',
     fechaDesde: '',
     fechaHasta: '',
-    destinoId: undefined
+    destinoId: undefined,
+    tipoDispositivo: ''
   });
+  
   const [showFilters, setShowFilters] = useState(true);
   const isInitialMount = useRef(true);
+
+  // Cargar destinos (empleados, sectores o sucursales)
+  useEffect(() => {
+    const loadDestinations = async () => {
+      try {
+        let data: any[] = [];
+        if (reportType === 'Sucursal') {
+          const response = await branchService.getActiveBranches();
+          data = response.data;
+        } else if (reportType === 'Sector') {
+          const response = await sectorService.getActiveSectors();
+          data = response.data;
+        } else if (reportType === 'Empleado') {
+          const response = await employeeService.getActiveEmployees();
+          data = response.data.employees;
+        }
+        setDestinations(data);
+        // Resetear selección al cambiar tipo
+        handleFilterChange('destinoId', undefined);
+      } catch (error) {
+        console.error('Error loading destinations:', error);
+        addNotification({
+          message: 'Error al cargar lista de filtros',
+          type: 'error'
+        });
+      }
+    };
+    loadDestinations();
+  }, [reportType]);
 
   const loadAssignments = async (page: number = 1) => {
     try {
@@ -40,8 +96,9 @@ const AssignmentsByDestinationReport: React.FC<AssignmentsByDestinationReportPro
       
       const params: GetAssignmentsByDestinationParams = {
         page,
-        pageSize: 20,
+        pageSize,
         tipoDestino: reportType,
+        searchTerm,
         ...filters
       };
 
@@ -66,9 +123,9 @@ const AssignmentsByDestinationReport: React.FC<AssignmentsByDestinationReportPro
   // Handles pagination and report type changes
   useEffect(() => {
     loadAssignments(currentPage);
-  }, [currentPage, reportType]);
+  }, [currentPage, pageSize, reportType]);
 
-  // Handles debounced filter changes
+  // Handles debounced filter changes and search
   useEffect(() => {
     if (isInitialMount.current) {
       isInitialMount.current = false;
@@ -84,7 +141,7 @@ const AssignmentsByDestinationReport: React.FC<AssignmentsByDestinationReportPro
     }, 500);
 
     return () => clearTimeout(handler);
-  }, [filters]);
+  }, [filters, searchTerm]);
 
   const handleFilterChange = (key: string, value: any) => {
     setFilters(prev => ({
@@ -98,8 +155,10 @@ const AssignmentsByDestinationReport: React.FC<AssignmentsByDestinationReportPro
       estadoAsignacion: '',
       fechaDesde: '',
       fechaHasta: '',
-      destinoId: undefined
+      destinoId: undefined,
+      tipoDispositivo: ''
     });
+    setSearchTerm('');
   };
 
   const [exportLoading, setExportLoading] = useState(false);
@@ -111,10 +170,12 @@ const AssignmentsByDestinationReport: React.FC<AssignmentsByDestinationReportPro
       // Construir parámetros de consulta
       const params = new URLSearchParams({
         TipoDestino: reportType,
+        ...(searchTerm && { SearchTerm: searchTerm }),
         ...(filters.destinoId && { DestinoID: filters.destinoId.toString() }),
         ...(filters.estadoAsignacion && { EstadoAsignacion: filters.estadoAsignacion === 'activa' ? 'Activa' : 'Devuelta' }),
         ...(filters.fechaDesde && { FechaDesde: filters.fechaDesde }),
-        ...(filters.fechaHasta && { FechaHasta: filters.fechaHasta })
+        ...(filters.fechaHasta && { FechaHasta: filters.fechaHasta }),
+        ...(filters.tipoDispositivo && { TipoDispositivo: filters.tipoDispositivo })
       });
 
       // Hacer la llamada a la API
@@ -174,271 +235,319 @@ const AssignmentsByDestinationReport: React.FC<AssignmentsByDestinationReportPro
   const getEstadoBadgeClass = (estado: string) => {
     switch (estado?.toLowerCase()) {
       case 'activa':
-        return 'bg-success-500/20 text-success-300 border-success-500/30';
+        return 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20';
       case 'devuelta':
-        return 'bg-slate-500/20 text-slate-300 border-slate-500/30';
+        return 'bg-slate-500/10 text-slate-500 border-slate-500/20';
       default:
-        return 'bg-primary-500/20 text-primary-300 border-primary-500/30';
+        return 'bg-indigo-500/10 text-indigo-500 border-indigo-500/20';
     }
   };
 
-  if (loading && assignments.length === 0) {
-    return <Loading />;
-  }
-
   return (
-    <div className="relative min-h-screen text-white p-4 sm:p-6 md:p-8 bg-gradient-to-br from-slate-900 via-slate-900/90 to-slate-900">
-      {/* Orbes de fondo fijos */}
-      <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute top-20 left-10 w-32 h-32 rounded-full blur-2xl bg-primary-500/20 animate-pulse" />
-        <div className="absolute top-40 right-20 w-24 h-24 rounded-full blur-xl bg-secondary-500/20 animate-pulse" style={{animationDelay: '2s'}} />
-        <div className="absolute bottom-32 left-1/4 w-20 h-20 rounded-full blur-lg bg-success-500/20 animate-pulse" style={{animationDelay: '4s'}} />
-        <div className="absolute bottom-20 right-1/3 w-28 h-28 rounded-full blur-xl bg-info-500/20 animate-pulse" style={{animationDelay: '1s'}} />
-      </div>
+    <div className={`min-h-screen p-6 transition-colors duration-300 ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
       
-      {/* Contenido principal */}
-      <div className="relative z-10">
-
-
-        {/* Filtros */}
-        <div className="p-6 rounded-2xl bg-slate-800/60 backdrop-blur-lg border border-slate-700 shadow-xl">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-            <div>
-              <h1 className="text-2xl font-bold text-slate-100 font-display">
-                {title}
-              </h1>
-              <p className="text-slate-400 text-sm mt-1">
-                {description}
-              </p>
-            </div>
-            
-            {/* Panel de filtros y exportación */}
-            <div className="flex flex-wrap gap-3">
-              <button
-                onClick={() => setShowFilters(prev => !prev)}
-                className="flex items-center gap-2 px-4 py-2 bg-primary-500/20 text-primary-300 rounded-lg hover:bg-primary-500/30 transition-colors"
-              >
-                <FiFilter className="w-4 h-4" />
-                {showFilters ? 'Ocultar Filtros' : 'Mostrar Filtros'}
-              </button>
-              
-              <button
-                onClick={handleExport}
-                disabled={exportLoading}
-                className="flex items-center gap-2 px-4 py-2 bg-success-500/20 text-success-300 rounded-lg hover:bg-success-500/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <FiDownload className={`w-4 h-4 ${exportLoading ? 'animate-pulse' : ''}`} />
-                {exportLoading ? 'Exportando...' : 'Exportar Excel'}
-              </button>
-            </div>
+      {/* Header */}
+      <header className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+        <div>
+          <div className="flex items-center gap-3 mb-1">
+             <div className={`p-2 rounded-xl ${
+                color === 'primary' ? 'bg-indigo-500/10 text-indigo-500' :
+                color === 'success' ? 'bg-emerald-500/10 text-emerald-500' :
+                color === 'warning' ? 'bg-amber-500/10 text-amber-500' :
+                'bg-slate-500/10 text-slate-500'
+             }`}>
+               <IconComponent size={24} />
+             </div>
+             <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-500 to-purple-600">
+               {title}
+             </h1>
           </div>
-
-          {/* Panel de filtros expandible */}
-          {showFilters && (
-            <div className="mb-6 p-4 bg-slate-700/50 rounded-lg border border-slate-600 animate-fade-in-down">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">Estado</label>
-                  <select
-                    value={filters.estadoAsignacion}
-                    onChange={(e) => handleFilterChange('estadoAsignacion', e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-800 text-slate-100 border border-slate-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                  >
-                    <option value="">Todos</option>
-                    <option value="activa">Activas</option>
-                    <option value="devuelta">Devueltas</option>
-                  </select>
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">Desde</label>
-                  <input
-                    type="date"
-                    value={filters.fechaDesde}
-                    onChange={(e) => handleFilterChange('fechaDesde', e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-800 text-slate-100 border border-slate-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-slate-300 mb-2">Hasta</label>
-                  <input
-                    type="date"
-                    value={filters.fechaHasta}
-                    onChange={(e) => handleFilterChange('fechaHasta', e.target.value)}
-                    className="w-full px-3 py-2 bg-slate-800 text-slate-100 border border-slate-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                  />
-                </div>
-                
-                <div className="flex justify-start">
-                  <button
-                    onClick={clearFilters}
-                    className="flex items-center gap-2 px-4 py-2 bg-slate-600/50 text-slate-300 rounded-lg hover:bg-slate-600/80 transition-colors"
-                  >
-                    <FiRefreshCw className="w-4 h-4" />
-                    Limpiar
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
+          <p className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
+            {description}
+          </p>
         </div>
 
-        {/* Resultados */}
-        <div className="p-6 rounded-2xl bg-slate-800/60 backdrop-blur-lg border border-slate-700 shadow-xl">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-            <div className="flex items-center gap-3">
-              <div className={`p-2 rounded-lg ${
-                color === 'primary' ? 'bg-primary-500/20' :
-                color === 'success' ? 'bg-success-500/20' :
-                color === 'warning' ? 'bg-warning-500/20' :
-                color === 'danger' ? 'bg-danger-500/20' :
-                color === 'info' ? 'bg-info-500/20' :
-                'bg-secondary-500/20'
-              }`}>
-                <IconComponent className={`w-5 h-5 ${
-                  color === 'primary' ? 'text-primary-400' :
-                  color === 'success' ? 'text-success-400' :
-                  color === 'warning' ? 'text-warning-400' :
-                  color === 'danger' ? 'text-danger-400' :
-                  color === 'info' ? 'text-info-400' :
-                  'text-secondary-400'
-                }`} />
-              </div>
-              <div>
-                <h2 className="text-xl font-bold text-slate-100">
-                  Resultados
-                </h2>
-                <p className="text-slate-400 text-sm">
-                  {totalItems} asignaciones encontradas
-                </p>
+        <div className="flex flex-col md:flex-row items-center gap-3">
+           {/* Buscador Global */}
+           <div className="relative group w-full md:w-64">
+             <input
+               type="text"
+               value={searchTerm}
+               onChange={(e) => setSearchTerm(e.target.value)}
+               placeholder="Buscar..."
+               className={`w-full pl-10 pr-4 py-2 rounded-xl border text-sm outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all ${
+                 theme === 'dark' 
+                   ? 'bg-slate-800/50 border-slate-700 text-slate-200 focus:bg-slate-800' 
+                   : 'bg-white border-slate-200 text-slate-700 focus:bg-white'
+               }`}
+             />
+             <Search className={`absolute left-3 top-2.5 w-4 h-4 transition-colors ${
+               theme === 'dark' ? 'text-slate-500 group-focus-within:text-indigo-400' : 'text-slate-400 group-focus-within:text-indigo-500'
+             }`} />
+           </div>
+
+           <button 
+             onClick={() => setShowFilters(!showFilters)}
+             className={`px-4 py-2 rounded-xl border flex items-center gap-2 font-medium text-sm transition-colors ${
+               theme === 'dark' 
+                 ? 'bg-slate-800/50 border-slate-700 hover:bg-slate-700 text-slate-300' 
+                 : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-600'
+             }`}
+           >
+             <Filter size={16} /> {showFilters ? 'Ocultar Filtros' : 'Filtros'}
+           </button>
+           
+           <button 
+             onClick={() => loadAssignments(currentPage)}
+             disabled={loading}
+             className={`px-4 py-2 rounded-xl border flex items-center gap-2 font-medium text-sm transition-colors ${
+               theme === 'dark' 
+                 ? 'bg-slate-800/50 border-slate-700 hover:bg-slate-700 text-slate-300' 
+                 : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-600'
+             }`}
+           >
+             <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+           </button>
+
+           <button 
+             onClick={handleExport}
+             disabled={exportLoading}
+             className={`px-4 py-2 rounded-xl flex items-center gap-2 font-medium text-sm transition-colors ${
+               theme === 'dark'
+                 ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20'
+                 : 'bg-emerald-50 text-emerald-600 border border-emerald-200 hover:bg-emerald-100'
+             }`}
+           >
+             <Download size={16} className={exportLoading ? 'animate-pulse' : ''} />
+             {exportLoading ? 'Exportando...' : 'Excel'}
+           </button>
+        </div>
+      </header>
+
+      {/* Filtros */}
+      {showFilters && (
+        <GlassCard className="mb-6 p-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-end">
+            {/* Selector Dinámico de Destino (Empleado/Sector/Sucursal) */}
+            <div>
+              <label className="block text-xs font-medium mb-1.5 opacity-70">{reportType}</label>
+              <select
+                value={filters.destinoId || ''}
+                onChange={(e) => handleFilterChange('destinoId', e.target.value ? Number(e.target.value) : undefined)}
+                className={`w-full px-3 py-2 rounded-lg border text-sm outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all ${
+                  theme === 'dark' 
+                    ? 'bg-slate-800/50 border-slate-700 text-slate-200' 
+                    : 'bg-white border-slate-200 text-slate-700'
+                }`}
+              >
+                <option value="">Todos</option>
+                {destinations.map((dest) => (
+                  <option key={dest.id} value={dest.id}>
+                    {reportType === 'Empleado' ? `${dest.nombre} ${dest.apellido}` : dest.nombre}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium mb-1.5 opacity-70">Dispositivo</label>
+              <select
+                value={filters.tipoDispositivo}
+                onChange={(e) => handleFilterChange('tipoDispositivo', e.target.value)}
+                className={`w-full px-3 py-2 rounded-lg border text-sm outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all ${
+                  theme === 'dark' 
+                    ? 'bg-slate-800/50 border-slate-700 text-slate-200' 
+                    : 'bg-white border-slate-200 text-slate-700'
+                }`}
+              >
+                <option value="">Todos</option>
+                <option value="Notebook">Notebook</option>
+                <option value="Celular">Celular</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium mb-1.5 opacity-70">Estado</label>
+              <select
+                value={filters.estadoAsignacion}
+                onChange={(e) => handleFilterChange('estadoAsignacion', e.target.value)}
+                className={`w-full px-3 py-2 rounded-lg border text-sm outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all ${
+                  theme === 'dark' 
+                    ? 'bg-slate-800/50 border-slate-700 text-slate-200' 
+                    : 'bg-white border-slate-200 text-slate-700'
+                }`}
+              >
+                <option value="">Todos</option>
+                <option value="activa">Activas</option>
+                <option value="devuelta">Devueltas</option>
+              </select>
+            </div>
+            
+            <div>
+              <label className="block text-xs font-medium mb-1.5 opacity-70">Desde</label>
+              <div className="relative">
+                <input
+                  type="date"
+                  value={filters.fechaDesde}
+                  onChange={(e) => handleFilterChange('fechaDesde', e.target.value)}
+                  className={`w-full px-3 py-2 rounded-lg border text-sm outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all ${
+                    theme === 'dark' 
+                      ? 'bg-slate-800/50 border-slate-700 text-slate-200' 
+                      : 'bg-white border-slate-200 text-slate-700'
+                  }`}
+                />
+                <Calendar className="absolute right-3 top-2.5 w-4 h-4 opacity-50 pointer-events-none" />
               </div>
             </div>
             
-            <button
-              onClick={() => loadAssignments(currentPage)}
-              disabled={loading}
-              className="flex items-center gap-2 px-4 py-2 bg-slate-700/50 text-slate-300 rounded-lg hover:bg-slate-700 transition-colors disabled:opacity-50"
-            >
-              <FiRefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-              Actualizar
-            </button>
+            <div>
+              <label className="block text-xs font-medium mb-1.5 opacity-70">Hasta</label>
+              <div className="relative">
+                <input
+                  type="date"
+                  value={filters.fechaHasta}
+                  onChange={(e) => handleFilterChange('fechaHasta', e.target.value)}
+                  className={`w-full px-3 py-2 rounded-lg border text-sm outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all ${
+                    theme === 'dark' 
+                      ? 'bg-slate-800/50 border-slate-700 text-slate-200' 
+                      : 'bg-white border-slate-200 text-slate-700'
+                  }`}
+                />
+                <Calendar className="absolute right-3 top-2.5 w-4 h-4 opacity-50 pointer-events-none" />
+              </div>
+            </div>
+            
+            <div className="flex justify-end mt-2">
+              <button
+                onClick={clearFilters}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${
+                  theme === 'dark' 
+                    ? 'bg-slate-700 hover:bg-slate-600 text-slate-300' 
+                    : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
+                }`}
+              >
+                <RefreshCw size={14} /> Limpiar Filtros
+              </button>
+            </div>
           </div>
-          
-          {/* Tabla moderna con diseño glassmorphism */}
-          <div className="overflow-hidden rounded-lg border border-slate-600/50">
+        </GlassCard>
+      )}
+
+      {/* Content */}
+      <GlassCard className="!p-0 overflow-hidden">
+        {loading && assignments.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20">
+            <Loading text="Cargando asignaciones..." />
+          </div>
+        ) : assignments.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <div className="p-4 rounded-full bg-slate-100 dark:bg-slate-800 mb-4">
+              <IconComponent className="w-12 h-12 text-slate-400" />
+            </div>
+            <h3 className={`text-lg font-bold mb-1 ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+              No hay resultados
+            </h3>
+            <p className="text-slate-500 text-sm">
+              No se encontraron asignaciones con los filtros seleccionados.
+            </p>
+          </div>
+        ) : (
+          <>
             <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="bg-slate-700/50 border-b border-slate-600/50">
-                    <th className="px-4 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
+              <table className="w-full text-left">
+                <thead className={`border-b ${theme === 'dark' ? 'bg-slate-800/50 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
+                  <tr>
+                    <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500 tracking-wider">
                       {reportType}
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
+                    <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500 tracking-wider">
                       Producto
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
+                    <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500 tracking-wider">
                       Estado
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
+                    <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500 tracking-wider">
                       Fecha Asignación
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
+                    <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500 tracking-wider">
                       Días
                     </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
+                    <th className="px-6 py-4 text-xs font-bold uppercase text-slate-500 tracking-wider">
                       Asignado por
                     </th>
                   </tr>
                 </thead>
-                <tbody className="bg-slate-800/40 divide-y divide-slate-600/50">
+                <tbody className={`divide-y ${theme === 'dark' ? 'divide-slate-700/50' : 'divide-slate-200/50'}`}>
                   {assignments.map((assignment, index) => (
-                    <tr key={`assignment-${assignment.id || index}-${index}`} className="hover:bg-slate-700/40 transition-colors">
-                      <td className="px-4 py-3 text-sm font-medium text-slate-100">
+                    <tr key={`assignment-${assignment.id || index}-${index}`} className={`transition-colors ${theme === 'dark' ? 'hover:bg-slate-800/30' : 'hover:bg-slate-50'}`}>
+                      <td className="px-6 py-4 text-sm font-medium">
                         {assignment.destino_nombre}
                       </td>
-                      <td className="px-4 py-3 text-sm text-slate-200">
+                      <td className="px-6 py-4 text-sm text-slate-500 dark:text-slate-400">
                         {assignment.producto_nombre}
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-6 py-4">
                         <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getEstadoBadgeClass(assignment.estado)}`}>
                           {assignment.estado}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-sm text-slate-300">
+                      <td className="px-6 py-4 text-sm text-slate-500 dark:text-slate-400">
                         {formatDate(assignment.fecha_asignacion)}
                       </td>
-                      <td className="px-4 py-3 text-sm text-slate-300">
-                        <span className="inline-flex items-center gap-1">
-                          {assignment.dias_asignado} días
-                        </span>
+                      <td className="px-6 py-4 text-sm text-slate-500 dark:text-slate-400">
+                        <span className="font-mono">{assignment.dias_asignado}</span> días
                       </td>
-                      <td className="px-4 py-3 text-sm text-slate-300">
+                      <td className="px-6 py-4 text-sm text-slate-500 dark:text-slate-400">
                         {assignment.usuario_asigna}
                       </td>
                     </tr>
                   ))}
-              </tbody>
-            </table>
-          </div>
-          
-          </div>
-          
-          {/* Paginación moderna */}
-          {totalPages > 1 && (
-            <div className="flex justify-center items-center mt-6 space-x-2">
-              <button
-                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-                disabled={currentPage === 1 || loading}
-                className="px-4 py-2 bg-slate-700/50 text-slate-300 rounded-lg hover:bg-slate-600/80 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Anterior
-              </button>
-              <span className="text-slate-400">
-                Página {currentPage} de {totalPages}
-              </span>
-              <button
-                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-                disabled={currentPage === totalPages || loading}
-                className="px-4 py-2 bg-slate-700/50 text-slate-300 rounded-lg hover:bg-slate-600/80 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Siguiente
-              </button>
+                </tbody>
+              </table>
             </div>
-          )}
-        </div>
-        
-        {/* Estado vacío */}
-        {assignments.length === 0 && !loading && (
-          <div className="p-12 rounded-2xl bg-slate-800/60 backdrop-blur-lg border border-slate-700 text-center">
-            <div className={`inline-flex items-center justify-center w-16 h-16 rounded-full mb-4 ${
-              color === 'primary' ? 'bg-primary-500/20' :
-              color === 'success' ? 'bg-success-500/20' :
-              color === 'warning' ? 'bg-warning-500/20' :
-              color === 'danger' ? 'bg-danger-500/20' :
-              color === 'info' ? 'bg-info-500/20' :
-              'bg-secondary-500/20'
-            }`}>
-              <IconComponent className={`w-8 h-8 ${
-                color === 'primary' ? 'text-primary-400' :
-                color === 'success' ? 'text-success-400' :
-                color === 'warning' ? 'text-warning-400' :
-                color === 'danger' ? 'text-danger-400' :
-                color === 'info' ? 'text-info-400' :
-                'text-secondary-400'
-              }`} />
+
+            {/* Paginación */}
+            <div className="p-4 border-t border-slate-200 dark:border-slate-700 flex flex-col md:flex-row justify-between items-center gap-4">
+               <div className="flex items-center gap-4">
+                 <p className={`text-sm ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>
+                   Total: {totalItems} registros
+                 </p>
+                 <select
+                    value={pageSize}
+                    onChange={(e) => setPageSize(Number(e.target.value))}
+                    className={`text-sm rounded px-2 py-1 outline-none border ${
+                      theme === 'dark' ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-white border-slate-200 text-slate-700'
+                    }`}
+                  >
+                    <option value={20}>20 por pág.</option>
+                    <option value={50}>50 por pág.</option>
+                    <option value={100}>100 por pág.</option>
+                  </select>
+               </div>
+               
+               <div className="flex items-center gap-2">
+                 <button
+                   onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                   disabled={currentPage <= 1}
+                   className={`p-2 rounded-lg transition-all border ${theme === 'dark' ? 'border-slate-700 hover:bg-slate-800 text-slate-400 disabled:opacity-30' : 'border-slate-200 hover:bg-slate-100 text-slate-600 disabled:opacity-30'}`}
+                 >
+                   <ChevronLeft size={18} />
+                 </button>
+                 <span className={`px-4 py-2 text-sm font-medium rounded-lg border ${theme === 'dark' ? 'bg-slate-800/50 border-slate-700 text-slate-300' : 'bg-white border-slate-200 text-slate-700'}`}>
+                   {currentPage} / {totalPages || 1}
+                 </span>
+                 <button
+                   onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                   disabled={currentPage >= totalPages}
+                   className={`p-2 rounded-lg transition-all border ${theme === 'dark' ? 'border-slate-700 hover:bg-slate-800 text-slate-400 disabled:opacity-30' : 'border-slate-200 hover:bg-slate-100 text-slate-600 disabled:opacity-30'}`}
+                 >
+                   <ChevronRight size={18} />
+                 </button>
+               </div>
             </div>
-            <h3 className="text-lg font-medium text-slate-200 mb-2">
-              Sin resultados
-            </h3>
-            <p className="text-slate-400">
-              No se encontraron asignaciones para los filtros seleccionados.
-              <br />
-              Intenta ajustar los criterios de búsqueda.
-            </p>
-          </div>
+          </>
         )}
-      </div>
+      </GlassCard>
     </div>
   );
 };

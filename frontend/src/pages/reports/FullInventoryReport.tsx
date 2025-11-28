@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Package, Filter, Download, ChevronLeft, ChevronRight, Search, RefreshCw, SlidersHorizontal } from 'lucide-react';
+import { Package, Download, ChevronLeft, ChevronRight, Search, SlidersHorizontal } from 'lucide-react';
 import { getStockDisponibleReport } from '../../services/report.service';
-import { StockDisponibleReportItem, PaginatedStockDisponibleReport } from '../../types';
+import { StockDisponibleReportItem } from '../../types';
 import { useTheme } from '../../contexts/ThemeContext';
 import Loading from '../../components/common/Loading';
 
@@ -38,6 +38,7 @@ const FullInventoryReport: React.FC = () => {
   const [sortOrder, setSortOrder] = useState<string>('ASC');
   const [showFilters, setShowFilters] = useState(false);
   const [exportLoading, setExportLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
 
   const fetchData = async () => {
     setLoading(true);
@@ -48,7 +49,8 @@ const FullInventoryReport: React.FC = () => {
         FilterType: filterType as any,
         FilterCategoria: filterCategoria || undefined,
         SortBy: sortBy as any,
-        SortOrder: sortOrder as any
+        SortOrder: sortOrder as any,
+        searchTerm
       });
       setData(result.items);
       setTotalPages(result.totalPages);
@@ -61,8 +63,11 @@ const FullInventoryReport: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchData();
-  }, [currentPage, pageSize, filterType, filterCategoria, sortBy, sortOrder]);
+    const timer = setTimeout(() => {
+      fetchData();
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [currentPage, pageSize, filterType, filterCategoria, sortBy, sortOrder, searchTerm]);
 
   const handleExport = async () => {
     try {
@@ -71,7 +76,8 @@ const FullInventoryReport: React.FC = () => {
         FilterType: filterType,
         FilterCategoria: filterCategoria,
         SortBy: sortBy,
-        SortOrder: sortOrder
+        SortOrder: sortOrder,
+        searchTerm
       });
 
       const response = await fetch(`/api/reports/stock-disponible/export?${params}`, {
@@ -126,7 +132,28 @@ const FullInventoryReport: React.FC = () => {
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col md:flex-row items-center gap-3">
+           {/* Buscador Global */}
+           <div className="relative group w-full md:w-64">
+             <input
+               type="text"
+               value={searchTerm}
+               onChange={(e) => {
+                 setSearchTerm(e.target.value);
+                 if (currentPage !== 1) setCurrentPage(1);
+               }}
+               placeholder="Buscar..."
+               className={`w-full pl-10 pr-4 py-2 rounded-xl border text-sm outline-none focus:ring-2 focus:ring-indigo-500/50 transition-all ${
+                 theme === 'dark' 
+                   ? 'bg-slate-800/50 border-slate-700 text-slate-200 focus:bg-slate-800' 
+                   : 'bg-white border-slate-200 text-slate-700 focus:bg-white'
+               }`}
+             />
+             <Search className={`absolute left-3 top-2.5 w-4 h-4 transition-colors ${
+               theme === 'dark' ? 'text-slate-500 group-focus-within:text-indigo-400' : 'text-slate-400 group-focus-within:text-indigo-500'
+             }`} />
+           </div>
+
            <button 
              onClick={() => setShowFilters(!showFilters)}
              className={`px-4 py-2 rounded-xl border flex items-center gap-2 font-medium text-sm transition-colors ${

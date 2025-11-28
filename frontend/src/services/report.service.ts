@@ -56,6 +56,7 @@ interface GetStockAlertsParams {
   tipoAlerta?: 'Sin Stock' | 'Stock Bajo' | '';
   categoriaId?: number;
   diasParaAgotarse?: number;
+  searchTerm?: string;
 }
 
 interface GetStockDisponibleReportParams {
@@ -65,6 +66,7 @@ interface GetStockDisponibleReportParams {
   FilterCategoria?: string;
   SortBy?: 'Categoria' | 'Marca' | 'Modelo';
   SortOrder?: 'ASC' | 'DESC';
+  searchTerm?: string;
 }
 
 export interface GetAssignmentsByDestinationParams {
@@ -75,6 +77,8 @@ export interface GetAssignmentsByDestinationParams {
   estadoAsignacion?: 'activa' | 'devuelta' | '';
   fechaDesde?: string;
   fechaHasta?: string;
+  searchTerm?: string;
+  tipoDispositivo?: string;
 }
 
 // 🔧 SOLUCIÓN BIGINT: Función utilitaria para convertir bigint a number de forma segura
@@ -108,15 +112,6 @@ const sanitizeStockAlertItem = (item: any): StockAlertItem => {
   };
 };
 
-// 🔧 SOLUCIÓN BIGINT: Función para sanitizar AssignmentReportItem
-const sanitizeAssignmentReportItem = (item: any): AssignmentReportItem => {
-  return {
-    ...item,
-    id: convertBigIntToNumber(item.id),
-    dias_asignado: convertBigIntToNumber(item.dias_asignado),
-    TotalRows: convertBigIntToNumber(item.TotalRows),
-  };
-};
 
 export const getInventoryReport = async (params: GetInventoryReportParams = {}): Promise<PaginatedInventoryReport> => {
   try {
@@ -211,23 +206,35 @@ export const getAssignmentsByDestination = async (params: GetAssignmentsByDestin
   try {
     const response = await api.get('/reports/assignments-by-destination', { params });
     
-    // Verificar estructura de respuesta
-    if (!response.data || !response.data.data) {
+    // Verificar estructura de respuesta - el backend devuelve directamente { success, items, totalItems, totalPages, currentPage }
+    if (!response.data || !response.data.items) {
       console.error('Estructura de respuesta inesperada:', response.data);
       throw new Error('Estructura de respuesta inválida del servidor');
     }
     
-    const { items, stats, pagination } = response.data.data;
-    
-    // Sanitizar items para convertir bigint a number
-    const sanitizedItems = items.map(sanitizeAssignmentReportItem);
+    // Sanitizar items para convertir bigint a number y manejar case sensitivity
+    const sanitizedItems = response.data.items.map((item: any) => ({
+      ...item,
+      id: convertBigIntToNumber(item.id),
+      tipo_asignacion: item.tipo_asignacion || '',
+      estado: item.estado || '',
+      fecha_asignacion: item.fecha_asignacion || '',
+      fecha_devolucion: item.fecha_devolucion || null,
+      destino_nombre: item.destino_nombre || '',
+      producto_nombre: item.producto_nombre || '',
+      tipo_inventario: item.tipo_inventario || '',
+      usuario_asigna: item.usuario_asigna || '',
+      usuario_recibe: item.usuario_recibe || null,
+      dias_asignado: convertBigIntToNumber(item.dias_asignado),
+      TotalRows: convertBigIntToNumber(item.TotalRows),
+    }));
     
     return {
       items: sanitizedItems,
-      stats: stats || [],
-      totalItems: pagination.totalItems || 0,
-      totalPages: pagination.totalPages || 0,
-      currentPage: pagination.page || 1,
+      stats: [],
+      totalItems: response.data.totalItems || 0,
+      totalPages: response.data.totalPages || 0,
+      currentPage: response.data.currentPage || 1,
     };
   } catch (error) {
     console.error('Error fetching assignments by destination report:', error);

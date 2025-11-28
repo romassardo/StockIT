@@ -474,7 +474,7 @@ export interface PaginatedFullInventoryReport {
 
 export interface PaginatedStockDisponibleReport {
   items: StockDisponibleReportItem[];
-  totalRecords: number;
+  totalItems: number;
   totalPages: number;
   currentPage: number;
 }

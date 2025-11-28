@@ -11,7 +11,8 @@ CREATE PROCEDURE sp_Report_StockDisponible(
     IN p_FilterType VARCHAR(50),
     IN p_FilterCategoria VARCHAR(100),
     IN p_SortBy VARCHAR(50),
-    IN p_SortOrder VARCHAR(4)
+    IN p_SortOrder VARCHAR(4),
+    IN p_SearchTerm VARCHAR(100)
 )
 BEGIN
     DECLARE v_offset INT;
@@ -58,6 +59,12 @@ BEGIN
         FROM StockDisponibleAgrupado
         WHERE (p_FilterType IS NULL OR TipoInventario = p_FilterType)
           AND (p_FilterCategoria IS NULL OR Categoria = p_FilterCategoria)
+          AND (p_SearchTerm IS NULL OR p_SearchTerm = '' OR
+               marca LIKE CONCAT('%', p_SearchTerm, '%') OR
+               modelo LIKE CONCAT('%', p_SearchTerm, '%') OR
+               Categoria LIKE CONCAT('%', p_SearchTerm, '%') OR
+               descripcion LIKE CONCAT('%', p_SearchTerm, '%')
+          )
     )
     SELECT 
         *,
