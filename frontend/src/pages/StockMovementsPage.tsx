@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Filter, ChevronLeft, ChevronRight, TrendingUp, TrendingDown, 
   Calendar, User, Building, MapPin, Search, Package, RefreshCw,
-  Download, ShieldCheck, ArrowRight
+  Download, ShieldCheck
 } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { stockService, MovimientoStock, StockMovementsFilters } from '../services/stock.service';

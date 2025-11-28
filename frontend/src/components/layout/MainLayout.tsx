@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Outlet, useLocation, useNavigate, Link } from 'react-router-dom';
 import { 
-  FiMenu, FiX, FiLogOut, FiSun, FiMoon, FiBell, FiSettings,
+  FiMenu, FiX, FiLogOut, FiSun, FiMoon,
   FiPackage, FiList, FiFileText, FiTool, FiSearch, FiHome, FiChevronDown
 } from 'react-icons/fi';
-import { Package } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useNotification } from '../../contexts/NotificationContext';

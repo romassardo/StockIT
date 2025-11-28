@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { AlertTriangle, AlertCircle, Package, RefreshCw, Search, ArrowRight } from 'lucide-react';
+import { AlertTriangle, AlertCircle, Package, RefreshCw, Search } from 'lucide-react';
 import { stockService, AlertaStock, AlertsResponse } from '../../services/stock.service';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useNotification } from '../../contexts/NotificationContext';
@@ -26,7 +26,7 @@ const StockAlertsModal: React.FC<StockAlertsModalProps> = ({
   const [loading, setLoading] = useState(false);
 
   // Estados de filtros
-  const [showOnlyCritical, setShowOnlyCritical] = useState(false);
+  const [showOnlyCritical] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState<'all' | 'critical' | 'low'>('all');
 

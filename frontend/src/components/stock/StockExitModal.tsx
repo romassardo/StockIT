@@ -181,8 +181,9 @@ const StockExitModal: React.FC<StockExitModalProps> = ({
       if (isNaN(cantidad) || cantidad <= 0) throw new Error('La cantidad debe ser un número positivo');
 
       const selectedProduct = products.find(p => p.producto_id === parseInt(formData.producto_id));
-      if (selectedProduct && cantidad > selectedProduct.cantidad_actual) {
-        throw new Error(`Stock insuficiente. Disponible: ${selectedProduct.cantidad_actual}`);
+      const currentStock = selectedProduct?.cantidad_actual || 0;
+      if (selectedProduct && cantidad > currentStock) {
+        throw new Error(`Stock insuficiente. Disponible: ${currentStock}`);
       }
 
       const motivoFinal = formData.motivo === 'Otro motivo' ? formData.motivo_personalizado.trim() : formData.motivo.trim();
