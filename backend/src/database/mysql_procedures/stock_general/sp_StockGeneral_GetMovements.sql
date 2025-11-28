@@ -22,7 +22,7 @@ BEGIN
     DECLARE v_offset INT;
     DECLARE v_page_size INT;
 
-    SET v_page_size = IF(p_PageSize < 1 OR p_PageSize IS NULL, 50, LEAST(p_PageSize, 100));
+    SET v_page_size = IF(p_PageSize < 1 OR p_PageSize IS NULL, 50, LEAST(p_PageSize, 10000));
     SET v_offset = (IF(p_PageNumber < 1 OR p_PageNumber IS NULL, 1, p_PageNumber) - 1) * v_page_size;
 
     IF p_fecha_hasta IS NOT NULL THEN

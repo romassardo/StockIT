@@ -61,21 +61,30 @@ export class StockController {
         motivo: body.motivo
       });
 
-      const [results] = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>(
-        'sp_StockGeneral_Entry',
+      // El SP tiene parámetros OUT, usamos variables de sesión de MySQL
+      const pool = this.db.getPool();
+      
+      // Llamar al SP con parámetros OUT usando variables de sesión
+      await pool.query(
+        `CALL sp_StockGeneral_Entry(?, ?, ?, ?, ?, @movimiento_id, @stock_id, @stock_actual, @mensaje)`,
         [
           body.producto_id,
           body.cantidad,
-          usuario_id,
           body.motivo || 'Entrada manual',
           body.observaciones || null,
-          body.ubicacion || null
+          usuario_id
         ]
       );
-
-      // MySQL devuelve un array, verificamos si hay resultados
-      if (!Array.isArray(results) || results.length === 0) {
-        logger.error('[STOCK_ENTRY] Error: No se pudo procesar la entrada de stock');
+      
+      // Obtener los valores de los parámetros OUT
+      const [outParams] = await pool.query<mysql.RowDataPacket[]>(
+        'SELECT @movimiento_id as movimiento_id, @stock_id as stock_id, @stock_actual as stock_actual, @mensaje as mensaje'
+      );
+      
+      const result = outParams[0];
+      
+      if (!result) {
+        logger.error('[STOCK_ENTRY] Error: No se obtuvieron resultados del SP');
         res.status(500).json({
           success: false,
           message: 'Error al procesar la entrada de stock'
@@ -83,23 +92,22 @@ export class StockController {
         return;
       }
 
-      const result = results[0];
       logger.info(`[STOCK_ENTRY] Entrada de stock procesada exitosamente`, {
         producto_id: body.producto_id,
         cantidad: body.cantidad,
-        nuevo_stock: result.nuevo_stock
+        nuevo_stock: result.stock_actual
       });
 
       res.status(201).json({
         success: true,
-        message: 'Entrada de stock registrada exitosamente',
+        message: result.mensaje || 'Entrada de stock registrada exitosamente',
         data: {
           producto_id: body.producto_id,
           cantidad: body.cantidad,
-          stock_anterior: result.stock_anterior,
-          stock_actual: result.nuevo_stock,
+          stock_actual: result.stock_actual,
           movimiento_id: result.movimiento_id
-        }
+        },
+        stockActual: result.stock_actual
       });
 
     } catch (error: any) {
@@ -156,21 +164,27 @@ export class StockController {
         sucursal_id: body.sucursal_id
       });
 
+      // Orden correcto del SP: producto_id, cantidad, motivo, empleado_id, sector_id, sucursal_id, observaciones, usuario_id
       const [results] = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>(
         'sp_StockGeneral_Exit',
         [
           body.producto_id,
           body.cantidad,
-          usuario_id,
+          body.motivo,
           body.empleado_id || null,
           body.sector_id || null,
           body.sucursal_id || null,
-          body.motivo,
-          body.observaciones || null
+          body.observaciones || null,
+          usuario_id
         ]
       );
 
-      if (!Array.isArray(results) || results.length === 0) {
+      // El SP retorna un SELECT, extraemos el primer resultado
+      const resultData = Array.isArray(results) && Array.isArray(results[0]) 
+        ? results[0][0]  // MySQL devuelve [[data], OkPacket]
+        : (Array.isArray(results) ? results[0] : null);
+
+      if (!resultData) {
         logger.error('[STOCK_EXIT] Error: No se pudo procesar la salida de stock');
         res.status(500).json({
           success: false,
@@ -179,22 +193,22 @@ export class StockController {
         return;
       }
 
-      const result = results[0];
       logger.info(`[STOCK_EXIT] Salida de stock procesada exitosamente`, {
         producto_id: body.producto_id,
         cantidad: body.cantidad,
-        nuevo_stock: result.nuevo_stock
+        nuevo_stock: resultData.stock_actual
       });
 
       res.status(200).json({
         success: true,
-        message: 'Salida de stock registrada exitosamente',
+        message: resultData.mensaje || 'Salida de stock registrada exitosamente',
+        stockActual: resultData.stock_actual,
+        alertaBajoStock: resultData.alerta_bajo_stock,
         data: {
           producto_id: body.producto_id,
           cantidad: body.cantidad,
-          stock_anterior: result.stock_anterior,
-          stock_actual: result.nuevo_stock,
-          movimiento_id: result.movimiento_id
+          stock_actual: resultData.stock_actual,
+          movimiento_id: resultData.movimiento_id
         }
       });
 
@@ -220,8 +234,12 @@ export class StockController {
         ]
       );
       
-      const stockItems = Array.isArray(results) ? results : [];
+      // MySQL SPs devuelven [dataRows, OkPacket], necesitamos extraer dataRows
+      const stockItems = Array.isArray(results) && Array.isArray(results[0]) 
+        ? results[0]
+        : (Array.isArray(results) ? results : []);
       console.log(`✅ Se encontraron ${stockItems.length} items de stock actual`);
+      console.log('📦 Primeros 2 items:', stockItems.slice(0, 2));
 
       res.json({
         success: true,
@@ -254,8 +272,12 @@ export class StockController {
         ]
       );
       
-      const stockItems = Array.isArray(results) ? results : [];
-      console.log(`Se encontraron ${stockItems.length} items de stock`);
+      // MySQL SPs devuelven [dataRows, OkPacket], necesitamos extraer dataRows
+      const stockItems = Array.isArray(results) && Array.isArray(results[0]) 
+        ? results[0]  // El primer elemento es el array de datos
+        : (Array.isArray(results) ? results : []);
+      console.log(`✅ Se encontraron ${stockItems.length} items de stock`);
+      console.log('📦 Primeros 2 items:', stockItems.slice(0, 2));
 
       // ENVOLVER LA RESPUESTA EN UN OBJETO
       res.json({
@@ -283,16 +305,25 @@ export class StockController {
         categoria_id, solo_criticos
       });
 
+      // CORRECCIÓN: El SP sp_StockGeneral_GetLowStock solo acepta 1 parámetro (categoria_id)
+      // El filtrado de 'solo_criticos' se hará en memoria si es necesario
       const [results] = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>(
         'sp_StockGeneral_GetLowStock',
         [
-          categoria_id ? parseInt(categoria_id as string) : null,
-          solo_criticos === 'true'
+          categoria_id ? parseInt(categoria_id as string) : null
         ]
       );
 
-      const alerts = Array.isArray(results) ? results : [];
-      console.log(`✅ Se encontraron ${alerts.length} alertas de stock bajo`);
+      // MySQL SPs devuelven [dataRows, OkPacket], necesitamos extraer dataRows
+      let alerts = Array.isArray(results) && Array.isArray(results[0]) 
+        ? results[0]
+        : (Array.isArray(results) ? results : []);
+      console.log(`✅ Se encontraron ${alerts.length} alertas de stock bajo (bruto)`);
+
+      // Si se solicitó solo críticos, filtrar aquí
+      if (solo_criticos === 'true') {
+        alerts = alerts.filter((item: any) => item.cantidad_actual === 0);
+      }
 
       // Clasificar alertas por criticidad
       const criticalAlerts = alerts.filter((item: any) => item.cantidad_actual === 0);
@@ -378,7 +409,10 @@ export class StockController {
         ]
       );
 
-      const movements = Array.isArray(results) ? results : [];
+      // MySQL SPs devuelven [dataRows, OkPacket], necesitamos extraer dataRows
+      const movements = Array.isArray(results) && Array.isArray(results[0]) 
+        ? results[0]
+        : (Array.isArray(results) ? results : []);
       console.log(`✅ Se encontraron ${movements.length} movimientos de stock`);
 
       res.json({

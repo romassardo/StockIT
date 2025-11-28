@@ -47,7 +47,7 @@ export class DatabaseConnection {
     return DatabaseConnection.instance;
   }
 
-  private getPool (): mysql.Pool {
+  public getPool (): mysql.Pool {
     if (this.pool === null) {
       try {
         logger.info(`[DB_GETPOOL_DEBUG] Creando nuevo pool de conexiones para MySQL...`);

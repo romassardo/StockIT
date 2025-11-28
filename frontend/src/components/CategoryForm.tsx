@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { FiX, FiGrid, FiSave, FiAlertCircle, FiFolder } from 'react-icons/fi';
-import Loading from './common/Loading';
-import { productService, CategoryCreateData } from '../services/product.service';
+import { X, Folder, Save } from 'lucide-react';
+import { CategoryCreateData } from '../services/product.service';
 import { useNotification } from '../contexts/NotificationContext';
 
 interface Category {
@@ -44,8 +43,6 @@ export const CategoryForm: React.FC<CategoryFormProps> = ({
     permite_reparacion: false
   });
 
-  const [errors, setErrors] = useState<Record<string, string>>({});
-
   // Inicializar formulario si estamos editando
   useEffect(() => {
     if (category) {
@@ -64,30 +61,29 @@ export const CategoryForm: React.FC<CategoryFormProps> = ({
     : categories.filter(c => c.categoria_padre_id === null);
 
   const validateForm = (): boolean => {
-    const newErrors: Record<string, string> = {};
-
     if (!formData.nombre?.trim()) {
-      newErrors.nombre = 'El nombre es obligatorio';
+      addNotification({ message: 'El nombre es obligatorio', type: 'error' });
+      return false;
     }
 
     // Validar longitud del nombre
     if (formData.nombre && formData.nombre.trim().length < 2) {
-      newErrors.nombre = 'El nombre debe tener al menos 2 caracteres';
+      addNotification({ message: 'El nombre debe tener al menos 2 caracteres', type: 'error' });
+      return false;
     }
 
     if (formData.nombre && formData.nombre.trim().length > 100) {
-      newErrors.nombre = 'El nombre no puede exceder 100 caracteres';
+      addNotification({ message: 'El nombre no puede exceder 100 caracteres', type: 'error' });
+      return false;
     }
 
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    return true;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!validateForm()) {
-      addNotification({ message: 'Por favor, corrige los errores en el formulario', type: 'error' });
       return;
     }
 
@@ -106,21 +102,6 @@ export const CategoryForm: React.FC<CategoryFormProps> = ({
       addNotification({ message: error.message || 'Error al procesar categoría', type: 'error' });
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleChange = (field: keyof CategoryCreateData, value: any) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
-
-    // Limpiar error del campo modificado
-    if (errors[field]) {
-      setErrors(prev => ({
-        ...prev,
-        [field]: ''
-      }));
     }
   };
 
@@ -149,7 +130,7 @@ export const CategoryForm: React.FC<CategoryFormProps> = ({
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <div className="p-2 bg-gradient-to-br from-indigo-500/20 to-purple-500/20 rounded-lg backdrop-blur-sm border border-indigo-400/20">
-                <FiFolder className="text-xl text-indigo-300" />
+                <Folder className="text-xl text-indigo-300" />
               </div>
               <div>
                 <h2 className="text-xl font-bold text-slate-50">
@@ -164,7 +145,7 @@ export const CategoryForm: React.FC<CategoryFormProps> = ({
               onClick={onClose}
               className="p-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 rounded-lg transition-all duration-200 hover:scale-105"
             >
-              <FiX className="text-xl" />
+              <X className="text-xl" />
             </button>
           </div>
         </div>
@@ -318,7 +299,7 @@ export const CategoryForm: React.FC<CategoryFormProps> = ({
                 </>
               ) : (
                 <>
-                  <FiSave className="text-lg" />
+                  <Save className="text-lg" />
                   <span>{category ? 'Actualizar' : 'Crear'} Categoría</span>
                 </>
               )}

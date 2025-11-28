@@ -8,7 +8,7 @@ interface ModalProps {
   onClose: () => void;
   title?: string;
   children: ReactNode;
-  size?: 'sm' | 'md' | 'lg' | 'xl'; // Tamaños predefinidos
+  size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl'; // Tamaños predefinidos
   className?: string; // Para personalización adicional
   zIndex?: number;
 }
@@ -49,8 +49,9 @@ const Modal: React.FC<ModalProps> = ({
   const sizeClasses = {
     sm: 'max-w-sm',
     md: 'max-w-md',
-    lg: 'max-w-lg',
-    xl: 'max-w-xl',
+    lg: 'max-w-2xl',
+    xl: 'max-w-5xl',
+    '2xl': 'max-w-7xl',
   };
 
   return (
@@ -63,7 +64,7 @@ const Modal: React.FC<ModalProps> = ({
     >
       {/* Fondo con backdrop-blur */} 
       <div 
-        className="fixed inset-0 bg-black/50 backdrop-blur-sm transition-opacity duration-300 ease-out-expo"
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300 ease-out-expo"
         onClick={onClose} 
         aria-hidden="true"
       ></div>
@@ -72,23 +73,23 @@ const Modal: React.FC<ModalProps> = ({
       <div
         className={`relative z-10 rounded-2xl shadow-2xl overflow-hidden transform transition-all duration-300 ease-out-expo \
                     ${isOpen ? 'scale-100 opacity-100' : 'scale-95 opacity-0'} \
-                    ${sizeClasses[size]} w-full \
+                    ${sizeClasses[size as keyof typeof sizeClasses] || sizeClasses.md} w-full \
                     ${theme === 'dark' 
-                      ? 'bg-slate-800/70 border border-slate-700/50 text-slate-100'
-                      : 'bg-white/70 border border-slate-300/50 text-slate-900'
-                    } backdrop-blur-lg ${className}`}
+                      ? 'bg-slate-900 border border-slate-800 text-slate-100'
+                      : 'bg-white border border-slate-200 text-slate-900'
+                    } ${className}`}
       >
         {/* Cabecera del Modal */} 
         {
           <div 
             className={`flex items-center justify-between p-5 border-b \
-                        ${theme === 'dark' ? 'border-slate-700/50' : 'border-slate-300/50'}`}
+                        ${theme === 'dark' ? 'border-slate-800' : 'border-slate-100'}`}
           >
             {title && (
               <h3 
                 id="modal-title" 
-                className={`text-xl font-semibold tracking-tight \
-                            ${theme === 'dark' ? 'text-slate-100' : 'text-slate-800'}`}
+                className={`text-lg font-bold tracking-tight \
+                            ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}
               >
                 {title}
               </h3>
@@ -98,8 +99,8 @@ const Modal: React.FC<ModalProps> = ({
               onClick={onClose}
               className={`p-2 rounded-lg transition-all duration-200 ease-out-expo \
                           ${theme === 'dark' 
-                            ? 'text-slate-400 hover:text-slate-100 hover:bg-slate-700/50' 
-                            : 'text-slate-500 hover:text-slate-800 hover:bg-slate-200/50'
+                            ? 'text-slate-400 hover:text-white hover:bg-slate-800' 
+                            : 'text-slate-400 hover:text-slate-900 hover:bg-slate-100'
                           }`}
               aria-label="Cerrar modal"
             >
@@ -108,8 +109,8 @@ const Modal: React.FC<ModalProps> = ({
           </div>
         }
 
-        {/* Cuerpo del Modal */} 
-        <div className="p-6 overflow-y-auto max-h-[70vh]">
+        {/* Cuerpo del Modal - Removemos padding fijo para permitir control total desde el hijo si es necesario */} 
+        <div className="overflow-y-auto max-h-[85vh]">
           {children}
         </div>
         

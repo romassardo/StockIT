@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { X, AlertTriangle, AlertCircle, Package, RefreshCw, Filter, Search } from 'lucide-react';
+import { AlertTriangle, AlertCircle, Package, RefreshCw, Search, ArrowRight } from 'lucide-react';
 import { stockService, AlertaStock, AlertsResponse } from '../../services/stock.service';
 import { useTheme } from '../../contexts/ThemeContext';
 import { useNotification } from '../../contexts/NotificationContext';
+import Modal from '../common/Modal';
 
 interface StockAlertsModalProps {
   isOpen: boolean;
@@ -79,332 +80,230 @@ const StockAlertsModal: React.FC<StockAlertsModalProps> = ({
     if (alert.cantidad_actual === 0) {
       return {
         level: 'critical',
-        color: 'text-danger-600',
-        bg: theme === 'dark' ? 'bg-danger-900/20 border-danger-500/30' : 'bg-danger-50 border-danger-200',
+        color: 'text-red-500',
+        bg: theme === 'dark' ? 'bg-red-500/10 border-red-500/20' : 'bg-red-50 border-red-100',
         icon: AlertCircle,
         label: 'Sin Stock'
       };
     } else if (alert.cantidad_actual <= alert.min_stock) {
       return {
         level: 'warning',
-        color: 'text-warning-600', 
-        bg: theme === 'dark' ? 'bg-warning-900/20 border-warning-500/30' : 'bg-warning-50 border-warning-200',
+        color: 'text-amber-500', 
+        bg: theme === 'dark' ? 'bg-amber-500/10 border-amber-500/20' : 'bg-amber-50 border-amber-100',
         icon: AlertTriangle,
         label: 'Stock Bajo'
       };
     }
     return {
       level: 'normal',
-      color: 'text-success-600',
-      bg: theme === 'dark' ? 'bg-success-900/20 border-success-500/30' : 'bg-success-50 border-success-200',
+      color: 'text-emerald-500',
+      bg: theme === 'dark' ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-emerald-50 border-emerald-100',
       icon: Package,
       label: 'Normal'
     };
   };
 
-  // Formatear porcentaje
+  // Formatear porcentaje con seguridad contra NaN
   const formatPercentage = (percentage: number) => {
+    if (isNaN(percentage) || percentage === null || percentage === undefined) return '0%';
     return `${Math.round(percentage)}%`;
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      {/* 🌌 ORBES DE FONDO OBLIGATORIOS */}
-      <div className={`fixed inset-0 pointer-events-none transition-all duration-300 ${
-        theme === 'dark' 
-          ? 'bg-gradient-to-br from-slate-900/95 via-slate-800/90 to-slate-900/95' 
-          : 'bg-gradient-to-br from-slate-50/95 via-slate-100/90 to-slate-200/95'
-      }`}>
-        {/* Orbe 1: Top-left - Primary */}
-        <div className={`absolute top-20 left-10 w-32 h-32 rounded-full blur-xl animate-float transition-all duration-300 ${
-          theme === 'dark' ? 'bg-primary-500/20' : 'bg-primary-500/10'
-        }`}></div>
+    <Modal isOpen={isOpen} onClose={onClose} title="Alertas de Stock" size="xl">
+      <div className="p-6 space-y-6">
         
-        {/* Orbe 2: Top-right - Secondary */}
-        <div className={`absolute top-40 right-20 w-24 h-24 rounded-full blur-lg animate-float transition-all duration-300 ${
-          theme === 'dark' ? 'bg-secondary-500/20' : 'bg-secondary-500/10'
-        }`} style={{animationDelay: '2s'}}></div>
-        
-        {/* Orbe 3: Bottom-left - Success */}
-        <div className={`absolute bottom-32 left-1/4 w-20 h-20 rounded-full blur-lg animate-float transition-all duration-300 ${
-          theme === 'dark' ? 'bg-success-500/20' : 'bg-success-500/10'
-        }`} style={{animationDelay: '4s'}}></div>
-        
-        {/* Orbe 4: Bottom-right - Info */}
-        <div className={`absolute bottom-20 right-1/3 w-28 h-28 rounded-full blur-xl animate-float transition-all duration-300 ${
-          theme === 'dark' ? 'bg-info-500/20' : 'bg-info-500/10'
-        }`} style={{animationDelay: '1s'}}></div>
-      </div>
-
-      <div className={`
-        w-full max-w-5xl max-h-[90vh] overflow-hidden
-        backdrop-filter backdrop-blur-20 border border-white/20
-        ${theme === 'dark' 
-          ? 'bg-slate-800/90 text-slate-100' 
-          : 'bg-white/90 text-slate-900'
-        }
-        rounded-3xl shadow-glass animate-glassAppear
-      `}>
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-white/10">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 rounded-xl bg-gradient-to-r from-warning-500 to-danger-500">
-              <AlertTriangle className="w-6 h-6 text-white" />
+        {/* 1. KPI Cards Resumen */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className={`
+            relative overflow-hidden rounded-2xl p-5 border transition-all duration-300 hover:scale-[1.02]
+            ${theme === 'dark' ? 'bg-slate-800/50 border-slate-700' : 'bg-white border-slate-200 shadow-sm'}
+          `}>
+            <div className="absolute top-0 right-0 p-4 opacity-10">
+              <AlertCircle className="w-16 h-16 text-red-500" />
             </div>
-            <div>
-              <h2 className="text-2xl font-bold bg-gradient-to-r from-warning-500 to-danger-500 bg-clip-text text-transparent">
-                Alertas de Stock
-              </h2>
-              <p className="text-sm opacity-75">
-                {alertsData.summary.total} productos requieren atención
+            <div className="relative z-10">
+              <p className="text-sm font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Sin Stock</p>
+              <h3 className="text-3xl font-bold text-red-500 mt-1">{alertsData.summary.critical}</h3>
+              <p className="text-xs text-red-500/80 font-medium mt-2 flex items-center gap-1">
+                <AlertCircle className="w-3 h-3" /> Acción inmediata
               </p>
             </div>
           </div>
-          
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={loadAlerts}
-              disabled={loading}
-              className={`
-                p-2 rounded-xl transition-all duration-200 hover:scale-105
-                ${theme === 'dark' 
-                  ? 'bg-slate-700/50 text-slate-300 hover:bg-slate-600/50' 
-                  : 'bg-slate-100/50 text-slate-600 hover:bg-slate-200/50'
-                }
-                disabled:opacity-50 disabled:cursor-not-allowed
-              `}
-            >
-              <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
-            </button>
-            
-            <button
-              onClick={onClose}
-              className={`
-                p-2 rounded-xl transition-all duration-200 hover:scale-105
-                ${theme === 'dark' 
-                  ? 'bg-slate-700/50 text-slate-300 hover:bg-slate-600/50' 
-                  : 'bg-slate-100/50 text-slate-600 hover:bg-slate-200/50'
-                }
-              `}
-            >
-              <X className="w-5 h-5" />
-            </button>
+
+          <div className={`
+            relative overflow-hidden rounded-2xl p-5 border transition-all duration-300 hover:scale-[1.02]
+            ${theme === 'dark' ? 'bg-slate-800/50 border-slate-700' : 'bg-white border-slate-200 shadow-sm'}
+          `}>
+            <div className="absolute top-0 right-0 p-4 opacity-10">
+              <AlertTriangle className="w-16 h-16 text-amber-500" />
+            </div>
+            <div className="relative z-10">
+              <p className="text-sm font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Stock Bajo</p>
+              <h3 className="text-3xl font-bold text-amber-500 mt-1">{alertsData.summary.lowStock}</h3>
+              <p className="text-xs text-amber-500/80 font-medium mt-2 flex items-center gap-1">
+                <AlertTriangle className="w-3 h-3" /> Planificar reposición
+              </p>
+            </div>
+          </div>
+
+          <div className={`
+            relative overflow-hidden rounded-2xl p-5 border transition-all duration-300 hover:scale-[1.02]
+            ${theme === 'dark' ? 'bg-slate-800/50 border-slate-700' : 'bg-white border-slate-200 shadow-sm'}
+          `}>
+            <div className="absolute top-0 right-0 p-4 opacity-10">
+              <Package className="w-16 h-16 text-indigo-500" />
+            </div>
+            <div className="relative z-10">
+              <p className="text-sm font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Total Alertas</p>
+              <h3 className="text-3xl font-bold text-indigo-500 mt-1">{alertsData.summary.total}</h3>
+              <p className="text-xs text-indigo-500/80 font-medium mt-2 flex items-center gap-1">
+                <RefreshCw className="w-3 h-3" /> Actualizado ahora
+              </p>
+            </div>
           </div>
         </div>
 
-        {/* Resumen de alertas */}
+        {/* 2. Filtros y Búsqueda */}
+        <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+          <div className={`
+            flex p-1 rounded-xl border
+            ${theme === 'dark' ? 'bg-slate-800 border-slate-700' : 'bg-slate-100 border-slate-200'}
+          `}>
+            {[
+              { id: 'all', label: 'Todas' },
+              { id: 'critical', label: 'Críticas' },
+              { id: 'low', label: 'Stock Bajo' }
+            ].map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as any)}
+                className={`
+                  px-4 py-2 rounded-lg text-sm font-bold transition-all duration-200
+                  ${activeTab === tab.id
+                    ? 'bg-indigo-500 text-white shadow-md'
+                    : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+                  }
+                `}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="relative w-full sm:w-64">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
+            <input
+              type="text"
+              placeholder="Buscar producto..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className={`
+                w-full pl-10 pr-4 py-2.5 rounded-xl border outline-none transition-all font-medium text-sm
+                ${theme === 'dark' 
+                  ? 'bg-slate-800 border-slate-700 text-slate-200 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50' 
+                  : 'bg-white border-slate-200 text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500/50'
+                }
+              `}
+            />
+          </div>
+        </div>
+
+        {/* 3. Lista de Alertas */}
         <div className={`
-          p-4 border-b border-white/10
-          ${theme === 'dark' ? 'bg-slate-900/30' : 'bg-slate-50/30'}
+          rounded-2xl border overflow-hidden min-h-[300px] max-h-[400px] overflow-y-auto custom-scrollbar
+          ${theme === 'dark' ? 'bg-slate-900/50 border-slate-700' : 'bg-slate-50/50 border-slate-200'}
         `}>
-          <div className="grid grid-cols-3 gap-4">
-            <div className={`
-              p-4 rounded-2xl border backdrop-filter backdrop-blur-10
-              ${theme === 'dark' 
-                ? 'bg-danger-900/20 border-danger-500/30' 
-                : 'bg-danger-50 border-danger-200'
-              }
-            `}>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-danger-600 mb-1">
-                  {alertsData.summary.critical}
-                </div>
-                <div className="text-sm font-medium text-danger-600">Sin Stock</div>
-              </div>
-            </div>
-            
-            <div className={`
-              p-4 rounded-2xl border backdrop-filter backdrop-blur-10
-              ${theme === 'dark' 
-                ? 'bg-warning-900/20 border-warning-500/30' 
-                : 'bg-warning-50 border-warning-200'
-              }
-            `}>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-warning-600 mb-1">
-                  {alertsData.summary.lowStock}
-                </div>
-                <div className="text-sm font-medium text-warning-600">Stock Bajo</div>
-              </div>
-            </div>
-            
-            <div className={`
-              p-4 rounded-2xl border backdrop-filter backdrop-blur-10
-              ${theme === 'dark' 
-                ? 'bg-primary-900/20 border-primary-500/30' 
-                : 'bg-primary-50 border-primary-200'
-              }
-            `}>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-primary-600 mb-1">
-                  {alertsData.summary.total}
-                </div>
-                <div className="text-sm font-medium text-primary-600">Total Alertas</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Filtros y tabs */}
-        <div className="p-4 border-b border-white/10">
-          <div className="flex items-center justify-between mb-4">
-            {/* Tabs */}
-            <div className="flex space-x-1">
-              <button
-                onClick={() => setActiveTab('all')}
-                className={`
-                  px-4 py-2 rounded-xl font-medium transition-all duration-200
-                  ${activeTab === 'all'
-                    ? 'bg-primary-500 text-white shadow-primary'
-                    : theme === 'dark'
-                      ? 'bg-slate-700/50 text-slate-300 hover:bg-slate-600/50'
-                      : 'bg-slate-100/50 text-slate-600 hover:bg-slate-200/50'
-                  }
-                `}
-              >
-                Todas ({alertsData.summary.total})
-              </button>
-              <button
-                onClick={() => setActiveTab('critical')}
-                className={`
-                  px-4 py-2 rounded-xl font-medium transition-all duration-200
-                  ${activeTab === 'critical'
-                    ? 'bg-danger-500 text-white shadow-danger'
-                    : theme === 'dark'
-                      ? 'bg-slate-700/50 text-slate-300 hover:bg-slate-600/50'
-                      : 'bg-slate-100/50 text-slate-600 hover:bg-slate-200/50'
-                  }
-                `}
-              >
-                Críticas ({alertsData.summary.critical})
-              </button>
-              <button
-                onClick={() => setActiveTab('low')}
-                className={`
-                  px-4 py-2 rounded-xl font-medium transition-all duration-200
-                  ${activeTab === 'low'
-                    ? 'bg-warning-500 text-white shadow-warning'
-                    : theme === 'dark'
-                      ? 'bg-slate-700/50 text-slate-300 hover:bg-slate-600/50'
-                      : 'bg-slate-100/50 text-slate-600 hover:bg-slate-200/50'
-                  }
-                `}
-              >
-                Stock Bajo ({alertsData.summary.lowStock})
-              </button>
-            </div>
-
-            {/* Búsqueda */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
-              <input
-                type="text"
-                placeholder="Buscar productos..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className={`
-                  pl-10 pr-4 py-2 rounded-xl border border-white/20
-                  backdrop-filter backdrop-blur-10 w-64
-                  ${theme === 'dark' 
-                    ? 'bg-slate-800/50 text-slate-100' 
-                    : 'bg-white/50 text-slate-900'
-                  }
-                  focus:ring-2 focus:ring-primary-500 focus:border-transparent
-                `}
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Lista de alertas */}
-        <div className="flex-1 overflow-auto p-6">
           {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500"></div>
-              <span className="ml-3">Cargando alertas...</span>
+            <div className="flex flex-col items-center justify-center h-64 space-y-4">
+              <div className="w-10 h-10 border-4 border-slate-200 border-t-indigo-500 rounded-full animate-spin"></div>
+              <p className="text-slate-500 font-medium">Analizando inventario...</p>
             </div>
           ) : filteredAlerts.length === 0 ? (
-            <div className="text-center py-12">
-              <AlertTriangle className="w-16 h-16 mx-auto opacity-50 mb-4" />
-              <p className="text-lg font-medium opacity-75">
-                {searchTerm 
-                  ? 'No se encontraron productos que coincidan con la búsqueda'
-                  : activeTab === 'all'
-                    ? '¡Excelente! No hay alertas de stock'
-                    : activeTab === 'critical'
-                      ? 'No hay productos sin stock'
-                      : 'No hay productos con stock bajo'
-                }
+            <div className="flex flex-col items-center justify-center h-64 text-center p-8">
+              <div className={`p-4 rounded-full mb-4 ${theme === 'dark' ? 'bg-slate-800 text-slate-600' : 'bg-white text-slate-300 shadow-sm'}`}>
+                <Package className="w-12 h-12" />
+              </div>
+              <h3 className={`text-lg font-bold mb-1 ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
+                ¡Todo bajo control!
+              </h3>
+              <p className="text-slate-500 text-sm max-w-xs">
+                No se encontraron alertas que coincidan con tus filtros actuales.
               </p>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="divide-y divide-slate-200 dark:divide-slate-700/50">
               {filteredAlerts.map((alert) => {
                 const alertLevel = getAlertLevel(alert);
                 const Icon = alertLevel.icon;
                 
                 return (
-                  <div
+                  <div 
                     key={alert.producto_id}
                     className={`
-                      p-4 rounded-2xl border backdrop-filter backdrop-blur-10 ${alertLevel.bg}
-                      hover:scale-[1.02] transition-all duration-200
+                      p-4 flex items-center justify-between group transition-colors
+                      ${theme === 'dark' ? 'hover:bg-slate-800/50' : 'hover:bg-white'}
                     `}
                   >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-4">
-                        <div className={`
-                          p-2 rounded-xl 
-                          ${alert.cantidad_actual === 0 
-                            ? 'bg-danger-500/20 text-danger-600' 
-                            : 'bg-warning-500/20 text-warning-600'
-                          }
-                        `}>
-                          <Icon className="w-5 h-5" />
-                        </div>
-                        
-                        <div>
-                          <h4 className="font-semibold">
-                            {alert.nombre_marca} {alert.nombre_producto}
-                          </h4>
-                          <p className="text-sm opacity-75">{alert.nombre_categoria}</p>
-                          <div className="flex items-center space-x-4 text-xs opacity-50 mt-1">
-                            <span>Stock Mínimo: {alert.min_stock}</span>
-                            <span>Diferencia: {alert.diferencia}</span>
-                          </div>
-                        </div>
+                    <div className="flex items-center gap-4">
+                      <div className={`
+                        w-12 h-12 rounded-xl flex items-center justify-center shrink-0
+                        ${alertLevel.bg}
+                      `}>
+                        <Icon className={`w-6 h-6 ${alertLevel.color}`} />
                       </div>
                       
-                      <div className="text-right">
-                        <div className={`text-2xl font-bold ${alertLevel.color} mb-1`}>
-                          {alert.cantidad_actual}
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h4 className={`font-bold text-base ${theme === 'dark' ? 'text-slate-200' : 'text-slate-800'}`}>
+                            {alert.nombre_marca} {alert.nombre_producto}
+                          </h4>
+                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${
+                            alertLevel.level === 'critical' 
+                              ? 'border-red-500/30 text-red-500 bg-red-500/10' 
+                              : 'border-amber-500/30 text-amber-500 bg-amber-500/10'
+                          }`}>
+                            {alertLevel.label}
+                          </span>
                         </div>
-                        <div className={`text-sm font-medium ${alertLevel.color} mb-1`}>
-                          {alertLevel.label}
-                        </div>
-                        {alert.cantidad_actual > 0 && (
-                          <div className="text-xs opacity-50">
-                            {formatPercentage(alert.porcentaje_disponible)} del mínimo
-                          </div>
-                        )}
+                        <p className="text-sm text-slate-500 font-medium mb-1">{alert.nombre_categoria}</p>
                         
-                        {/* Barra de progreso */}
-                        <div className="w-24 h-2 bg-slate-200 dark:bg-slate-700 rounded-full mt-2 overflow-hidden">
-                          <div 
-                            className={`h-full transition-all duration-500 ${
-                              alert.cantidad_actual === 0 
-                                ? 'bg-danger-500' 
-                                : alert.cantidad_actual <= alert.min_stock
-                                  ? 'bg-warning-500'
-                                  : 'bg-success-500'
-                            }`}
-                            style={{ 
-                              width: `${Math.min(100, Math.max(0, (alert.cantidad_actual / Math.max(alert.min_stock, 1)) * 100))}%` 
-                            }}
-                          />
+                        <div className="flex items-center gap-4 text-xs text-slate-500">
+                          <span className="flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+                            Mínimo: <span className="font-mono font-bold">{alert.min_stock}</span>
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <span className="w-1.5 h-1.5 rounded-full bg-slate-400"></span>
+                            Faltante: <span className="font-mono font-bold">{alert.diferencia}</span>
+                          </span>
                         </div>
+                      </div>
+                    </div>
+
+                    <div className="text-right pl-4">
+                      <div className="mb-2">
+                        <span className={`text-2xl font-bold font-mono ${alertLevel.color}`}>
+                          {alert.cantidad_actual}
+                        </span>
+                        <span className="text-xs text-slate-500 font-medium ml-1">unid.</span>
+                      </div>
+                      
+                      {/* Barra de Progreso Mini */}
+                      <div className="w-32 h-1.5 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden mb-1 ml-auto">
+                        <div 
+                          className={`h-full rounded-full transition-all duration-500 ${
+                            alert.cantidad_actual === 0 ? 'bg-red-500' : 'bg-amber-500'
+                          }`}
+                          style={{ 
+                            width: `${Math.min(100, Math.max(5, (alert.cantidad_actual / Math.max(alert.min_stock, 1)) * 100))}%` 
+                          }}
+                        />
+                      </div>
+                      <div className="text-[10px] font-medium text-slate-400">
+                        {formatPercentage(alert.porcentaje_disponible)} disponible
                       </div>
                     </div>
                   </div>
@@ -414,18 +313,25 @@ const StockAlertsModal: React.FC<StockAlertsModalProps> = ({
           )}
         </div>
 
-        {/* Footer con resumen */}
-        {filteredAlerts.length > 0 && (
-          <div className="flex items-center justify-between p-6 border-t border-white/10">
-            <div className="text-sm opacity-75">
-              Mostrando {filteredAlerts.length} de {alertsData.summary.total} alertas
-              {searchTerm && ` para "${searchTerm}"`}
-            </div>
-          </div>
-        )}
       </div>
-    </div>
+
+      {/* Footer Actions */}
+      <div className="flex justify-end pt-6 border-t border-slate-200 dark:border-slate-700 mt-6">
+        <button
+          onClick={onClose}
+          className={`
+            px-6 py-2.5 rounded-xl text-sm font-bold transition-all
+            ${theme === 'dark' 
+              ? 'bg-slate-800 text-slate-300 hover:bg-slate-700 hover:text-white' 
+              : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900'
+            }
+          `}
+        >
+          Cerrar
+        </button>
+      </div>
+    </Modal>
   );
 };
 
-export default StockAlertsModal; 
+export default StockAlertsModal;

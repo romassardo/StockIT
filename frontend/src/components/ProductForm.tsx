@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { FiX, FiPackage, FiSave } from 'react-icons/fi';
+import { X, Package, Save } from 'lucide-react';
 import { productService, ProductCreateData } from '../services/product.service';
 import { useNotification } from '../contexts/NotificationContext';
 
@@ -189,7 +189,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <div className="p-2 bg-gradient-to-br from-indigo-500/20 to-purple-500/20 rounded-lg backdrop-blur-sm border border-indigo-400/20">
-                <FiPackage className="text-xl text-indigo-300" />
+                <Package className="text-xl text-indigo-300" />
               </div>
               <div>
                 <h2 className="text-xl font-bold text-slate-50">
@@ -204,7 +204,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
               onClick={onClose}
               className="p-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 rounded-lg transition-all duration-200 hover:scale-105"
             >
-              <FiX className="text-xl" />
+              <X className="text-xl" />
             </button>
           </div>
         </div>
@@ -368,7 +368,7 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                 </>
               ) : (
                 <>
-                  <FiSave className="text-lg" />
+                  <Save className="text-lg" />
                   <span>{product ? 'Actualizar' : 'Crear'} Producto</span>
                 </>
               )}

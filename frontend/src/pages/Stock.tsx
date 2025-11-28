@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Package, TrendingDown, AlertTriangle, Search, BarChart3, RefreshCw, History, Plus, Minus } from 'lucide-react';
+import { Package, TrendingDown, AlertTriangle, Search, BarChart3, RefreshCw, Plus, Minus } from 'lucide-react';
 import { stockService, ProductoStock } from '../services/stock.service';
 import StockEntryModal from '../components/stock/StockEntryModal';
 import StockExitModal from '../components/stock/StockExitModal';
-import StockMovementsModal from '../components/stock/StockMovementsModal';
 import StockAlertsModal from '../components/stock/StockAlertsModal';
 import { useTheme } from '../contexts/ThemeContext';
 import { useNotification } from '../contexts/NotificationContext';
@@ -19,7 +18,6 @@ const Stock: React.FC = () => {
   // Estados de UI
   const [showStockEntry, setShowStockEntry] = useState(false);
   const [showStockExit, setShowStockExit] = useState(false);
-  const [showMovementsModal, setShowMovementsModal] = useState(false);
   const [showAlertsModal, setShowAlertsModal] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<ProductoStock | null>(null);
 
@@ -57,7 +55,7 @@ const Stock: React.FC = () => {
   // Estadísticas computadas con memoización
   const stats = useMemo(() => {
     const totalProductos = productos.length;
-    const totalUnidades = productos.reduce((sum, p) => sum + p.cantidad_actual, 0);
+    const totalUnidades = productos.reduce((sum, p) => sum + (Number(p.cantidad_actual) || 0), 0);
     const alertasActivas = productos.filter(p => p.cantidad_actual <= p.min_stock).length;
     const sinStock = productos.filter(p => p.cantidad_actual === 0).length;
 
@@ -108,24 +106,24 @@ const Stock: React.FC = () => {
 
   const totalPages = Math.ceil(filteredProductos.length / itemsPerPage);
 
-  // Función para obtener el estado visual del stock - usando colores del design system (estáticos)
+  // Función para obtener el estado visual del stock
   const getStockStatus = (cantidad: number, minimo: number) => {
     if (cantidad === 0) return { 
       status: 'empty', 
-      color: 'text-danger-600', 
-      bg: theme === 'dark' ? 'bg-danger-900/20 border-danger-500/30' : 'bg-danger-50 border-danger-200', 
+      color: 'text-red-500', 
+      bg: 'bg-red-500/10 border-red-500/20', 
       label: 'Sin Stock' 
     };
     if (cantidad <= minimo) return { 
       status: 'low', 
-      color: 'text-warning-600', 
-      bg: theme === 'dark' ? 'bg-warning-900/20 border-warning-500/30' : 'bg-warning-50 border-warning-200', 
+      color: 'text-amber-500', 
+      bg: 'bg-amber-500/10 border-amber-500/20', 
       label: 'Bajo Mínimo' 
     };
     return { 
       status: 'normal', 
-      color: 'text-success-600', 
-      bg: theme === 'dark' ? 'bg-success-900/20 border-success-500/30' : 'bg-success-50 border-success-200', 
+      color: 'text-emerald-500', 
+      bg: 'bg-emerald-500/10 border-emerald-500/20', 
       label: 'Stock Normal' 
     };
   };
@@ -148,7 +146,6 @@ const Stock: React.FC = () => {
   };
 
   const handleEntrySuccess = (updatedProduct: { producto_id: number; stock_actual: number }) => {
-    // Actualizar el estado localmente sin recargar todo
     setProductos(prevProductos =>
       prevProductos.map(p =>
         p.producto_id === updatedProduct.producto_id
@@ -184,7 +181,7 @@ const Stock: React.FC = () => {
     setCurrentPage(1);
   };
 
-  // Categorías únicas para el filtro - usando Map para evitar duplicados
+  // Categorías únicas para el filtro
   const categorias = useMemo(() => {
     const categoriaMap = new Map();
     
@@ -202,45 +199,11 @@ const Stock: React.FC = () => {
 
   if (loading) {
     return (
-      <div className={`min-h-screen flex items-center justify-center ${
-        theme === 'dark' ? 'bg-slate-900' : 'bg-slate-50'
-      }`}>
-        {/* Partículas de fondo animadas - Consistente con Login */}
-        <div className="bg-particles">
-          {Array.from({ length: 50 }).map((_, i) => (
-            <div
-              key={i}
-              className="particle"
-              style={{
-                left: `${Math.random() * 100}%`,
-                top: `${Math.random() * 100}%`,
-                width: `${Math.random() * 8 + 4}px`,
-                height: `${Math.random() * 8 + 4}px`,
-                animationDelay: `${Math.random() * 6}s`,
-                opacity: Math.random() * 0.3 + 0.1,
-              }}
-            />
-          ))}
-        </div>
-        
-        <div className="text-center space-y-6">
-          {/* Shimmer Loading con Glassmorphism */}
-          <div className="space-y-4">
-            <div className="skeleton-glass h-16 w-64 mx-auto rounded-2xl"></div>
-            <div className="skeleton-glass h-4 w-48 mx-auto rounded-lg"></div>
-            <div className="grid grid-cols-4 gap-4 mt-8">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="skeleton-glass h-20 w-40 rounded-xl" style={{ animationDelay: `${i * 0.1}s` }}></div>
-              ))}
-            </div>
-            <div className="grid grid-cols-2 gap-4 mt-6">
-              {Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="skeleton-glass h-32 w-48 rounded-xl" style={{ animationDelay: `${i * 0.15}s` }}></div>
-              ))}
-            </div>
-          </div>
-          <p className={theme === 'dark' ? 'text-slate-300' : 'text-slate-600'}>
-            Cargando datos del stock...
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center space-y-4">
+          <div className="w-16 h-16 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+          <p className={`text-lg font-medium ${theme === 'dark' ? 'text-slate-300' : 'text-slate-600'}`}>
+            Cargando inventario...
           </p>
         </div>
       </div>
@@ -248,381 +211,327 @@ const Stock: React.FC = () => {
   }
 
   return (
-    <div className={`min-h-screen transition-all duration-300 ${
-      theme === 'dark' 
-        ? 'bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900' 
-        : 'bg-gradient-to-br from-slate-50 via-gray-50 to-slate-100'
-    }`}>
-      {/* 🌌 Fondo moderno con orbes animados - OPTIMIZADO SIN PARPADEO */}
-      <div className={`fixed inset-0 pointer-events-none ${
-        theme === 'dark' 
-          ? 'bg-gradient-to-br from-slate-900/95 via-slate-800/90 to-slate-900/95' 
-          : 'bg-gradient-to-br from-slate-50/95 via-slate-100/90 to-slate-200/95'
-      }`}>
-        <div className={`absolute top-20 left-10 w-32 h-32 rounded-full blur-xl animate-float ${
-          theme === 'dark' 
-            ? 'bg-primary-500/20' 
-            : 'bg-primary-500/10'
-        }`}></div>
-        <div className={`absolute top-40 right-20 w-24 h-24 rounded-full blur-lg animate-float ${
-          theme === 'dark' 
-            ? 'bg-secondary-500/20' 
-            : 'bg-secondary-500/10'
-        }`} style={{animationDelay: '2s'}}></div>
-        <div className={`absolute bottom-32 left-1/4 w-20 h-20 rounded-full blur-lg animate-float ${
-          theme === 'dark' 
-            ? 'bg-success-500/20' 
-            : 'bg-success-500/10'
-        }`} style={{animationDelay: '4s'}}></div>
-        <div className={`absolute bottom-20 right-1/3 w-28 h-28 rounded-full blur-xl animate-float ${
-          theme === 'dark' 
-            ? 'bg-info-500/20' 
-            : 'bg-info-500/10'
-        }`} style={{animationDelay: '1s'}}></div>
-      </div>
-
-      <div className="relative z-20 p-6 max-w-7xl mx-auto">
-        
-        {/* Header Compacto - OPTIMIZADO SIN PARPADEO */}
-        <div className={`glass-card p-4 mb-4 ${theme === 'dark' ? 'glass-dark' : ''}`}>
-          
-          {/* Línea 1: Título + Pestañas + Botones */}
-          <div className="flex items-center justify-between mb-4">
-            {/* 🎯 HEADER ESTÁNDAR MODERN DESIGN SYSTEM 2025 */}
-            <div className="flex items-center space-x-4">
-              <Package className={`w-8 h-8 text-primary-500`} strokeWidth={2.5} />
-              <div>
-                <h1 className={`text-2xl md:text-5xl font-bold bg-gradient-to-r from-primary-600 via-primary-500 to-secondary-500 bg-clip-text text-transparent`}>
-                  Stock General
-                </h1>
-                <p className={`text-sm mt-1 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
-                  Control por cantidad • {filteredProductos.length} productos activos
-                </p>
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-4">
-              {/* Pestañas */}
-              <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-1">
-                <button
-                  className="px-3 py-1.5 rounded-md text-sm font-medium bg-primary-500 text-white shadow-sm flex items-center gap-1.5"
-                >
-                  <Package className="w-3.5 h-3.5" strokeWidth={2.5} />
-                  Stock
-                </button>
-                <button
-                  onClick={() => setShowMovementsModal(true)}
-                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200 flex items-center gap-1.5 hover-gradient ${
-                    theme === 'dark' ? 'text-slate-300 hover:bg-slate-700' : 'text-slate-600 hover:bg-white'
-                  }`}
-                >
-                  <History className="w-3.5 h-3.5" strokeWidth={2.5} />
-                  Movimientos
-                </button>
-                <button
-                  onClick={() => setShowAlertsModal(true)}
-                  className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200 flex items-center gap-1.5 hover-gradient ${
-                    theme === 'dark' ? 'text-slate-300 hover:bg-slate-700' : 'text-slate-600 hover:bg-white'
-                  }`}
-                >
-                  <AlertTriangle className="w-3.5 h-3.5" strokeWidth={2.5} />
-                  Alertas
-                  {stats.alertasActivas > 0 && (
-                    <span className="bg-warning-500 text-white text-xs px-1 py-0.5 rounded-full text-[10px] animate-pulse-glow">
-                      {stats.alertasActivas}
-                    </span>
-                  )}
-                </button>
-              </div>
-
-              {/* 🎯 BOTONES GLASS MODERN DESIGN SYSTEM 2025 */}
-              <div className="flex gap-2">
-                <button
-                  onClick={() => handleOpenEntry()}
-                  className="btn-glass-primary-modern flex items-center gap-2"
-                >
-                  <Plus className="w-4 h-4" strokeWidth={2.5} />
-                  Entrada
-                </button>
-                <button
-                  onClick={loadStockData}
-                  className="btn-glass-secondary-modern flex items-center gap-2"
-                >
-                  <RefreshCw className="w-4 h-4" strokeWidth={2.5} />
-                  Actualizar
-                </button>
-              </div>
-            </div>
+    <div className={`min-h-screen transition-all duration-300 ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
+      
+      {/* Header Principal */}
+      <header className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+        <div>
+          <div className="flex items-center gap-3 mb-1">
+             <div className="p-2 rounded-xl bg-indigo-500/10 text-indigo-500">
+               <Package size={24} />
+             </div>
+             <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-500 to-purple-600">
+               Stock General
+             </h1>
           </div>
-
-          {/* Línea 2: Estadísticas - OPTIMIZADO SIN PARPADEO */}
-          <div className="grid grid-cols-4 gap-3 mb-4">
-            {[
-              { icon: Package, label: 'Productos', value: stats.totalProductos, color: 'primary', pulse: false },
-              { icon: BarChart3, label: 'Unidades', value: stats.totalUnidades.toLocaleString(), color: 'success', pulse: false },
-              { icon: AlertTriangle, label: 'Alertas', value: stats.alertasActivas, color: 'warning', pulse: stats.alertasActivas > 0 },
-              { icon: TrendingDown, label: 'Sin Stock', value: stats.sinStock, color: 'danger', pulse: stats.sinStock > 0 }
-            ].map((stat, index) => {
-              // Mapeo de colores estáticos para evitar clases dinámicas
-              const colorMap = {
-                primary: {
-                  bg: theme === 'dark' ? 'bg-primary-900/30' : 'bg-primary-50',
-                  icon: 'text-primary-500',
-                  text: 'text-primary-600'
-                },
-                success: {
-                  bg: theme === 'dark' ? 'bg-success-900/30' : 'bg-success-50',
-                  icon: 'text-success-500',
-                  text: 'text-success-600'
-                },
-                warning: {
-                  bg: theme === 'dark' ? 'bg-warning-900/30' : 'bg-warning-50',
-                  icon: 'text-warning-500',
-                  text: 'text-warning-600'
-                },
-                danger: {
-                  bg: theme === 'dark' ? 'bg-danger-900/30' : 'bg-danger-50',
-                  icon: 'text-danger-500',
-                  text: 'text-danger-600'
-                }
-              };
-              
-              const colors = colorMap[stat.color as keyof typeof colorMap];
-              
-              return (
-                <div 
-                  key={index}
-                  className={`glass-card-static p-3 rounded-lg hover-lift ${
-                    theme === 'dark' ? 'glass-dark' : ''
-                  } ${stat.pulse ? 'animate-pulse-glow' : ''}`}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-lg ${colors.bg}`}>
-                      <stat.icon className={`w-5 h-5 ${colors.icon}`} strokeWidth={2.5} />
-                    </div>
-                    <div>
-                      <p className={`text-xs font-medium ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
-                        {stat.label}
-                      </p>
-                      <p className={`text-lg font-bold ${
-                        stat.pulse && typeof stat.value === 'number' && stat.value > 0 
-                          ? colors.text
-                          : (theme === 'dark' ? 'text-white' : 'text-slate-900')
-                      }`}>
-                        {stat.value}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Línea 3: Filtros distribuidos de punta a punta */}
-          {(
-            <div className="flex items-center justify-between gap-4">
-              {/* 🎯 INPUT GLASS MODERN DESIGN SYSTEM 2025 */}
-              <div className="relative flex-1 max-w-xs">
-                <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 w-3.5 h-3.5 text-slate-400" strokeWidth={2.5} />
-                <input
-                  type="text"
-                  placeholder="Buscar producto..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="input-glass w-full pl-8 pr-3 py-1.5"
-                />
-              </div>
-              
-              <div className="flex gap-1 flex-1 max-w-2xl">
-                <select
-                  value={categoryFilter}
-                  onChange={(e) => setCategoryFilter(e.target.value)}
-                  className="input-glass px-3 py-1.5 flex-1"
-                >
-                  <option value="">Todas las categorías</option>
-                  {categorias.map(cat => (
-                    <option key={cat.id} value={cat.id.toString()}>{cat.nombre}</option>
-                  ))}
-                </select>
-
-                <select
-                  value={stockFilter}
-                  onChange={(e) => setStockFilter(e.target.value as 'all' | 'low' | 'normal' | 'empty')}
-                  className="input-glass px-3 py-1.5 flex-1"
-                >
-                  <option value="all">Todos los estados</option>
-                  <option value="normal">Stock Normal</option>
-                  <option value="low">Bajo Mínimo</option>
-                  <option value="empty">Sin Stock</option>
-                </select>
-              </div>
-
-              <div className="flex gap-2">
-                <select
-                  value={itemsPerPage.toString()}
-                  onChange={(e) => setItemsPerPage(parseInt(e.target.value))}
-                  className="input-glass px-2 py-1.5 w-16"
-                >
-                  <option value="25">25</option>
-                  <option value="50">50</option>
-                  <option value="100">100</option>
-                </select>
-
-                <button
-                  onClick={clearFilters}
-                  className="btn-glass-secondary-modern text-sm font-medium whitespace-nowrap"
-                >
-                  Limpiar
-                </button>
-              </div>
-            </div>
-          )}
+          <p className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
+            Control de cantidades y movimientos de productos
+          </p>
         </div>
 
-        {/* Contenido por pestañas */}
-        {(
-          <>
-            {/* Tabla de productos con design system */}
-            <div className={`glass-card-static overflow-hidden ${theme === 'dark' ? 'glass-dark' : ''}`}>
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
-                  <thead className={theme === 'dark' ? 'bg-slate-800/50' : 'bg-slate-50/50'}>
-                    <tr>
-                      <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
-                        theme === 'dark' ? 'text-slate-300' : 'text-slate-500'
-                      }`}>
-                        Modelo
-                      </th>
-                      <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
-                        theme === 'dark' ? 'text-slate-300' : 'text-slate-500'
-                      }`}>
-                        Marca
-                      </th>
-                      <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
-                        theme === 'dark' ? 'text-slate-300' : 'text-slate-500'
-                      }`}>
-                        Categoría
-                      </th>
-                      <th className={`px-6 py-3 text-center text-xs font-medium uppercase tracking-wider ${
-                        theme === 'dark' ? 'text-slate-300' : 'text-slate-500'
-                      }`}>
-                        Stock Actual
-                      </th>
-                      <th className={`px-6 py-3 text-center text-xs font-medium uppercase tracking-wider ${
-                        theme === 'dark' ? 'text-slate-300' : 'text-slate-500'
-                      }`}>
-                        Acciones
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className={`divide-y ${theme === 'dark' ? 'divide-slate-700' : 'divide-slate-200'}`}>
-                    {paginatedProductos.map((producto) => {
-                      const stockStatus = getStockStatus(producto.cantidad_actual, producto.min_stock);
-                      
-                      return (
-                        <tr key={producto.producto_id} className={`transition-colors duration-200 ${
-                          theme === 'dark' ? 'hover:bg-slate-700/50' : 'hover:bg-slate-50'
-                        }`}>
-                          <td className={`px-6 py-4 whitespace-nowrap ${theme === 'dark' ? 'text-slate-100' : 'text-slate-900'}`}>
-                            <div className="font-medium">
-                              {producto.nombre_producto}
-                            </div>
-                          </td>
-                          <td className={`px-6 py-4 whitespace-nowrap ${theme === 'dark' ? 'text-slate-100' : 'text-slate-900'}`}>
-                            <div className="font-medium">
-                              {producto.nombre_marca}
-                            </div>
-                          </td>
-                          <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-slate-300' : 'text-slate-600'}`}>
-                            {producto.nombre_categoria}
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-center">
-                            <span className={`text-lg font-semibold ${stockStatus.color}`}>
-                              {producto.cantidad_actual}
-                            </span>
-                                                <div className={`text-xs mt-1 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
-                      Mín: {producto.min_stock}
-                    </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-center">
-                            <div className="flex justify-center gap-2">
-                              <button
-                                onClick={() => handleOpenEntry(producto)}
-                                className="btn-glass-success-modern flex items-center gap-1 px-3 py-1 text-sm"
-                              >
-                                <Plus className="w-3 h-3" strokeWidth={2.5} />
-                                Entrada
-                              </button>
-                              <button
-                                onClick={() => handleOpenExit(producto)}
-                                disabled={producto.cantidad_actual === 0}
-                                className={`px-3 py-1 text-sm flex items-center gap-1 ${
-                                  producto.cantidad_actual === 0
-                                    ? 'btn-glass-disabled'
-                                    : 'btn-glass-danger-modern'
-                                }`}
-                              >
-                                <Minus className="w-3 h-3" strokeWidth={2.5} />
-                                Salida
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowAlertsModal(true)}
+            className={`px-4 py-2 rounded-xl border font-medium text-sm transition-all flex items-center gap-2 relative ${
+              theme === 'dark' 
+                ? 'border-slate-700 hover:bg-slate-800 text-slate-300' 
+                : 'border-slate-200 hover:bg-slate-50 text-slate-600'
+            }`}
+          >
+            <AlertTriangle size={18} className={stats.alertasActivas > 0 ? 'text-amber-500' : ''} /> 
+            Alertas
+            {stats.alertasActivas > 0 && (
+              <span className="absolute -top-1 -right-1 w-5 h-5 bg-amber-500 text-white text-xs flex items-center justify-center rounded-full shadow-sm">
+                {stats.alertasActivas}
+              </span>
+            )}
+          </button>
+          <button 
+            onClick={() => handleOpenEntry()}
+            className="px-4 py-2 rounded-xl bg-indigo-600 text-white font-bold text-sm hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/30 flex items-center gap-2"
+          >
+            <Plus size={18} /> Entrada Manual
+          </button>
+        </div>
+      </header>
+
+      {/* Estadísticas Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        {[
+          { 
+            label: 'Productos Totales', 
+            value: stats.totalProductos, 
+            icon: Package, 
+            color: 'bg-indigo-500',
+            bg: theme === 'dark' ? 'bg-indigo-500/10' : 'bg-indigo-50'
+          },
+          { 
+            label: 'Unidades en Stock', 
+            value: stats.totalUnidades.toLocaleString(), 
+            icon: BarChart3, 
+            color: 'bg-emerald-500',
+            bg: theme === 'dark' ? 'bg-emerald-500/10' : 'bg-emerald-50'
+          },
+          { 
+            label: 'Alertas de Stock', 
+            value: stats.alertasActivas, 
+            icon: AlertTriangle, 
+            color: 'bg-amber-500',
+            bg: theme === 'dark' ? 'bg-amber-500/10' : 'bg-amber-50'
+          },
+          { 
+            label: 'Sin Stock', 
+            value: stats.sinStock, 
+            icon: TrendingDown, 
+            color: 'bg-red-500',
+            bg: theme === 'dark' ? 'bg-red-500/10' : 'bg-red-50'
+          }
+        ].map((stat, index) => (
+          <div 
+            key={index} 
+            className={`
+              relative overflow-hidden rounded-2xl p-5 transition-all hover:scale-[1.02]
+              ${theme === 'dark' 
+                ? 'bg-slate-900/60 border border-slate-700/50 backdrop-blur-xl' 
+                : 'bg-white/80 border border-slate-200/60 shadow-xl shadow-slate-200/20 backdrop-blur-xl'
+              }
+            `}
+          >
+            <div className="flex items-start justify-between">
+              <div>
+                <p className={`text-sm font-medium mb-1 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
+                  {stat.label}
+                </p>
+                <h3 className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>
+                  {stat.value}
+                </h3>
               </div>
-
-              {/* Paginación */}
-              {totalPages > 1 && (
-                <div className={`px-6 py-3 border-t ${
-                  theme === 'dark' 
-                    ? 'border-slate-700 bg-slate-800/20' 
-                    : 'border-slate-200 bg-slate-50/50'
-                }`}>
-                  <div className="flex items-center justify-between">
-                    <div className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
-                      Mostrando {Math.min(filteredProductos.length, itemsPerPage)} de {filteredProductos.length} productos
-                    </div>
-                    
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                        disabled={currentPage === 1}
-                        className={`${
-                          currentPage === 1
-                            ? 'btn-glass-disabled'
-                            : 'btn-glass-secondary-modern'
-                        } px-3 py-1 text-sm`}
-                      >
-                        Anterior
-                      </button>
-                      
-                      <span className={`px-3 py-1 text-sm font-medium ${theme === 'dark' ? 'text-slate-300' : 'text-slate-600'}`}>
-                        {currentPage} de {totalPages}
-                      </span>
-                      
-                      <button
-                        onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                        disabled={currentPage === totalPages}
-                        className={`${
-                          currentPage === totalPages
-                            ? 'btn-glass-disabled'
-                            : 'btn-glass-secondary-modern'
-                        } px-3 py-1 text-sm`}
-                      >
-                        Siguiente
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
+              <div className={`p-3 rounded-xl ${stat.bg}`}>
+                <stat.icon size={20} className={stat.color.replace('bg-', 'text-')} />
+              </div>
             </div>
-          </>
+          </div>
+        ))}
+      </div>
+
+      {/* Barra de Filtros */}
+      <div className={`
+        p-4 rounded-2xl mb-6 flex flex-col lg:flex-row gap-4 justify-between items-center
+        ${theme === 'dark' 
+          ? 'bg-slate-900/60 border border-slate-700/50 backdrop-blur-xl' 
+          : 'bg-white/80 border border-slate-200/60 shadow-xl shadow-slate-200/20 backdrop-blur-xl'
+        }
+      `}>
+        <div className="w-full lg:w-96 relative">
+          <Search className={`absolute left-3 top-1/2 -translate-y-1/2 ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`} size={18} />
+          <input
+            type="text"
+            placeholder="Buscar por nombre, marca o categoría..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className={`
+              w-full pl-10 pr-4 py-2.5 rounded-xl text-sm outline-none transition-all border
+              ${theme === 'dark' 
+                ? 'bg-slate-800/50 border-slate-700 focus:border-indigo-500 text-white placeholder-slate-500' 
+                : 'bg-slate-50 border-slate-200 focus:border-indigo-500 text-slate-800 placeholder-slate-400'
+              }
+            `}
+          />
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+          <select
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
+            className={`
+              px-4 py-2.5 rounded-xl text-sm outline-none border cursor-pointer
+              ${theme === 'dark' 
+                ? 'bg-slate-800/50 border-slate-700 text-slate-200 focus:border-indigo-500' 
+                : 'bg-slate-50 border-slate-200 text-slate-700 focus:border-indigo-500'
+              }
+            `}
+          >
+            <option value="">Todas las categorías</option>
+            {categorias.map(cat => (
+              <option key={cat.id} value={cat.id.toString()}>{cat.nombre}</option>
+            ))}
+          </select>
+
+          <select
+            value={stockFilter}
+            onChange={(e) => setStockFilter(e.target.value as any)}
+            className={`
+              px-4 py-2.5 rounded-xl text-sm outline-none border cursor-pointer
+              ${theme === 'dark' 
+                ? 'bg-slate-800/50 border-slate-700 text-slate-200 focus:border-indigo-500' 
+                : 'bg-slate-50 border-slate-200 text-slate-700 focus:border-indigo-500'
+              }
+            `}
+          >
+            <option value="all">Todos los estados</option>
+            <option value="normal">Stock Normal</option>
+            <option value="low">Bajo Mínimo</option>
+            <option value="empty">Sin Stock</option>
+          </select>
+
+          <div className="flex gap-2">
+            <button 
+              onClick={loadStockData}
+              className={`p-2.5 rounded-xl border transition-colors ${theme === 'dark' ? 'border-slate-700 hover:bg-slate-800 text-slate-400' : 'border-slate-200 hover:bg-slate-100 text-slate-500'}`}
+              title="Actualizar"
+            >
+              <RefreshCw size={18} />
+            </button>
+            {(searchTerm || categoryFilter || stockFilter !== 'all') && (
+              <button
+                onClick={clearFilters}
+                className="px-4 py-2.5 rounded-xl bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-sm font-medium hover:opacity-80 transition-opacity"
+              >
+                Limpiar
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Tabla de Stock */}
+      <div className={`
+        rounded-2xl overflow-hidden border
+        ${theme === 'dark' 
+          ? 'bg-slate-900/60 border-slate-700/50 backdrop-blur-xl' 
+          : 'bg-white/80 border-slate-200/60 shadow-xl shadow-slate-200/20 backdrop-blur-xl'
+        }
+      `}>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className={`text-xs uppercase tracking-wider font-semibold border-b ${theme === 'dark' ? 'text-slate-400 border-slate-700 bg-slate-800/30' : 'text-slate-500 border-slate-200 bg-slate-50/50'}`}>
+                <th className="px-6 py-4">Producto</th>
+                <th className="px-6 py-4">Categoría</th>
+                <th className="px-6 py-4 text-center">Estado Stock</th>
+                <th className="px-6 py-4 text-center">Cantidad</th>
+                <th className="px-6 py-4 text-right">Acciones</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-200 dark:divide-slate-700/50">
+              {paginatedProductos.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-6 py-12 text-center text-slate-500">
+                    <div className="flex flex-col items-center justify-center">
+                      <Package size={48} className="mb-4 opacity-20" />
+                      <p className="text-lg font-medium">No se encontraron productos</p>
+                      <p className="text-sm">Intenta ajustar los filtros o buscar otro término</p>
+                    </div>
+                  </td>
+                </tr>
+              ) : (
+                paginatedProductos.map((producto, index) => {
+                  const stockStatus = getStockStatus(producto.cantidad_actual, producto.min_stock);
+                  return (
+                    <tr 
+                      key={`${producto.producto_id}-${index}`}
+                      className={`group transition-colors ${theme === 'dark' ? 'hover:bg-slate-800/50' : 'hover:bg-slate-50'}`}
+                    >
+                      <td className="px-6 py-4">
+                        <div className="flex flex-col">
+                          <span className={`font-bold ${theme === 'dark' ? 'text-slate-200' : 'text-slate-800'}`}>
+                            {producto.nombre_producto}
+                          </span>
+                          <span className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>
+                            {producto.nombre_marca}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-sm opacity-80">
+                        {producto.nombre_categoria}
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${stockStatus.bg} ${stockStatus.color}`}>
+                          {stockStatus.label}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        <div className="flex flex-col items-center">
+                          <span className={`text-lg font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
+                            {producto.cantidad_actual}
+                          </span>
+                          <span className="text-[10px] text-slate-400">
+                            Min: {producto.min_stock}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <button
+                            onClick={() => handleOpenEntry(producto)}
+                            className="p-2 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 transition-colors"
+                            title="Agregar Stock"
+                          >
+                            <Plus size={18} />
+                          </button>
+                          <button
+                            onClick={() => handleOpenExit(producto)}
+                            disabled={producto.cantidad_actual === 0}
+                            className={`p-2 rounded-lg transition-colors ${
+                              producto.cantidad_actual === 0 
+                                ? 'opacity-30 cursor-not-allowed text-slate-400' 
+                                : 'hover:bg-red-50 dark:hover:bg-red-900/20 text-red-600 dark:text-red-400'
+                            }`}
+                            title="Registrar Salida"
+                          >
+                            <Minus size={18} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Paginación */}
+        {totalPages > 1 && (
+          <div className={`px-6 py-4 border-t flex items-center justify-between ${theme === 'dark' ? 'border-slate-700 bg-slate-800/30' : 'border-slate-200 bg-slate-50/50'}`}>
+            <span className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
+              Página {currentPage} de {totalPages} ({filteredProductos.length} items)
+            </span>
+            <div className="flex gap-2">
+              <select
+                value={itemsPerPage.toString()}
+                onChange={(e) => setItemsPerPage(parseInt(e.target.value))}
+                className={`px-2 py-1 rounded-lg text-sm border outline-none ${theme === 'dark' ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-white border-slate-200 text-slate-600'}`}
+              >
+                <option value="25">25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+              <button
+                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                disabled={currentPage === 1}
+                className={`px-3 py-1 rounded-lg text-sm border transition-all ${
+                  currentPage === 1 
+                    ? 'opacity-50 cursor-not-allowed border-transparent' 
+                    : theme === 'dark' ? 'border-slate-700 hover:bg-slate-800' : 'border-slate-200 hover:bg-white'
+                }`}
+              >
+                Anterior
+              </button>
+              <button
+                onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                disabled={currentPage === totalPages}
+                className={`px-3 py-1 rounded-lg text-sm border transition-all ${
+                  currentPage === totalPages 
+                    ? 'opacity-50 cursor-not-allowed border-transparent' 
+                    : theme === 'dark' ? 'border-slate-700 hover:bg-slate-800' : 'border-slate-200 hover:bg-white'
+                }`}
+              >
+                Siguiente
+              </button>
+            </div>
+          </div>
         )}
-
-
       </div>
 
       {/* Modales */}
@@ -644,13 +553,6 @@ const Stock: React.FC = () => {
         />
       )}
 
-      {/* Modal de Movimientos */}
-      <StockMovementsModal
-        isOpen={showMovementsModal}
-        onClose={() => setShowMovementsModal(false)}
-      />
-
-      {/* Modal de Alertas */}
       <StockAlertsModal
         isOpen={showAlertsModal}
         onClose={() => setShowAlertsModal(false)}

@@ -45,6 +45,7 @@ const navItems: NavItem[] = [
     submenu: [
       { to: '/stock', label: 'Stock General', Icon: FiPackage },
       { to: '/product-management', label: 'Productos', Icon: FiPackage },
+      { to: '/movements', label: 'Movimientos', Icon: FiList },
     ],
   },
   { to: '/reports', id: 'reports', label: 'Reportes', Icon: FiFileText },

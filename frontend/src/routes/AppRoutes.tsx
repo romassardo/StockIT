@@ -8,6 +8,8 @@ import Dashboard from '../pages/Dashboard';
 import Inventory from '../pages/Inventory';
 import Assignments from '../pages/Assignments';
 import Stock from '../pages/Stock';
+import StockMovementsPage from '../pages/StockMovementsPage';
+import ProductManagement from '../pages/ProductManagement';
 import { Navigate } from "react-router-dom";
 import RepairsPage from '../pages/RepairsPage';
 import Admin from '../pages/Admin';
@@ -19,7 +21,6 @@ import AssignmentsByEmployeeReport from '../pages/reports/AssignmentsByEmployeeR
 import AssignmentsBySectorReport from '../pages/reports/AssignmentsBySectorReport';
 import AssignmentsByBranchReport from '../pages/reports/AssignmentsByBranchReport';
 import RepairHistoryReport from '../pages/reports/RepairHistoryReport';
-import StockMovementsReport from '../pages/reports/StockMovementsReport';
 import NotFound from '../pages/NotFound';
 import AccessDenied from '../pages/AccessDenied';
 import MainLayout from '../components/layout/MainLayout';
@@ -43,6 +44,8 @@ const AppRoutes: React.FC = () => {
             <Route path="/assignments" element={<Assignments />} />
             <Route path="/repairs" element={<RepairsPage />} />
             <Route path="/stock" element={<Stock />} />
+            <Route path="/movements" element={<StockMovementsPage />} />
+            <Route path="/product-management" element={<ProductManagement />} />
             <Route path="/vault" element={<Vault />} />
             <Route path="/reports" element={<ReportsPage />} />
             <Route path="/reports/stock-alerts" element={<StockAlertsReport />} />
@@ -52,7 +55,6 @@ const AppRoutes: React.FC = () => {
             <Route path="/reports/assignments-branch" element={<AssignmentsByBranchReport />} />
             <Route path="/reports/repair-history" element={<RepairHistoryReport />} />
             <Route path="/reports/repairs" element={<NotFound />} />
-            <Route path="/reports/stock-movements" element={<StockMovementsReport />} />
             <Route path="/reports/performance" element={<NotFound />} />
           </Route>
           

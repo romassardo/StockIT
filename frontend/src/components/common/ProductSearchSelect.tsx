@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { FiSearch, FiChevronDown, FiX, FiPackage } from 'react-icons/fi';
+import { Search, ChevronDown, X, Package } from 'lucide-react';
 import { Product } from '../../types';
 
 interface ProductSearchSelectProps {
@@ -28,9 +28,10 @@ const ProductSearchSelect: React.FC<ProductSearchSelectProps> = ({
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
 
-  // Producto seleccionado
+  // Producto seleccionado - con verificación de id válido
   const selectedProduct = products.find(p => {
     const id = p.producto_id ?? p.id;
+    if (id === undefined || id === null) return false;
     return id.toString() === selectedProductId;
   });
 
@@ -133,6 +134,7 @@ const ProductSearchSelect: React.FC<ProductSearchSelectProps> = ({
 
   const handleProductSelect = (product: Product) => {
     const id = product.producto_id ?? product.id;
+    if (id === undefined || id === null) return;
     onProductSelect(id.toString());
     setIsOpen(false);
     setSearchTerm('');
@@ -163,7 +165,7 @@ const ProductSearchSelect: React.FC<ProductSearchSelectProps> = ({
       {/* Input de búsqueda */}
       <div className="relative">
         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-          <FiSearch className="h-5 w-5 text-slate-400" />
+          <Search className="h-5 w-5 text-slate-400" />
         </div>
         
         <input
@@ -187,10 +189,10 @@ const ProductSearchSelect: React.FC<ProductSearchSelectProps> = ({
               onClick={handleClearSelection}
               className="p-1 hover:bg-slate-200 dark:hover:bg-slate-600 rounded transition-colors mr-1"
             >
-              <FiX className="h-4 w-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300" />
+              <X className="h-4 w-4 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300" />
             </button>
           )}
-          <FiChevronDown 
+          <ChevronDown 
             className={`h-5 w-5 text-slate-400 transition-transform duration-200 ${
               isOpen ? 'rotate-180' : ''
             }`} 
@@ -202,7 +204,7 @@ const ProductSearchSelect: React.FC<ProductSearchSelectProps> = ({
       {selectedProduct && !isOpen && (
         <div className="mt-3 p-3 bg-slate-50/80 dark:bg-slate-800/50 rounded-lg border border-slate-200/50 dark:border-slate-700/50">
           <div className="flex items-center gap-2 mb-1">
-            <FiPackage className="h-4 w-4 text-slate-500" />
+            <Package className="h-4 w-4 text-slate-500" />
             <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
               {formatProductName(selectedProduct)}
             </p>
@@ -223,7 +225,7 @@ const ProductSearchSelect: React.FC<ProductSearchSelectProps> = ({
             <ul ref={listRef} className="py-1 overflow-y-auto max-h-60">
               {filteredProducts.map((product, index) => (
                 <li
-                  key={product.producto_id ?? product.id}
+                  key={product.producto_id ?? product.id ?? `product-${index}`}
                   onClick={() => handleProductSelect(product)}
                   className={`px-4 py-3 cursor-pointer transition-colors border-b border-slate-100 dark:border-slate-700 last:border-b-0 ${
                     index === highlightedIndex
@@ -251,7 +253,7 @@ const ProductSearchSelect: React.FC<ProductSearchSelectProps> = ({
             </ul>
           ) : (
             <div className="px-4 py-6 text-center">
-              <FiSearch className="mx-auto h-8 w-8 text-slate-400 mb-2" />
+              <Search className="mx-auto h-8 w-8 text-slate-400 mb-2" />
               <p className="text-sm text-slate-500 dark:text-slate-400">
                 No se encontraron productos
               </p>

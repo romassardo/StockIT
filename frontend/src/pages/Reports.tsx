@@ -188,7 +188,7 @@ const ReportsPage = () => {
             title="Auditoría de Movimientos"
             description="Historial de movimientos de stock"
             icon={FiList}
-            to="/reports/stock-movements"
+            to="/movements"
             color="primary"
           />
           <ReportCard

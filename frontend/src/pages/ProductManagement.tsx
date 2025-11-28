@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { FiPackage, FiPlus, FiEdit, FiToggleLeft, FiToggleRight, FiGrid, FiSearch } from 'react-icons/fi';
-import DataTable, { type Column } from '../components/common/DataTable';
+import { Package, Plus, Edit, Grid, Search, ToggleLeft, ToggleRight } from 'lucide-react';
 import Loading from '../components/common/Loading';
 import { ProductForm } from '../components/ProductForm';
 import { CategoryForm } from '../components/CategoryForm';
 import { productService } from '../services/product.service';
 import { useNotification } from '../contexts/NotificationContext';
+import { useTheme } from '../contexts/ThemeContext';
 
 interface Product {
   id: number;
@@ -40,6 +40,7 @@ interface Category {
 }
 
 const ProductManagement: React.FC = () => {
+  const { theme } = useTheme();
   const { addNotification } = useNotification();
   
   // Estados principales
@@ -54,7 +55,7 @@ const ProductManagement: React.FC = () => {
   const [totalItems, setTotalItems] = useState(0);
   const [itemsPerPage] = useState(25);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterCategory] = useState('');
+  const [filterCategory, setFilterCategory] = useState('');
   const [filterActive, setFilterActive] = useState('all');
   
   // Estados de formularios
@@ -73,8 +74,6 @@ const ProductManagement: React.FC = () => {
   }, [currentTab, currentPage, searchTerm, filterCategory, filterActive]);
 
   useEffect(() => {
-    // Cargar todas las categorías para los selectores de los formularios
-    // Se carga una sola vez, independientemente de la pestaña
     loadAllCategoriesForSelect();
   }, []);
 
@@ -134,12 +133,8 @@ const ProductManagement: React.FC = () => {
   const loadAllCategoriesForSelect = async () => {
     try {
       const response = await productService.getAllCategoriesForSelect();
-      
       if (response.success && response.data) {
         setAllCategoriesForSelect(response.data);
-      } else {
-        // Notificación silenciosa o de bajo perfil, para no molestar si solo falla el select
-        console.error('No se pudieron cargar las categorías para el selector');
       }
     } catch (error) {
       console.error('Error cargando categorías para selector:', error);
@@ -150,7 +145,6 @@ const ProductManagement: React.FC = () => {
   const handleCreateProduct = async (data: any) => {
     try {
       const response = await productService.createProduct(data);
-      
       if (response.success) {
         addNotification({ message: 'Producto creado exitosamente', type: 'success' });
         setShowProductForm(false);
@@ -159,7 +153,6 @@ const ProductManagement: React.FC = () => {
         addNotification({ message: response.message || 'Error al crear producto', type: 'error' });
       }
     } catch (error: any) {
-      console.error('Error creando producto:', error);
       addNotification({ message: error.message || 'Error al crear producto', type: 'error' });
     }
   };
@@ -171,10 +164,8 @@ const ProductManagement: React.FC = () => {
 
   const handleUpdateProduct = async (data: any) => {
     if (!editingProduct) return;
-    
     try {
       const response = await productService.updateProduct(editingProduct.id, data);
-      
       if (response.success) {
         addNotification({ message: 'Producto actualizado exitosamente', type: 'success' });
         setShowProductForm(false);
@@ -184,7 +175,6 @@ const ProductManagement: React.FC = () => {
         addNotification({ message: response.message || 'Error al actualizar producto', type: 'error' });
       }
     } catch (error: any) {
-      console.error('Error actualizando producto:', error);
       addNotification({ message: error.message || 'Error al actualizar producto', type: 'error' });
     }
   };
@@ -192,7 +182,6 @@ const ProductManagement: React.FC = () => {
   const handleToggleProductActive = async (product: Product) => {
     try {
       const response = await productService.toggleProductActive(product.id);
-      
       if (response.success) {
         const action = product.activo ? 'desactivado' : 'activado';
         addNotification({ message: `Producto ${action} exitosamente`, type: 'success' });
@@ -201,7 +190,6 @@ const ProductManagement: React.FC = () => {
         addNotification({ message: response.message || 'Error al cambiar estado del producto', type: 'error' });
       }
     } catch (error: any) {
-      console.error('Error cambiando estado del producto:', error);
       addNotification({ message: error.message || 'Error al cambiar estado del producto', type: 'error' });
     }
   };
@@ -210,7 +198,6 @@ const ProductManagement: React.FC = () => {
   const handleCreateCategory = async (data: any) => {
     try {
       const response = await productService.createCategory(data);
-      
       if (response.success) {
         addNotification({ message: 'Categoría creada exitosamente', type: 'success' });
         setShowCategoryForm(false);
@@ -219,7 +206,6 @@ const ProductManagement: React.FC = () => {
         addNotification({ message: response.message || 'Error al crear categoría', type: 'error' });
       }
     } catch (error: any) {
-      console.error('Error creando categoría:', error);
       addNotification({ message: error.message || 'Error al crear categoría', type: 'error' });
     }
   };
@@ -231,10 +217,8 @@ const ProductManagement: React.FC = () => {
 
   const handleUpdateCategory = async (data: any) => {
     if (!editingCategory) return;
-    
     try {
       const response = await productService.updateCategory(editingCategory.id, data);
-      
       if (response.success) {
         addNotification({ message: 'Categoría actualizada exitosamente', type: 'success' });
         setShowCategoryForm(false);
@@ -244,7 +228,6 @@ const ProductManagement: React.FC = () => {
         addNotification({ message: response.message || 'Error al actualizar categoría', type: 'error' });
       }
     } catch (error: any) {
-      console.error('Error actualizando categoría:', error);
       addNotification({ message: error.message || 'Error al actualizar categoría', type: 'error' });
     }
   };
@@ -252,7 +235,6 @@ const ProductManagement: React.FC = () => {
   const handleToggleCategoryActive = async (category: Category) => {
     try {
       const response = await productService.toggleCategoryActive(category.id);
-      
       if (response.success) {
         const action = category.activo ? 'desactivada' : 'activada';
         addNotification({ message: `Categoría ${action} exitosamente`, type: 'success' });
@@ -261,174 +243,9 @@ const ProductManagement: React.FC = () => {
         addNotification({ message: response.message || 'Error al cambiar estado de la categoría', type: 'error' });
       }
     } catch (error: any) {
-      console.error('Error cambiando estado de la categoría:', error);
       addNotification({ message: error.message || 'Error al cambiar estado de la categoría', type: 'error' });
     }
   };
-
-  // 🔧 CONFIGURACIÓN DE COLUMNAS PARA PRODUCTOS
-  const productColumns: Column<Product>[] = [
-    {
-      id: 'categoria_nombre',
-      accessor: (row: Product) => <span className="text-blue-300">{row.categoria_nombre}</span>,
-      header: 'Categoría',
-      sortable: true
-    },
-    {
-      id: 'marca',
-      accessor: (row: Product) => <span className="font-medium text-white">{row.marca}</span>,
-      header: 'Marca',
-      sortable: true
-    },
-    {
-      id: 'modelo',
-      accessor: (row: Product) => <span className="text-gray-300">{row.modelo}</span>,
-      header: 'Modelo',
-      sortable: true
-    },
-    {
-      id: 'activo',
-      accessor: (row: Product) => (
-        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-          row.activo 
-            ? 'bg-green-500/20 text-green-300 border border-green-500/30' 
-            : 'bg-red-500/20 text-red-300 border border-red-500/30'
-        }`}>
-          {row.activo ? 'Activo' : 'Inactivo'}
-        </span>
-      ),
-      header: 'Estado'
-    },
-    {
-      id: 'actions',
-      accessor: (row: Product) => (
-        <div className="flex items-center space-x-2">
-          <button
-            onClick={() => handleEditProduct(row)}
-            className="p-2 text-blue-400 hover:text-blue-300 hover:bg-blue-400/10 rounded-lg transition-colors"
-            title="Editar producto"
-          >
-            <FiEdit size={16} />
-          </button>
-          <button
-            onClick={() => handleToggleProductActive(row)}
-            className={`p-2 rounded-lg transition-colors ${
-              row.activo 
-                ? 'text-red-400 hover:text-red-300 hover:bg-red-400/10' 
-                : 'text-green-400 hover:text-green-300 hover:bg-green-400/10'
-            }`}
-            title={row.activo ? 'Desactivar producto' : 'Activar producto'}
-          >
-            {row.activo ? <FiToggleRight size={16} /> : <FiToggleLeft size={16} />}
-          </button>
-        </div>
-      ),
-      header: 'Acciones'
-    }
-  ];
-
-  // 🔧 CONFIGURACIÓN DE COLUMNAS PARA CATEGORÍAS
-  const categoryColumns: Column<Category>[] = [
-    {
-      id: 'nombre_categoria',
-      accessor: (row: Category) => (
-        <div style={{ paddingLeft: `${(row.nivel - 1) * 1.5}rem` }}>
-          <div className="flex items-center">
-            <span className="text-white font-medium">{row.nombre}</span>
-            {row.padre_nombre && (
-              <span className="ml-2 text-xs text-gray-500 bg-gray-700/50 px-2 py-0.5 rounded">
-                en {row.padre_nombre}
-              </span>
-            )}
-          </div>
-          <div className="text-xs text-gray-400 mt-1" style={{ paddingLeft: `${(row.nivel - 1) * 1.5}rem` }}>
-            {row.ruta_completa}
-          </div>
-        </div>
-      ),
-      header: 'Categoría',
-      sortable: true
-    },
-    {
-      id: 'requiere_serie',
-      accessor: (row: Category) => (
-        <span className={`px-2 py-1 rounded text-xs ${
-          row.requiere_serie ? 'bg-purple-500/20 text-purple-300' : 'bg-gray-500/20 text-gray-400'
-        }`}>
-          {row.requiere_serie ? '✓' : '✗'}
-        </span>
-      ),
-      header: 'Serie'
-    },
-    {
-      id: 'permite_asignacion',
-      accessor: (row: Category) => (
-        <span className={`px-2 py-1 rounded text-xs ${
-          row.permite_asignacion ? 'bg-green-500/20 text-green-300' : 'bg-gray-500/20 text-gray-400'
-        }`}>
-          {row.permite_asignacion ? '✓' : '✗'}
-        </span>
-      ),
-      header: 'Asignación'
-    },
-    {
-      id: 'permite_reparacion',
-      accessor: (row: Category) => (
-        <span className={`px-2 py-1 rounded text-xs ${
-          row.permite_reparacion ? 'bg-orange-500/20 text-orange-300' : 'bg-gray-500/20 text-gray-400'
-        }`}>
-          {row.permite_reparacion ? '✓' : '✗'}
-        </span>
-      ),
-      header: 'Reparación'
-    },
-    {
-      id: 'productos_count',
-      accessor: (row: Category) => (
-        <span className="text-blue-300 font-medium">{row.productos_count}</span>
-      ),
-      header: 'Productos'
-    },
-    {
-      id: 'activo',
-      accessor: (row: Category) => (
-        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-          row.activo 
-            ? 'bg-green-500/20 text-green-300 border border-green-500/30' 
-            : 'bg-red-500/20 text-red-300 border border-red-500/30'
-        }`}>
-          {row.activo ? 'Activa' : 'Inactiva'}
-        </span>
-      ),
-      header: 'Estado'
-    },
-    {
-      id: 'actions',
-      accessor: (row: Category) => (
-        <div className="flex items-center space-x-2">
-          <button
-            onClick={() => handleEditCategory(row)}
-            className="p-2 text-blue-400 hover:text-blue-300 hover:bg-blue-400/10 rounded-lg transition-colors"
-            title="Editar categoría"
-          >
-            <FiEdit size={16} />
-          </button>
-          <button
-            onClick={() => handleToggleCategoryActive(row)}
-            className={`p-2 rounded-lg transition-colors ${
-              row.activo 
-                ? 'text-red-400 hover:text-red-300 hover:bg-red-400/10' 
-                : 'text-green-400 hover:text-green-300 hover:bg-green-400/10'
-            }`}
-            title={row.activo ? 'Desactivar categoría' : 'Activar categoría'}
-          >
-            {row.activo ? <FiToggleRight size={16} /> : <FiToggleLeft size={16} />}
-          </button>
-        </div>
-      ),
-      header: 'Acciones'
-    }
-  ];
 
   const handleCloseForms = () => {
     setShowProductForm(false);
@@ -437,141 +254,279 @@ const ProductManagement: React.FC = () => {
     setEditingCategory(null);
   };
 
-  return (
-    <div className="min-h-screen relative">
-      {/* Orbes de fondo animados */}
-      <div className="fixed inset-0 pointer-events-none bg-gradient-to-br from-slate-900/95 via-slate-800/90 to-slate-900/95">
-        <div className="absolute top-20 left-10 w-32 h-32 rounded-full blur-xl animate-float bg-primary-500/20"></div>
-        <div className="absolute top-40 right-20 w-24 h-24 rounded-full blur-lg animate-float bg-secondary-500/20" style={{animationDelay: '2s'}}></div>
-        <div className="absolute bottom-32 left-1/4 w-20 h-20 rounded-full blur-lg animate-float bg-success-500/20" style={{animationDelay: '4s'}}></div>
-        <div className="absolute bottom-20 right-1/3 w-28 h-28 rounded-full blur-xl animate-float bg-info-500/20" style={{animationDelay: '1s'}}></div>
-      </div>
+  // Cálculo de total de páginas
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
 
-      {/* Contenido principal */}
-      <div className="relative z-10 p-6">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <div className="p-3 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-xl">
-                <FiPackage className="text-2xl text-blue-300" />
-              </div>
-              <div>
-                <h1 className="text-3xl font-bold text-white">Gestión de Productos</h1>
-                <p className="text-gray-400 mt-1">Administra el catálogo de productos y categorías del sistema</p>
-              </div>
+  return (
+    <div className={`min-h-screen transition-all duration-300 ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
+      
+      {/* Header Compacto */}
+      <div className={`glass-card p-4 mb-6 ${theme === 'dark' ? 'glass-dark' : ''}`}>
+        <div className="flex flex-col md:flex-row md:items-center justify-between mb-4 gap-4">
+          <div className="flex items-center space-x-4">
+            <div className="p-2 rounded-xl bg-indigo-500/10 text-indigo-500">
+              <Package size={24} />
+            </div>
+            <div>
+              <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-500 to-purple-600">
+                Catálogo
+              </h1>
+              <p className={`text-sm mt-1 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
+                Gestión de productos y categorías
+              </p>
             </div>
           </div>
-        </div>
+          
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Tabs */}
+            <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-1">
+              <button
+                onClick={() => setCurrentTab('products')}
+                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200 flex items-center gap-1.5 ${
+                  currentTab === 'products'
+                    ? 'bg-white dark:bg-slate-700 text-indigo-500 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+                }`}
+              >
+                <Package className="w-3.5 h-3.5" strokeWidth={2.5} />
+                Productos
+              </button>
+              <button
+                onClick={() => setCurrentTab('categories')}
+                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all duration-200 flex items-center gap-1.5 ${
+                  currentTab === 'categories'
+                    ? 'bg-white dark:bg-slate-700 text-indigo-500 shadow-sm'
+                    : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+                }`}
+              >
+                <Grid className="w-3.5 h-3.5" strokeWidth={2.5} />
+                Categorías
+              </button>
+            </div>
 
-        {/* Tabs */}
-        <div className="mb-6">
-          <div className="flex space-x-1 bg-gray-800/50 backdrop-blur-sm rounded-lg p-1">
-            <button
-              onClick={() => setCurrentTab('products')}
-              className={`flex items-center space-x-2 px-4 py-2 rounded-md transition-all ${
-                currentTab === 'products'
-                  ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
-                  : 'text-gray-400 hover:text-white hover:bg-gray-700/30'
-              }`}
-            >
-              <FiPackage size={18} />
-              <span>Productos</span>
-            </button>
-            <button
-              onClick={() => setCurrentTab('categories')}
-              className={`flex items-center space-x-2 px-4 py-2 rounded-md transition-all ${
-                currentTab === 'categories'
-                  ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
-                  : 'text-gray-400 hover:text-white hover:bg-gray-700/30'
-              }`}
-            >
-              <FiGrid size={18} />
-              <span>Categorías</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Controles */}
-        <div className="mb-6 space-y-4">
-          {/* Botón crear + Filtros */}
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-4 sm:space-y-0">
             <button
               onClick={() => currentTab === 'products' ? setShowProductForm(true) : setShowCategoryForm(true)}
-              className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600 text-white rounded-lg transition-all duration-200 shadow-lg"
+              className="px-4 py-2 rounded-xl bg-indigo-600 text-white font-bold text-sm hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/30 flex items-center gap-2"
             >
-              <FiPlus size={18} />
-              <span>Crear {currentTab === 'products' ? 'Producto' : 'Categoría'}</span>
+              <Plus className="w-4 h-4" strokeWidth={2.5} />
+              {currentTab === 'products' ? 'Nuevo Producto' : 'Nueva Categoría'}
             </button>
-
-            {/* Filtros */}
-            <div className="flex flex-wrap items-center space-x-3">
-              {/* Búsqueda */}
-              <div className="relative">
-                <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
-                <input
-                  type="text"
-                  placeholder={`Buscar ${currentTab === 'products' ? 'productos' : 'categorías'}...`}
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 pr-4 py-2 bg-gray-800/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[250px]"
-                />
-              </div>
-
-              {/* Filtro de estado */}
-              <select
-                value={filterActive}
-                onChange={(e) => setFilterActive(e.target.value)}
-                className="px-3 py-2 bg-gray-800/50 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="all">Todos los estados</option>
-                <option value="true">Solo activos</option>
-                <option value="false">Solo inactivos</option>
-              </select>
-            </div>
           </div>
         </div>
 
-        {/* Tabla de datos */}
-        <div className="bg-gray-900/50 backdrop-blur-sm rounded-xl border border-gray-700/50 overflow-hidden">
-          {loading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loading />
+        {/* Filtros */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-t border-slate-200 dark:border-slate-700 pt-4">
+          <div className="relative flex-1 w-full sm:max-w-md group">
+            <div className={`absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>
+              <Search size={16} />
             </div>
+            <input
+              type="text"
+              placeholder={`Buscar ${currentTab === 'products' ? 'productos' : 'categorías'}...`}
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className={`
+                w-full pl-10 pr-4 py-2 rounded-xl text-sm outline-none transition-all border
+                ${theme === 'dark' 
+                  ? 'bg-slate-800/50 border-slate-700 focus:border-indigo-500 text-white placeholder-slate-500' 
+                  : 'bg-slate-50 border-slate-200 focus:border-indigo-500 text-slate-800 placeholder-slate-400'
+                }
+              `}
+            />
+          </div>
+          
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+             {currentTab === 'products' && (
+              <select
+                value={filterCategory}
+                onChange={(e) => setFilterCategory(e.target.value)}
+                className={`
+                  px-3 py-2 rounded-xl text-sm outline-none transition-all border flex-1
+                  ${theme === 'dark' 
+                    ? 'bg-slate-800/50 border-slate-700 focus:border-indigo-500 text-white' 
+                    : 'bg-slate-50 border-slate-200 focus:border-indigo-500 text-slate-800'
+                  }
+                `}
+              >
+                <option value="">Todas las categorías</option>
+                {allCategoriesForSelect.map(cat => (
+                  <option key={cat.id} value={cat.id}>{cat.nombre}</option>
+                ))}
+              </select>
+             )}
+
+            <select
+              value={filterActive}
+              onChange={(e) => setFilterActive(e.target.value)}
+              className={`
+                px-3 py-2 rounded-xl text-sm outline-none transition-all border
+                ${theme === 'dark' 
+                  ? 'bg-slate-800/50 border-slate-700 focus:border-indigo-500 text-white' 
+                  : 'bg-slate-50 border-slate-200 focus:border-indigo-500 text-slate-800'
+                }
+              `}
+            >
+              <option value="all">Todos</option>
+              <option value="true">Activos</option>
+              <option value="false">Inactivos</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* Contenido Principal */}
+      <div className={`glass-card-static overflow-hidden rounded-2xl border ${theme === 'dark' ? 'bg-slate-900/60 border-slate-700/50' : 'bg-white/80 border-slate-200/60'} shadow-xl backdrop-blur-xl`}>
+          {loading ? (
+             <div className="flex items-center justify-center py-12">
+               <Loading />
+             </div>
           ) : (
             <>
-              {/* 🔧 TABLAS SEPARADAS POR TIPO */}
               {currentTab === 'products' ? (
-                <DataTable<Product>
-                  data={products}
-                  columns={productColumns}
-                  pagination={{
-                    currentPage: currentPage,
-                    pageSize: itemsPerPage,
-                    total: totalItems
-                  }}
-                  onPageChange={setCurrentPage}
-                  keyExtractor={(row: Product) => row.id.toString()}
-                  emptyMessage="No se encontraron productos"
-                />
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
+                    <thead className={theme === 'dark' ? 'bg-slate-800/50' : 'bg-slate-50/50'}>
+                      <tr>
+                        <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${theme === 'dark' ? 'text-slate-300' : 'text-slate-500'}`}>Modelo</th>
+                        <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${theme === 'dark' ? 'text-slate-300' : 'text-slate-500'}`}>Marca</th>
+                        <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${theme === 'dark' ? 'text-slate-300' : 'text-slate-500'}`}>Categoría</th>
+                        <th className={`px-6 py-3 text-center text-xs font-medium uppercase tracking-wider ${theme === 'dark' ? 'text-slate-300' : 'text-slate-500'}`}>Estado</th>
+                        <th className={`px-6 py-3 text-center text-xs font-medium uppercase tracking-wider ${theme === 'dark' ? 'text-slate-300' : 'text-slate-500'}`}>Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody className={`divide-y ${theme === 'dark' ? 'divide-slate-700' : 'divide-slate-200'}`}>
+                      {products.map((product) => (
+                        <tr key={product.id} className={`transition-colors duration-200 ${theme === 'dark' ? 'hover:bg-slate-700/50' : 'hover:bg-slate-50'}`}>
+                          <td className={`px-6 py-4 whitespace-nowrap ${theme === 'dark' ? 'text-slate-100' : 'text-slate-900'}`}>
+                            <div className="font-medium">{product.modelo}</div>
+                            {product.usa_numero_serie && <span className="text-xs text-purple-400 bg-purple-400/10 px-1.5 py-0.5 rounded ml-2">Serie</span>}
+                          </td>
+                          <td className={`px-6 py-4 whitespace-nowrap ${theme === 'dark' ? 'text-slate-300' : 'text-slate-600'}`}>{product.marca}</td>
+                          <td className={`px-6 py-4 whitespace-nowrap text-sm ${theme === 'dark' ? 'text-slate-300' : 'text-slate-600'}`}>{product.categoria_nombre}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-center">
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                              product.activo 
+                                ? 'bg-green-500/20 text-green-500 border border-green-500/30' 
+                                : 'bg-red-500/20 text-red-500 border border-red-500/30'
+                            }`}>
+                              {product.activo ? 'Activo' : 'Inactivo'}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-center">
+                            <div className="flex justify-center gap-2">
+                              <button onClick={() => handleEditProduct(product)} className="p-2 text-blue-400 hover:bg-blue-400/10 rounded-lg transition-colors">
+                                <Edit size={16} />
+                              </button>
+                              <button 
+                                onClick={() => handleToggleProductActive(product)}
+                                className={`p-2 rounded-lg transition-colors ${product.activo ? 'text-red-400 hover:bg-red-400/10' : 'text-green-400 hover:bg-green-400/10'}`}
+                              >
+                                {product.activo ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               ) : (
-                <DataTable<Category>
-                  data={categories}
-                  columns={categoryColumns}
-                  pagination={{
-                    currentPage: currentPage,
-                    pageSize: itemsPerPage,
-                    total: totalItems
-                  }}
-                  onPageChange={setCurrentPage}
-                  keyExtractor={(row: Category) => row.id.toString()}
-                  emptyMessage="No se encontraron categorías"
-                />
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
+                    <thead className={theme === 'dark' ? 'bg-slate-800/50' : 'bg-slate-50/50'}>
+                      <tr>
+                        <th className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${theme === 'dark' ? 'text-slate-300' : 'text-slate-500'}`}>Categoría</th>
+                        <th className={`px-6 py-3 text-center text-xs font-medium uppercase tracking-wider ${theme === 'dark' ? 'text-slate-300' : 'text-slate-500'}`}>Configuración</th>
+                        <th className={`px-6 py-3 text-center text-xs font-medium uppercase tracking-wider ${theme === 'dark' ? 'text-slate-300' : 'text-slate-500'}`}>Productos</th>
+                        <th className={`px-6 py-3 text-center text-xs font-medium uppercase tracking-wider ${theme === 'dark' ? 'text-slate-300' : 'text-slate-500'}`}>Estado</th>
+                        <th className={`px-6 py-3 text-center text-xs font-medium uppercase tracking-wider ${theme === 'dark' ? 'text-slate-300' : 'text-slate-500'}`}>Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody className={`divide-y ${theme === 'dark' ? 'divide-slate-700' : 'divide-slate-200'}`}>
+                      {categories.map((category) => (
+                        <tr key={category.id} className={`transition-colors duration-200 ${theme === 'dark' ? 'hover:bg-slate-700/50' : 'hover:bg-slate-50'}`}>
+                          <td className={`px-6 py-4 whitespace-nowrap ${theme === 'dark' ? 'text-slate-100' : 'text-slate-900'}`}>
+                            <div style={{ paddingLeft: `${(category.nivel - 1) * 1.5}rem` }}>
+                              <div className="flex items-center">
+                                <span className="font-medium">{category.nombre}</span>
+                                {category.padre_nombre && (
+                                  <span className="ml-2 text-xs text-slate-500 bg-slate-700/50 px-2 py-0.5 rounded">en {category.padre_nombre}</span>
+                                )}
+                              </div>
+                              <div className="text-xs text-slate-400 mt-1">{category.ruta_completa}</div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="flex justify-center gap-2">
+                              {category.requiere_serie && <span className="px-2 py-1 rounded text-xs bg-purple-500/20 text-purple-300 border border-purple-500/30" title="Requiere Serie">S</span>}
+                              {category.permite_asignacion && <span className="px-2 py-1 rounded text-xs bg-blue-500/20 text-blue-300 border border-blue-500/30" title="Permite Asignación">A</span>}
+                              {category.permite_reparacion && <span className="px-2 py-1 rounded text-xs bg-orange-500/20 text-orange-300 border border-orange-500/30" title="Permite Reparación">R</span>}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-center">
+                            <span className="text-indigo-400 font-medium">{category.productos_count}</span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-center">
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                              category.activo 
+                                ? 'bg-green-500/20 text-green-500 border border-green-500/30' 
+                                : 'bg-red-500/20 text-red-500 border border-red-500/30'
+                            }`}>
+                              {category.activo ? 'Activa' : 'Inactiva'}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-center">
+                            <div className="flex justify-center gap-2">
+                              <button onClick={() => handleEditCategory(category)} className="p-2 text-blue-400 hover:bg-blue-400/10 rounded-lg transition-colors">
+                                <Edit size={16} />
+                              </button>
+                              <button 
+                                onClick={() => handleToggleCategoryActive(category)}
+                                className={`p-2 rounded-lg transition-colors ${category.activo ? 'text-red-400 hover:bg-red-400/10' : 'text-green-400 hover:bg-green-400/10'}`}
+                              >
+                                {category.activo ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* Paginación */}
+              {totalPages > 1 && (
+                <div className={`px-6 py-3 border-t ${theme === 'dark' ? 'border-slate-700 bg-slate-800/20' : 'border-slate-200 bg-slate-50/50'}`}>
+                  <div className="flex items-center justify-between">
+                    <div className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
+                      Mostrando {itemsPerPage} de {totalItems} resultados
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                        disabled={currentPage === 1}
+                        className={`${currentPage === 1 ? 'btn-glass-disabled' : 'btn-glass-secondary-modern'} px-3 py-1 text-sm`}
+                      >
+                        Anterior
+                      </button>
+                      <span className={`px-3 py-1 text-sm font-medium ${theme === 'dark' ? 'text-slate-300' : 'text-slate-600'}`}>
+                        {currentPage} de {totalPages}
+                      </span>
+                      <button
+                        onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                        disabled={currentPage === totalPages}
+                        className={`${currentPage === totalPages ? 'btn-glass-disabled' : 'btn-glass-secondary-modern'} px-3 py-1 text-sm`}
+                      >
+                        Siguiente
+                      </button>
+                    </div>
+                  </div>
+                </div>
               )}
             </>
           )}
         </div>
-      </div>
 
       {/* Formularios */}
       {showProductForm && (
@@ -594,4 +549,4 @@ const ProductManagement: React.FC = () => {
   );
 };
 
-export default ProductManagement; 
+export default ProductManagement;
