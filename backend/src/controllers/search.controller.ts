@@ -31,27 +31,41 @@ export class SearchController {
         pageSize: 10
       });
 
-      const result = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>('sp_Search_Global', [
+      const result = await this.db.executeStoredProcedure<any>('sp_Search_Global', [
         query.trim(),
         'General',
         1,
         10
       ]);
 
-      const [data] = result;
+      const [results] = result;
+      
+      // En MySQL2 con SPs complejos, results es un array de arrays (recordsets) y objetos (OkPackets)
+      // Buscamos el array que contiene las filas de datos reales
+      let data: any[] = [];
+      if (Array.isArray(results)) {
+        // Buscamos el primer elemento que sea un array y tenga datos, o el último array vacío si no hay datos
+        const recordset = results.find(r => Array.isArray(r));
+        data = recordset || [];
+      } else {
+        data = [];
+      }
 
-      console.log('📊 Resultado del SP sp_Search_Global:', {
-        dataExists: !!data,
-        dataLength: data ? data.length : 0,
-        sampleData: data ? data.slice(0, 2) : null
+      console.log('📊 Resultado del SP sp_Search_Global (procesado):', {
+        dataLength: data.length,
+        sampleData: data.slice(0, 2)
       });
 
-      res.json(data || []);
+      res.json(data);
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Error en búsqueda global:', error);
-      logger.error('Error en búsqueda global:', { error });
-      res.status(500).json({ message: 'Error interno del servidor' });
+      logger.error('Error en búsqueda global:', { 
+        message: error.message,
+        sqlMessage: error.sqlMessage,
+        code: error.code 
+      });
+      res.status(500).json({ message: 'Error interno del servidor', details: error.message });
     }
   };
 
@@ -76,14 +90,21 @@ export class SearchController {
       logger.info(`Búsqueda por número de serie iniciada por ${req.user?.email}`, { serialNumber });
 
       // Ejecutar stored procedure con tipo de búsqueda específico
-      const result = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>('sp_Search_Global', [
+      const result = await this.db.executeStoredProcedure<any>('sp_Search_Global', [
         serialNumber,
         SearchType.SERIAL_NUMBER,
         1,
         10
       ]);
 
-      const [data] = result;
+      const [results] = result;
+      
+      // Extraer datos reales
+      let data: any[] = [];
+      if (Array.isArray(results)) {
+        const recordset = results.find(r => Array.isArray(r));
+        data = recordset || [];
+      }
 
       // Procesar resultados
       if (!data || data.length === 0) {
@@ -155,14 +176,21 @@ export class SearchController {
       logger.info(`Búsqueda por contraseña de encriptación iniciada por ${req.user?.email}`, { password });
 
       // Ejecutar stored procedure con tipo de búsqueda específico
-      const result = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>('sp_Search_Global', [
+      const result = await this.db.executeStoredProcedure<any>('sp_Search_Global', [
         password,
         SearchType.ENCRYPTION_PASSWORD,
         1,
         10
       ]);
 
-      const [data] = result;
+      const [results] = result;
+
+      // Extraer datos reales
+      let data: any[] = [];
+      if (Array.isArray(results)) {
+        const recordset = results.find(r => Array.isArray(r));
+        data = recordset || [];
+      }
 
       // Procesar resultados
       if (!data || data.length === 0) {

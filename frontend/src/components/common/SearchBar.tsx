@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FiSearch, FiX } from 'react-icons/fi';
-import { useNotification } from '../../contexts/NotificationContext';
+import { Search, X } from 'lucide-react';
 import { SearchResult } from '../../types';
 
 interface SearchBarProps {
@@ -26,8 +25,6 @@ const SearchBar: React.FC<SearchBarProps> = ({
 }) => {
   const [searchTerm, setSearchTerm] = useState<string>(initialValue);
   const [debouncedTerm, setDebouncedTerm] = useState<string>(initialValue);
-  const [isFocused, setIsFocused] = useState(false);
-  const [results, setResults] = useState<SearchResult[]>([]);
 
   // Actualizar valor si cambia desde fuera
   useEffect(() => {
@@ -61,11 +58,11 @@ const SearchBar: React.FC<SearchBarProps> = ({
 
   return (
     <div className={`relative w-full ${className}`}>
-      <div className="relative flex items-center">
+      <div className="relative flex items-center group">
         <label htmlFor="search-bar-input" className="sr-only">
           {`Búsqueda: ${placeholder}`}
         </label>
-        <FiSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[#6C757D]" />
+        <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400 group-focus-within:text-primary-500 transition-colors duration-300 w-5 h-5" />
         <input
           type="text"
           id="search-bar-input"
@@ -73,24 +70,23 @@ const SearchBar: React.FC<SearchBarProps> = ({
           value={searchTerm}
           onChange={handleChange}
           placeholder={placeholder}
-          className="w-full p-2 pl-10 pr-10 border border-[#CED4DA] rounded-md focus:outline-none focus:border-[#3F51B5] focus:shadow-[0_0_0_3px_rgba(63,81,181,0.15)] text-[#212529]"
+          className="w-full py-3 pl-12 pr-10 bg-white/80 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 rounded-xl 
+                     focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 
+                     text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500
+                     transition-all duration-300 backdrop-blur-sm shadow-sm"
           data-testid="search-input"
           autoComplete="off"
           aria-label={`Búsqueda: ${placeholder}`}
-          aria-describedby="search-bar-help"
         />
-        <span id="search-bar-help" className="sr-only">
-          Escriba términos de búsqueda y espere para ver resultados automáticamente
-        </span>
         {showClearButton && searchTerm && (
           <button
             type="button"
             onClick={handleClear}
-            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-[#6C757D] hover:text-[#495057] focus:outline-none"
+            className="absolute right-3 top-1/2 transform -translate-y-1/2 p-1 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition-colors duration-200"
             aria-label="Limpiar búsqueda"
             data-testid="clear-search-button"
           >
-            <FiX />
+            <X className="w-4 h-4" />
           </button>
         )}
       </div>

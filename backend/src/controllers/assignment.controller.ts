@@ -121,24 +121,41 @@ export class AssignmentController {
       const id_destino = empleado_id || sector_id || sucursal_id;
 
       // Ejecutar el stored procedure
-      const result = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>(
-        'sp_Assignment_Create',
-        [
-          inventario_individual_id || null,
-          tipo_asignacion,
-          id_destino,
-          password_encriptacion || null,
-          cuenta_gmail || null,
-          numero_telefono || null,
-          codigo_2fa_whatsapp || null,
-          observaciones || null,
-          usuario_id
-        ]
-      );
+      // Orden correcto SP: 
+      // p_inventario_individual_id, p_tipo_asignacion, p_id_destino, p_usuario_asigna_id, p_observaciones, 
+      // p_password_encriptacion, p_numero_telefono, p_cuenta_gmail, p_password_gmail, p_codigo_2fa_whatsapp, OUT p_id_asignacion
+
+      // Usamos una variable de sesión para capturar el ID de salida
+      const query = 'CALL sp_Assignment_Create(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, @newId); SELECT @newId AS id_asignacion;';
       
-      const [data] = result;
-      if (data && data.length > 0 && data[0].id_asignacion) {
-        const newAssignmentId = data[0].id_asignacion;
+      const [results] = await this.db.executeQuery<any>(query, [
+        inventario_individual_id || null,
+        tipo_asignacion,
+        id_destino,
+        usuario_id, // p_usuario_asigna_id
+        observaciones || null, // p_observaciones
+        password_encriptacion || null,
+        numero_telefono || null,
+        cuenta_gmail || null,
+        req.body.password_gmail || null, // Faltaba password_gmail en la desestructuración
+        codigo_2fa_whatsapp || null
+      ]);
+      
+      // El resultado vendrá en el segundo resultset (el SELECT)
+      // results[0] es el OkPacket del CALL
+      // results[1] es el RowDataPacket del SELECT
+      
+      let newAssignmentId: number | null = null;
+      
+      if (Array.isArray(results)) {
+         // Buscamos el array que tiene el resultado del SELECT @newId
+         const selectResult = results.find(r => Array.isArray(r) && r.length > 0 && r[0].id_asignacion);
+         if (selectResult) {
+           newAssignmentId = selectResult[0].id_asignacion;
+         }
+      }
+      
+      if (newAssignmentId) {
         logger.info(`Asignación creada con ID: ${newAssignmentId}`);
         
         res.status(201).json({
@@ -147,11 +164,23 @@ export class AssignmentController {
           data: { assignment_id: newAssignmentId }
         });
       } else {
-        logger.error('El SP sp_Assignment_Create no devolvió el ID de la nueva asignación', { result });
-        res.status(500).json({ 
-          success: false, 
-          message: 'Error al crear la asignación: no se pudo obtener el ID del nuevo registro.'
-        });
+        // Fallback: intentar obtener el último ID insertado si la variable no funcionó
+        const [lastIdResult] = await this.db.executeQuery<any>('SELECT MAX(id) as id FROM Asignaciones');
+        if (lastIdResult && lastIdResult[0] && lastIdResult[0].id) {
+             newAssignmentId = lastIdResult[0].id;
+             logger.info(`Asignación creada (recuperada por MAX ID): ${newAssignmentId}`);
+             res.status(201).json({
+                success: true,
+                message: 'Asignación creada exitosamente',
+                data: { assignment_id: newAssignmentId }
+             });
+        } else {
+            logger.error('El SP sp_Assignment_Create no devolvió el ID', { result: results });
+            res.status(500).json({ 
+              success: false, 
+              message: 'Error al crear la asignación: no se pudo confirmar la creación.'
+            });
+        }
       }
     } catch (error: any) {
       logger.error(`Error al crear asignación: ${error.message}`, { error });
@@ -619,8 +648,8 @@ export class AssignmentController {
           a.password_gmail,
           a.numero_telefono,
           a.codigo_2fa_whatsapp,
-          a.imei_1,
-          a.imei_2,
+          NULL AS imei_1,
+          NULL AS imei_2,
           a.observaciones,
           ii.numero_serie,
           p.marca,
@@ -710,8 +739,79 @@ export class AssignmentController {
         ]
       );
       
-      const [data] = result;
-      res.json(data);
+      const [results] = result;
+      
+      // Extraer la fila de datos real del conjunto de resultados del SP
+      let row: any = null;
+      if (Array.isArray(results)) {
+        // Buscamos el primer array que contenga datos
+        const recordset = results.find(r => Array.isArray(r) && r.length > 0);
+        if (recordset && recordset.length > 0) {
+          row = recordset[0];
+        }
+      } else if (results && (results as any).length > 0) {
+         // Fallback por si acaso devuelve rowdatapackets directamente (raro en SPs)
+         row = (results as any)[0];
+      }
+      
+      if (row) {
+        // Mapear el resultado plano a la estructura anidada que espera el frontend
+        const assignmentDetails = {
+          id: row.asignacion_id,
+          fecha_asignacion: row.fecha_asignacion,
+          fecha_devolucion: row.fecha_devolucion,
+          observaciones: row.asignacion_observaciones,
+          password_encriptacion: row.password_encriptacion,
+          cuenta_gmail: row.cuenta_gmail,
+          password_gmail: row.password_gmail,
+          numero_telefono: row.numero_telefono,
+          codigo_2fa_whatsapp: row.codigo_2fa_whatsapp,
+          imei_1: row.imei_1,
+          imei_2: row.imei_2,
+          activa: row.asignacion_activa === 1,
+          inventario: {
+            id: row.inventario_id,
+            numero_serie: row.numero_serie,
+            estado: row.inventario_estado,
+            producto: {
+              id: row.producto_id,
+              marca: row.producto_marca,
+              modelo: row.producto_modelo,
+              descripcion: row.producto_descripcion,
+              categoria: {
+                id: row.categoria_id,
+                nombre: row.categoria_nombre
+              }
+            }
+          },
+          empleado: row.empleado_id ? {
+            id: row.empleado_id,
+            nombre: row.empleado_nombre?.split(' ')[0] || '', // Aproximación si viene concatenado
+            apellido: row.empleado_nombre?.split(' ').slice(1).join(' ') || '',
+            nombre_completo: row.empleado_nombre
+          } : undefined,
+          sector: row.sector_id ? {
+            id: row.sector_id,
+            nombre: row.sector_nombre
+          } : undefined,
+          sucursal: row.sucursal_id ? {
+            id: row.sucursal_id,
+            nombre: row.sucursal_nombre
+          } : undefined,
+          usuario_asigna: {
+            nombre: row.usuario_asigna_nombre
+          },
+          usuario_recibe: row.usuario_recibe_nombre ? {
+            nombre: row.usuario_recibe_nombre
+          } : undefined
+        };
+
+        // Devolver un array con el objeto mapeado
+        res.json([assignmentDetails]);
+      } else {
+        // Si no hay datos, devolver array vacío
+        res.json([]);
+      }
 
     } catch (error: any) {
       logger.error('Error en getAssignmentDetailsById', { error });

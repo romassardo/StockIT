@@ -55,7 +55,6 @@ const AppRoutes: React.FC = () => {
             <Route path="/reports/assignments-branch" element={<AssignmentsByBranchReport />} />
             <Route path="/reports/repair-history" element={<RepairHistoryReport />} />
             <Route path="/reports/repairs" element={<NotFound />} />
-            <Route path="/reports/performance" element={<NotFound />} />
           </Route>
           
           <Route element={<ProtectedRoute requiredRoles={['admin']} />}>

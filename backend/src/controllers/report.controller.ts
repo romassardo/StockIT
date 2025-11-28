@@ -245,21 +245,23 @@ class ReportController {
     try {
       const { page, limit } = this.getPaginationParams(req.query);
       
+      // Parameters must match SP order: p_FechaDesde, p_FechaHasta, p_Estado, p_Proveedor, p_PageNumber, p_PageSize
       const [results] = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>('sp_Report_RepairHistory', [
-        req.query.estadoReparacion || null,
-        req.query.proveedor || null,
         req.query.fechaDesde || null,
         req.query.fechaHasta || null,
+        req.query.estadoReparacion || null,
+        req.query.proveedor || null,
         page,
         limit
       ]);
 
-      const data = Array.isArray(results) ? results : [];
-      const totalRows = data.length > 0 ? data[0].TotalRows : 0;
+      // Handle potential nested array from mysql2 (like in other reports)
+      const items = (Array.isArray(results) && Array.isArray(results[0])) ? results[0] : results;
+      const totalRows = items.length > 0 ? items[0].TotalRows : 0;
 
       res.status(200).json({
         success: true,
-        data: data,
+        data: items,
         pagination: {
           page,
           limit,
@@ -496,20 +498,31 @@ class ReportController {
    */
   public exportRepairHistory = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
+      // Parameters must match SP order: p_FechaDesde, p_FechaHasta, p_Estado, p_Proveedor, p_PageNumber, p_PageSize
       const [results] = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>('sp_Report_RepairHistory', [
-        req.query.EstadoReparacion || null, req.query.Proveedor || null,
-        req.query.FechaDesde || null, req.query.FechaHasta || null, 1, 10000
+        req.query.FechaDesde || null,
+        req.query.FechaHasta || null,
+        req.query.EstadoReparacion || null,
+        req.query.Proveedor || null,
+        1, 
+        10000
       ]);
-      const data = Array.isArray(results) ? results : [];
+
+      // Handle potential nested array from mysql2
+      const items = (Array.isArray(results) && Array.isArray(results[0])) ? results[0] : results;
+      const data = Array.isArray(items) ? items : [];
+
       const formattedData = data.map((item: any) => ({
         ...item,
+        producto_completo: `${item.marca || ''} ${item.modelo || ''}`.trim(),
         fecha_envio: item.fecha_envio ? new Date(item.fecha_envio).toLocaleDateString('es-ES') : '',
         fecha_retorno: item.fecha_retorno ? new Date(item.fecha_retorno).toLocaleDateString('es-ES') : ''
       }));
+      
       const repairColumns = [
-        { key: 'id', header: 'ID Reparación', width: 15 },
+        { key: 'reparacion_id', header: 'ID Reparación', width: 15 }, // SP returns reparacion_id, not id
         { key: 'numero_serie', header: 'Número Serie', width: 20 },
-        { key: 'producto_nombre', header: 'Producto', width: 35 },
+        { key: 'producto_completo', header: 'Producto', width: 35 }, // Combined field
         { key: 'categoria', header: 'Categoría', width: 15 },
         { key: 'fecha_envio', header: 'Fecha Envío', width: 15 },
         { key: 'fecha_retorno', header: 'Fecha Retorno', width: 15 },
@@ -518,6 +531,7 @@ class ReportController {
         { key: 'problema_descripcion', header: 'Problema', width: 30 },
         { key: 'solucion_descripcion', header: 'Solución', width: 30 }
       ];
+      
       const excelBuffer = ExportService.generateExcel({
         title: 'Historial de Reparaciones',
         filename: ExportService.generateFilename('historial_reparaciones'),
@@ -525,6 +539,7 @@ class ReportController {
         data: formattedData,
         sheetName: 'Historial de Reparaciones'
       });
+      
       const filename = ExportService.generateFilename('historial_reparaciones');
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);

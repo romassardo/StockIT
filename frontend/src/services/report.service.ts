@@ -261,13 +261,15 @@ export const getRepairHistoryReport = async (params: GetRepairHistoryParams): Pr
       throw new Error('Estructura de respuesta inválida del servidor');
     }
     
-    const { items, pagination } = response.data.data;
+    // El backend devuelve { success: true, data: [], pagination: {} }
+    const items = response.data.data;
+    const pagination = response.data.pagination || {};
     
     return {
       items: items || [],
-      totalRecords: pagination.totalRecords || 0,
+      totalRecords: pagination.totalRows || 0, // El backend devuelve totalRows
       totalPages: pagination.totalPages || 0,
-      currentPage: pagination.currentPage || 1,
+      currentPage: pagination.page || 1,
     };
   } catch (error) {
     console.error('Error fetching repair history report:', error);

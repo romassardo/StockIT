@@ -8,7 +8,6 @@ import {
   Package, 
   Truck, 
   List, 
-  TrendingUp,
   ArrowRight,
   BarChart3
 } from 'lucide-react';
@@ -224,13 +223,6 @@ const ReportsPage = () => {
           icon={BarChart3}
           to="/movements"
           color="indigo"
-        />
-        <ReportCard
-          title="Rendimiento del Inventario"
-          description="KPIs y métricas de rotación, vida útil y depreciación."
-          icon={TrendingUp}
-          to="/reports/performance"
-          color="emerald"
         />
       </div>
     </div>

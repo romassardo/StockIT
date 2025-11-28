@@ -1,6 +1,6 @@
 import React from 'react';
 import { SearchResult, ResultType, EntityType } from '../../types';
-import { FiCopy, FiHardDrive, FiSmartphone, FiPrinter, FiUser, FiPackage, FiTool, FiBox, FiArchive } from 'react-icons/fi';
+import { Copy, HardDrive, Smartphone, Printer, User, Package, Wrench, Box, Archive } from 'lucide-react';
 import { useNotification } from '../../contexts/NotificationContext';
 import { motion } from 'framer-motion';
 
@@ -13,22 +13,22 @@ const getIcon = (resultType: ResultType, entityType?: EntityType) => {
   const iconClass = "w-7 h-7";
   switch (resultType) {
     case ResultType.INVENTORY:
-      if (entityType === EntityType.NOTEBOOK) return <FiHardDrive className={`${iconClass} text-primary-500`} />;
-      if (entityType === EntityType.CELULAR) return <FiSmartphone className={`${iconClass} text-primary-500`} />;
-      if (entityType === EntityType.PERIFERICO) return <FiPrinter className={`${iconClass} text-info-500`} />;
-      return <FiBox className={`${iconClass} text-slate-500`} />;
+      if (entityType === EntityType.NOTEBOOK) return <HardDrive className={`${iconClass} text-primary-500`} />;
+      if (entityType === EntityType.CELULAR) return <Smartphone className={`${iconClass} text-primary-500`} />;
+      if (entityType === EntityType.PERIFERICO) return <Printer className={`${iconClass} text-info-500`} />;
+      return <Box className={`${iconClass} text-slate-500`} />;
     case ResultType.ASSIGNMENT:
-      if (entityType === EntityType.NOTEBOOK) return <FiHardDrive className={`${iconClass} text-success-500`} />;
-      if (entityType === EntityType.CELULAR) return <FiSmartphone className={`${iconClass} text-success-500`} />;
-      return <FiUser className={`${iconClass} text-success-500`} />;
+      if (entityType === EntityType.NOTEBOOK) return <HardDrive className={`${iconClass} text-success-500`} />;
+      if (entityType === EntityType.CELULAR) return <Smartphone className={`${iconClass} text-success-500`} />;
+      return <User className={`${iconClass} text-success-500`} />;
     case ResultType.EMPLOYEE:
-      return <FiUser className={`${iconClass} text-cyan-500`} />;
+      return <User className={`${iconClass} text-cyan-500`} />;
     case ResultType.PRODUCT:
-      return <FiPackage className={`${iconClass} text-amber-500`} />;
+      return <Package className={`${iconClass} text-amber-500`} />;
     case ResultType.REPAIR:
-        return <FiTool className={`${iconClass} text-rose-500`} />;
+        return <Wrench className={`${iconClass} text-rose-500`} />;
     default:
-      return <FiArchive className={`${iconClass} text-slate-500`} />;
+      return <Archive className={`${iconClass} text-slate-500`} />;
   }
 };
 
@@ -50,16 +50,16 @@ const SearchResultCard: React.FC<SearchResultCardProps> = ({ result, onClick }) 
 
   return (
     <div 
-      className="h-full glass-card hover-lift flex flex-col p-5 cursor-pointer"
+      className="h-full glass-card hover-lift flex flex-col p-5 cursor-pointer group"
       onClick={() => onClick(result)}
     >
       <div className="flex items-start mb-4">
-        <div className="mr-4 text-3xl opacity-80">
+        <div className="mr-4 p-3 rounded-xl bg-white/5 group-hover:bg-white/10 transition-colors duration-300">
           {getIcon(result.resultType, result.entityType)}
         </div>
         <div className='flex-1'>
-          <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold uppercase tracking-wider">{result.resultType}</p>
-          <h3 className="font-bold text-slate-900 dark:text-slate-50 text-lg leading-tight">{result.title}</h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold uppercase tracking-wider mb-1">{result.resultType}</p>
+          <h3 className="font-bold text-slate-900 dark:text-slate-50 text-lg leading-tight group-hover:text-primary-400 transition-colors duration-300">{result.title}</h3>
         </div>
       </div>
       
@@ -73,9 +73,9 @@ const SearchResultCard: React.FC<SearchResultCardProps> = ({ result, onClick }) 
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={(e) => handleCopy(e, result.encryptionPassword, 'Contraseña')}
-                className="flex-1 text-xs inline-flex items-center justify-center px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 rounded-lg transition-colors duration-200"
+                className="flex-1 text-xs inline-flex items-center justify-center px-3 py-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-300 rounded-lg transition-colors duration-200"
               >
-                <FiCopy className="mr-1.5" /> Pass
+                <Copy className="mr-1.5 w-3.5 h-3.5" /> Pass
               </motion.button>
             )}
             {result.serialNumber && (
@@ -83,9 +83,9 @@ const SearchResultCard: React.FC<SearchResultCardProps> = ({ result, onClick }) 
                  whileHover={{ scale: 1.05 }}
                  whileTap={{ scale: 0.95 }}
                  onClick={(e) => handleCopy(e, result.serialNumber, 'Nº de Serie')}
-                 className="flex-1 text-xs inline-flex items-center justify-center px-3 py-1.5 bg-sky-500/10 hover:bg-sky-500/20 text-sky-700 dark:text-sky-300 rounded-lg transition-colors duration-200"
+                 className="flex-1 text-xs inline-flex items-center justify-center px-3 py-2 bg-sky-500/10 hover:bg-sky-500/20 text-sky-700 dark:text-sky-300 rounded-lg transition-colors duration-200"
                >
-                 <FiCopy className="mr-1.5" /> Serie
+                 <Copy className="mr-1.5 w-3.5 h-3.5" /> Serie
                </motion.button>
             )}
           </div>
@@ -95,4 +95,4 @@ const SearchResultCard: React.FC<SearchResultCardProps> = ({ result, onClick }) 
   );
 };
 
-export default SearchResultCard; 
+export default SearchResultCard;

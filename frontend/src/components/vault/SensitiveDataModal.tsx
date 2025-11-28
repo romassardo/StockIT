@@ -4,7 +4,7 @@ import { FiX, FiLock, FiPhone, FiMail, FiKey, FiShield, FiSmartphone, FiCopy, Fi
 import { useNotification } from '../../contexts/NotificationContext';
 import { motion } from 'framer-motion';
 import { SearchResult, Assignment, ResultType } from '../../types';
-import { getAssignmentDetails } from '../../services/assignment.service';
+import { getAssignmentDetails, assignmentService } from '../../services/assignment.service';
 
 type SensitiveAsset = SearchResult & {
   marca?: string;
@@ -43,41 +43,76 @@ const SensitiveDataCard: React.FC<SensitiveDataCardProps> = ({ icon, label, valu
 
   if (!value) return null;
 
-  const colorClasses = {
-    yellow: 'from-amber-400/80 to-amber-500/80 border-amber-400/90',
-    blue: 'from-sky-400/80 to-sky-500/80 border-sky-400/90',
-    red: 'from-red-400/80 to-red-500/80 border-red-400/90',
-    purple: 'from-purple-400/80 to-purple-500/80 border-purple-400/90',
-    green: 'from-green-400/80 to-green-500/80 border-green-400/90',
-    cyan: 'from-cyan-400/80 to-cyan-500/80 border-cyan-400/90',
-    teal: 'from-teal-400/80 to-teal-500/80 border-teal-400/90',
+  const colorStyles = {
+    yellow: {
+      bg: 'bg-amber-500/10',
+      border: 'border-amber-500/20',
+      text: 'text-amber-200',
+      iconBg: 'bg-amber-500/20',
+      iconColor: 'text-amber-400'
+    },
+    blue: {
+      bg: 'bg-sky-500/10',
+      border: 'border-sky-500/20',
+      text: 'text-sky-200',
+      iconBg: 'bg-sky-500/20',
+      iconColor: 'text-sky-400'
+    },
+    red: {
+      bg: 'bg-red-500/10',
+      border: 'border-red-500/20',
+      text: 'text-red-200',
+      iconBg: 'bg-red-500/20',
+      iconColor: 'text-red-400'
+    },
+    purple: {
+      bg: 'bg-purple-500/10',
+      border: 'border-purple-500/20',
+      text: 'text-purple-200',
+      iconBg: 'bg-purple-500/20',
+      iconColor: 'text-purple-400'
+    },
+    green: {
+      bg: 'bg-emerald-500/10',
+      border: 'border-emerald-500/20',
+      text: 'text-emerald-200',
+      iconBg: 'bg-emerald-500/20',
+      iconColor: 'text-emerald-400'
+    },
+    cyan: {
+      bg: 'bg-cyan-500/10',
+      border: 'border-cyan-500/20',
+      text: 'text-cyan-200',
+      iconBg: 'bg-cyan-500/20',
+      iconColor: 'text-cyan-400'
+    },
+    teal: {
+      bg: 'bg-teal-500/10',
+      border: 'border-teal-500/20',
+      text: 'text-teal-200',
+      iconBg: 'bg-teal-500/20',
+      iconColor: 'text-teal-400'
+    },
   };
 
-  const shadowClasses = {
-    yellow: 'shadow-amber-500/20',
-    blue: 'shadow-sky-500/20',
-    red: 'shadow-red-500/20',
-    purple: 'shadow-purple-500/20',
-    green: 'shadow-green-500/20',
-    cyan: 'shadow-cyan-500/20',
-    teal: 'shadow-teal-500/20',
-  }
+  const style = colorStyles[color];
 
   return (
-    <div className={`relative p-4 rounded-xl border bg-gradient-to-br ${colorClasses[color]} shadow-lg ${shadowClasses[color]}`}>
-      <div className="flex items-center">
-        <div className={`mr-3 p-2 rounded-full bg-white/20`}>
-          {icon}
+    <div className={`relative p-4 rounded-xl border ${style.bg} ${style.border} backdrop-blur-sm transition-all duration-300 hover:bg-opacity-20`}>
+      <div className="flex items-start">
+        <div className={`mr-3 p-2.5 rounded-lg ${style.iconBg} ${style.iconColor}`}>
+          {React.cloneElement(icon as React.ReactElement, { size: 20 })}
         </div>
-        <div>
-          <p className="text-sm font-bold text-white">{label}</p>
-          <p className="text-lg font-mono text-white tracking-wider">{value}</p>
+        <div className="flex-1 min-w-0">
+          <p className={`text-xs font-medium uppercase tracking-wider mb-1 opacity-80 ${style.text}`}>{label}</p>
+          <p className="text-base font-mono text-white tracking-wide break-all">{value}</p>
         </div>
         <button
           onClick={handleCopy}
-          className="absolute top-2 right-2 p-2 rounded-full text-white/70 hover:text-white hover:bg-white/20 transition-colors duration-200"
+          className={`ml-2 p-2 rounded-lg ${style.text} hover:bg-white/10 transition-colors duration-200`}
+          title="Copiar"
         >
-          <FiCopy />
+          <FiCopy size={18} />
         </button>
       </div>
     </div>
@@ -90,25 +125,38 @@ type SensitiveDataModalProps = {
 };
 
 const SensitiveDataModal: React.FC<SensitiveDataModalProps> = ({ initialAsset, onClose }) => {
-  const [details, setDetails] = useState<Assignment | null>(null);
+  // Ahora details puede ser un array para soportar múltiples asignaciones de un empleado
+  const [assignmentsList, setAssignmentsList] = useState<Assignment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchDetails = async () => {
-      if (initialAsset.resultType !== ResultType.ASSIGNMENT) {
-        setError('No hay datos sensibles para este tipo de resultado.');
-        setIsLoading(false);
-        return;
-      }
+      setIsLoading(true);
+      setError(null);
 
       try {
-        setIsLoading(true);
-        setError(null);
-        const assignmentDetails = await getAssignmentDetails(initialAsset.itemId);
-        setDetails(assignmentDetails);
+        if (initialAsset.resultType === ResultType.ASSIGNMENT) {
+          // Caso 1: Click directo en una asignación
+          const assignmentDetails = await getAssignmentDetails(initialAsset.itemId);
+          setAssignmentsList([assignmentDetails]);
+        } 
+        else if (initialAsset.resultType === ResultType.EMPLOYEE) {
+          // Caso 2: Click en un empleado -> Buscar sus asignaciones activas
+          const response = await assignmentService.getAssignmentsByEmployee(initialAsset.itemId);
+          
+          if (response.success && Array.isArray(response.data) && response.data.length > 0) {
+            setAssignmentsList(response.data);
+          } else {
+            setError('Este empleado no tiene asignaciones activas con datos sensibles.');
+          }
+        } 
+        else {
+          setError('No hay datos sensibles para este tipo de resultado.');
+        }
       } catch (err: any) {
-        setError(err.message || 'Error al cargar los detalles del activo.');
+        console.error("Error fetching details:", err);
+        setError(err.message || 'Error al cargar los detalles.');
       } finally {
         setIsLoading(false);
       }
@@ -117,6 +165,34 @@ const SensitiveDataModal: React.FC<SensitiveDataModalProps> = ({ initialAsset, o
     fetchDetails();
   }, [initialAsset]);
   
+  const renderDetails = (details: Assignment) => {
+    // Extraer nombre del producto si está disponible anidado
+    const productoNombre = details.inventario?.producto 
+      ? `${details.inventario.producto.marca} ${details.inventario.producto.modelo}` 
+      : 'Dispositivo Desconocido';
+
+    const numeroSerie = details.inventario?.numero_serie || details.numero_serie || 'S/N No disponible';
+
+    return (
+      <div key={details.id || Math.random()} className="mb-8 last:mb-0">
+        <div className="mb-3 border-b border-white/10 pb-2">
+          <h3 className="text-lg font-semibold text-indigo-200">{productoNombre}</h3>
+          <p className="text-xs text-slate-400 font-mono">S/N: {numeroSerie}</p>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <SensitiveDataCard icon={<FiLock />} label="Contraseña Encriptación" value={details.password_encriptacion} color="yellow" />
+          <SensitiveDataCard icon={<FiPhone />} label="Número Teléfono" value={details.numero_telefono} color="blue" />
+          <SensitiveDataCard icon={<FiMail />} label="Cuenta Gmail" value={details.cuenta_gmail} color="red" />
+          <SensitiveDataCard icon={<FiKey />} label="Password Gmail" value={details.password_gmail} color="purple" />
+          <SensitiveDataCard icon={<FiShield />} label="2FA WhatsApp" value={details.codigo_2fa_whatsapp} color="green" />
+          <SensitiveDataCard icon={<FiSmartphone />} label="IMEI 1" value={details.imei_1} color="cyan" />
+          <SensitiveDataCard icon={<FiSmartphone />} label="IMEI 2" value={details.imei_2} color="teal" />
+        </div>
+      </div>
+    );
+  };
+
   const renderContent = () => {
     if (isLoading) {
       return (
@@ -128,22 +204,16 @@ const SensitiveDataModal: React.FC<SensitiveDataModalProps> = ({ initialAsset, o
     }
 
     if (error) {
-      return <p className="text-center text-red-400">{error}</p>;
+      return <p className="text-center text-red-400 py-8">{error}</p>;
     }
 
-    if (!details) {
-      return <p className="text-center text-slate-400">No se encontraron detalles.</p>;
+    if (assignmentsList.length === 0) {
+      return <p className="text-center text-slate-400 py-8">No se encontraron detalles.</p>;
     }
 
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <SensitiveDataCard icon={<FiLock />} label="Contraseña Encriptación" value={details.password_encriptacion} color="yellow" />
-        <SensitiveDataCard icon={<FiPhone />} label="Número Teléfono" value={details.numero_telefono} color="blue" />
-        <SensitiveDataCard icon={<FiMail />} label="Cuenta Gmail" value={details.cuenta_gmail} color="red" />
-        <SensitiveDataCard icon={<FiKey />} label="Password Gmail" value={details.password_gmail} color="purple" />
-        <SensitiveDataCard icon={<FiShield />} label="2FA WhatsApp" value={details.codigo_2fa_whatsapp} color="green" />
-        <SensitiveDataCard icon={<FiSmartphone />} label="IMEI 1" value={details.imei_1} color="cyan" />
-        <SensitiveDataCard icon={<FiSmartphone />} label="IMEI 2" value={details.imei_2} color="teal" />
+      <div className="max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
+        {assignmentsList.map(assignment => renderDetails(assignment))}
       </div>
     );
   };
@@ -161,14 +231,18 @@ const SensitiveDataModal: React.FC<SensitiveDataModalProps> = ({ initialAsset, o
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.9, opacity: 0 }}
         transition={{ type: 'spring', damping: 20, stiffness: 300 }}
-        className="glass-card-deep w-full max-w-2xl m-4 rounded-2xl shadow-2xl p-6 border border-white/10"
+        className="glass-card-deep w-full max-w-2xl m-4 rounded-2xl shadow-2xl p-6 border border-white/10 max-h-[90vh] flex flex-col"
         onClick={(e: React.MouseEvent) => e.stopPropagation()}
       >
-        <div className="flex justify-between items-start mb-4">
+        <div className="flex justify-between items-start mb-4 flex-shrink-0">
           <div>
             <h2 className="text-2xl font-bold text-white">{initialAsset.title}</h2>
-            <p className="text-slate-300">N/S: {initialAsset.serialNumber || 'No disponible'}</p>
-            {initialAsset.relatedInfo && <p className="text-indigo-300 font-semibold">{initialAsset.relatedInfo}</p>}
+            {initialAsset.resultType === ResultType.EMPLOYEE && (
+              <p className="text-emerald-400 text-sm font-medium mt-1">Mostrando activos asignados</p>
+            )}
+            {initialAsset.resultType !== ResultType.EMPLOYEE && (
+              <p className="text-slate-300">N/S: {initialAsset.serialNumber || 'No disponible'}</p>
+            )}
           </div>
           <button onClick={onClose} className="p-2 rounded-full text-slate-300 hover:bg-white/10 hover:text-white transition-colors">
             <FiX size={24} />
@@ -183,4 +257,4 @@ const SensitiveDataModal: React.FC<SensitiveDataModalProps> = ({ initialAsset, o
   );
 };
 
-export default SensitiveDataModal; 
+export default SensitiveDataModal;
