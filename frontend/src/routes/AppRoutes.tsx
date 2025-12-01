@@ -9,7 +9,6 @@ import Inventory from '../pages/Inventory';
 import Assignments from '../pages/Assignments';
 import Stock from '../pages/Stock';
 import StockMovementsPage from '../pages/StockMovementsPage';
-import ProductManagement from '../pages/ProductManagement';
 import { Navigate } from "react-router-dom";
 import RepairsPage from '../pages/RepairsPage';
 import Admin from '../pages/Admin';
@@ -21,6 +20,7 @@ import AssignmentsByEmployeeReport from '../pages/reports/AssignmentsByEmployeeR
 import AssignmentsBySectorReport from '../pages/reports/AssignmentsBySectorReport';
 import AssignmentsByBranchReport from '../pages/reports/AssignmentsByBranchReport';
 import RepairHistoryReport from '../pages/reports/RepairHistoryReport';
+import ProfilePage from '../pages/ProfilePage';
 import NotFound from '../pages/NotFound';
 import AccessDenied from '../pages/AccessDenied';
 import MainLayout from '../components/layout/MainLayout';
@@ -45,8 +45,12 @@ const AppRoutes: React.FC = () => {
             <Route path="/repairs" element={<RepairsPage />} />
             <Route path="/stock" element={<Stock />} />
             <Route path="/movements" element={<StockMovementsPage />} />
-            <Route path="/product-management" element={<ProductManagement />} />
             <Route path="/vault" element={<Vault />} />
+            <Route path="/profile" element={<ProfilePage />} />
+          </Route>
+          
+          <Route element={<ProtectedRoute requiredRoles={['admin']} />}>
+            <Route path="/admin" element={<Admin />} />
             <Route path="/reports" element={<ReportsPage />} />
             <Route path="/reports/stock-alerts" element={<StockAlertsReport />} />
             <Route path="/reports/inventory/full" element={<StockDisponibleReport />} />
@@ -54,11 +58,6 @@ const AppRoutes: React.FC = () => {
             <Route path="/reports/assignments-sector" element={<AssignmentsBySectorReport />} />
             <Route path="/reports/assignments-branch" element={<AssignmentsByBranchReport />} />
             <Route path="/reports/repair-history" element={<RepairHistoryReport />} />
-            <Route path="/reports/repairs" element={<NotFound />} />
-          </Route>
-          
-          <Route element={<ProtectedRoute requiredRoles={['admin']} />}>
-            <Route path="/admin" element={<Admin />} />
           </Route>
         </Route>
 

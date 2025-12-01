@@ -121,8 +121,9 @@ const Assignments: React.FC = () => {
       (a.sucursal?.nombre.toLowerCase().includes(searchTerm.toLowerCase()) || false);
 
     let matchesType = true;
-    if (activeFilter === 'notebook') matchesType = a.inventario?.producto?.categoria?.nombre === 'Notebooks';
-    if (activeFilter === 'cellphone') matchesType = a.inventario?.producto?.categoria?.nombre === 'Celulares';
+    const categoriaNombre = a.inventario?.producto?.categoria?.nombre?.toLowerCase() || '';
+    if (activeFilter === 'notebook') matchesType = categoriaNombre === 'notebooks';
+    if (activeFilter === 'cellphone') matchesType = categoriaNombre === 'celulares';
 
     return matchesSearch && matchesType;
   });

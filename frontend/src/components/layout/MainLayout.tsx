@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Outlet, useLocation, useNavigate, Link } from 'react-router-dom';
 import { 
   FiMenu, FiX, FiLogOut, FiSun, FiMoon,
-  FiPackage, FiList, FiFileText, FiTool, FiSearch, FiHome, FiChevronDown
+  FiPackage, FiList, FiFileText, FiTool, FiSearch, FiHome, FiChevronDown, FiUser
 } from 'react-icons/fi';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -29,11 +29,11 @@ const navItems: NavItem[] = [
   { id: 'dashboard', to: '/', label: 'Dashboard', Icon: FiHome },
   {
     id: 'gestion',
-    label: 'Gestión',
+    label: 'Gestión de Activos',
     Icon: FiPackage,
     submenu: [
-      { to: '/inventory', label: 'Inventario', Icon: FiPackage },
-      { to: '/assignments', label: 'Asignaciones', Icon: FiList },
+      { to: '/inventory', label: 'Activos en Stock', Icon: FiPackage },
+      { to: '/assignments', label: 'Asignados', Icon: FiList },
       { to: '/repairs', label: 'Reparaciones', Icon: FiTool },
     ],
   },
@@ -43,20 +43,16 @@ const navItems: NavItem[] = [
     Icon: FiFileText,
     submenu: [
       { to: '/stock', label: 'Stock General', Icon: FiPackage },
-      { to: '/product-management', label: 'Productos', Icon: FiPackage },
       { to: '/movements', label: 'Movimientos', Icon: FiList },
     ],
   },
-  { to: '/reports', id: 'reports', label: 'Reportes', Icon: FiFileText },
   { to: '/vault', id: 'vault', label: 'Bóveda', Icon: FiSearch },
 ];
 
-const adminNavItem: NavItem = {
-  id: 'admin',
-  to: '/admin',
-  label: 'Administración',
-  Icon: FiHome, // Assuming FiHome is the correct icon for admin
-};
+const adminNavItems: NavItem[] = [
+  { id: 'reports', to: '/reports', label: 'Reportes', Icon: FiFileText },
+  { id: 'admin', to: '/admin', label: 'Administración', Icon: FiTool },
+];
 
 const MainLayout: React.FC = () => {
   const { user, logout } = useAuth();
@@ -150,7 +146,7 @@ const MainLayout: React.FC = () => {
 
         <nav className="flex-1 px-3 pb-4 overflow-y-auto overflow-x-hidden custom-scrollbar">
           <ul className="space-y-1.5">
-            {[...navItems, ...(user?.rol === 'admin' ? [adminNavItem] : [])].map(item => {
+            {[...navItems, ...(user?.rol === 'admin' ? adminNavItems : [])].map(item => {
               const isActive = isMenuActive(item);
               const isSubmenuOpen = openSubmenus.includes(item.id);
 
@@ -229,17 +225,25 @@ const MainLayout: React.FC = () => {
 
         <div className="mt-auto p-4 border-t border-slate-700/50">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-primary-500 to-secondary-500 flex items-center justify-center">
-                <span className="text-lg font-bold text-white">{user?.nombre?.[0].toUpperCase()}</span>
+            {/* Avatar y nombre clickeable para ir al perfil */}
+            <Link 
+              to="/profile" 
+              className="flex items-center gap-3 group cursor-pointer"
+              title="Ver mi perfil"
+            >
+              <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-primary-500 to-secondary-500 flex items-center justify-center transition-transform group-hover:scale-110 group-hover:shadow-lg group-hover:shadow-primary-500/30">
+                <span className="text-lg font-bold text-white">{user?.nombre?.[0]?.toUpperCase() || 'U'}</span>
               </div>
-                {isSidebarOpen && (
-                  <div className="overflow-hidden">
-                    <p className="text-sm font-semibold text-slate-100 whitespace-nowrap">{user?.nombre}</p>
-                    <p className="text-xs text-slate-400 whitespace-nowrap">{user?.rol}</p>
-                  </div>
-                )}
-            </div>
+              {isSidebarOpen && (
+                <div className="overflow-hidden">
+                  <p className="text-sm font-semibold text-slate-100 whitespace-nowrap group-hover:text-primary-400 transition-colors flex items-center gap-1.5">
+                    {user?.nombre || 'Usuario'}
+                    <FiUser className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </p>
+                  <p className="text-xs text-slate-400 whitespace-nowrap capitalize">{user?.rol || 'user'}</p>
+                </div>
+              )}
+            </Link>
             
             {/* Acciones Footer Sidebar */}
             {isSidebarOpen && (
