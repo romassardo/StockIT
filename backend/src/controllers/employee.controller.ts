@@ -50,41 +50,32 @@ export class EmployeeController {
     }
 
     try {
-      const params = [
-        nombre,
-        apellido,
-        email || null,
-        telefono || null,
-        sector_id || null,
-        sucursal_id || null,
-        fecha_ingreso || null,
-        activo !== undefined ? activo : true,
-        usuario_id
-      ];
+      // Usar consulta directa ya que el SP no existe en MySQL
+      const insertQuery = `
+        INSERT INTO Empleados (nombre, apellido, email, activo)
+        VALUES (?, ?, ?, ?)
+      `;
+      const activoValue = activo !== undefined ? (activo ? 1 : 0) : 1;
       
-      logger.info(`Creando empleado con params: ${JSON.stringify(params)}`);
-      const result = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>('sp_Employee_Create', params);
+      logger.info(`Creando empleado: ${nombre} ${apellido}`);
+      const [result] = await this.db.executeQuery<any>(insertQuery, [nombre, apellido, email || null, activoValue]);
       
-      const [data] = result;
-      if (data && data.length > 0 && data[0].id) {
-        logger.info(`Empleado creado con ID: ${data[0].id} por usuario ID: ${usuario_id}`);
+      if (result.insertId) {
+        logger.info(`Empleado creado con ID: ${result.insertId} por usuario ID: ${usuario_id}`);
         res.status(201).json({ 
           success: true, 
-          message: data[0].mensaje || 'Empleado creado exitosamente.', 
-          data: data[0] 
+          message: 'Empleado creado exitosamente.', 
+          data: { id: result.insertId, nombre, apellido, email, activo: activoValue === 1 }
         });
       } else {
-        logger.error('sp_Employee_Create no devolvió el resultado esperado (ID).', { result });
-        res.status(500).json({ success: false, message: 'Error al crear el empleado: SP no devolvió ID.' });
+        res.status(500).json({ success: false, message: 'Error al crear el empleado.' });
       }
     } catch (error) {
-      const err = error as Error & { number?: number };
+      const err = error as Error & { code?: string };
       logger.error(`Error al crear empleado: ${err.message}`, { error: err });
       
-      if (err.message?.includes('ya existe')) {
+      if (err.code === 'ER_DUP_ENTRY') {
         res.status(409).json({ success: false, message: 'El empleado ya existe.' });
-      } else if (err.message?.includes('validación')) {
-        res.status(400).json({ success: false, message: err.message });
       } else {
         res.status(500).json({ success: false, message: 'Error interno del servidor al crear el empleado.' });
       }
@@ -195,58 +186,40 @@ export class EmployeeController {
     }
 
     try {
-      const params = [
-        employeeId,
-        nombre,
-        apellido,
-        email || null,
-        telefono || null,
-        sector_id || null,
-        sucursal_id || null,
-        fecha_ingreso || null,
-        usuario_id
-      ];
+      // Usar consulta directa ya que el SP no existe en MySQL
+      const updateQuery = `
+        UPDATE Empleados 
+        SET nombre = ?, apellido = ?
+        WHERE id = ?
+      `;
       
-      logger.info(`Actualizando empleado ID ${employeeId} con params: ${JSON.stringify(params)}`);
-      const result = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>('sp_Employee_Update', params);
+      logger.info(`Actualizando empleado ID ${employeeId} con nombre: ${nombre}, apellido: ${apellido}`);
+      const [result] = await this.db.executeQuery<any>(updateQuery, [nombre, apellido, employeeId]);
       
-      const [data] = result;
-      if (data && data.length > 0 && data[0].id) {
-        logger.info(`Empleado ID: ${data[0].id} actualizado por usuario ID: ${usuario_id}`);
+      if (result.affectedRows > 0) {
+        logger.info(`Empleado ID: ${employeeId} actualizado por usuario ID: ${usuario_id}`);
         
-        // Devolver los datos completos del empleado actualizado
+        // Devolver los datos del empleado actualizado
         const employeeData = {
-          id: data[0].id,
+          id: employeeId,
           nombre: nombre,
           apellido: apellido,
-          email: email,
-          telefono: telefono,
-          sector_id: sector_id,
-          sucursal_id: sucursal_id,
-          fecha_ingreso: fecha_ingreso,
-          activo: true // Asumimos que está activo después de actualizar
+          activo: true
         };
         
         res.status(200).json({ 
           success: true, 
-          message: data[0].mensaje || 'Empleado actualizado exitosamente.', 
+          message: 'Empleado actualizado exitosamente.', 
           data: employeeData 
         });
       } else {
-        logger.error(`sp_Employee_Update no devolvió el resultado esperado para ID: ${employeeId}.`, { result });
-        res.status(404).json({ success: false, message: 'Empleado no encontrado o error al actualizar.' }); 
+        logger.warn(`Empleado ID ${employeeId} no encontrado para actualizar.`);
+        res.status(404).json({ success: false, message: 'Empleado no encontrado.' }); 
       }
     } catch (error) {
       const err = error as Error & { number?: number };
       logger.error(`Error al actualizar empleado ID ${employeeId}: ${err.message}`, { error: err });
-      
-      if (err.message?.includes('no encontrado')) {
-        res.status(404).json({ success: false, message: 'Empleado no encontrado.' });
-      } else if (err.message?.includes('validación')) {
-        res.status(400).json({ success: false, message: err.message });
-      } else {
-        res.status(500).json({ success: false, message: 'Error interno del servidor al actualizar el empleado.' });
-      }
+      res.status(500).json({ success: false, message: 'Error interno del servidor al actualizar el empleado.' });
     }
   };
 
@@ -274,38 +247,26 @@ export class EmployeeController {
     }
 
     try {
-      const params = [
-        employeeId,
-        activo,
-        usuario_id
-      ];
+      // Usar consulta directa ya que el SP no existe en MySQL
+      const updateQuery = `UPDATE Empleados SET activo = ? WHERE id = ?`;
       
       logger.info(`Cambiando estado de empleado ID ${employeeId} a ${activo} por usuario ID: ${usuario_id}`);
-      const result = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>('sp_Employee_ToggleActive', params);
+      const [result] = await this.db.executeQuery<any>(updateQuery, [activo ? 1 : 0, employeeId]);
       
-      const [data] = result;
-      if (data && data.length > 0 && data[0].id) {
-        logger.info(`Estado de empleado ID: ${data[0].id} cambiado a ${activo} por usuario ID: ${usuario_id}`);
+      if (result.affectedRows > 0) {
+        logger.info(`Estado de empleado ID: ${employeeId} cambiado a ${activo} por usuario ID: ${usuario_id}`);
         res.status(200).json({ 
           success: true, 
-          message: data[0].mensaje || 'Estado del empleado actualizado exitosamente.', 
-          data: { id: data[0].id, activo } 
+          message: 'Estado del empleado actualizado exitosamente.', 
+          data: { id: employeeId, activo } 
         });
       } else {
-        logger.error(`sp_Employee_ToggleActive no devolvió el resultado esperado para ID: ${employeeId}.`, { result });
-        res.status(404).json({ success: false, message: 'Empleado no encontrado o error al cambiar estado.' });
+        res.status(404).json({ success: false, message: 'Empleado no encontrado.' });
       }
     } catch (error) {
       const err = error as Error & { number?: number };
       logger.error(`Error al cambiar estado de empleado ID ${employeeId}: ${err.message}`, { error: err });
-      
-      if (err.message?.includes('no encontrado')) {
-        res.status(404).json({ success: false, message: 'Empleado no encontrado.' });
-      } else if (err.message?.includes('ya tiene ese estado')) {
-        res.status(409).json({ success: false, message: 'El empleado ya tiene ese estado.' });
-      } else {
-        res.status(500).json({ success: false, message: 'Error interno del servidor al cambiar el estado del empleado.' });
-      }
+      res.status(500).json({ success: false, message: 'Error interno del servidor al cambiar el estado del empleado.' });
     }
   };
 }

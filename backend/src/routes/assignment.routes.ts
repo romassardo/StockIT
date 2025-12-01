@@ -8,12 +8,11 @@ const assignmentController = new AssignmentController();
 /**
  * @route POST /api/assignments
  * @desc Crear una nueva asignación (diferencia productos con/sin N/S)
- * @access Admin
+ * @access Usuarios autenticados
  */
 router.post(
   '/',
   authenticateToken,
-  authorizeRoles(['admin']),
   assignmentController.createAssignment
 );
 
@@ -64,24 +63,22 @@ router.get(
 /**
  * @route PUT /api/assignments/:assignment_id/return
  * @desc Registrar la devolución de un ítem asignado
- * @access Admin
+ * @access Todos los usuarios autenticados
  */
 router.put(
   '/:assignment_id/return',
   authenticateToken,
-  authorizeRoles(['admin']),
   assignmentController.returnAssignment
 );
 
 /**
  * @route PUT /api/assignments/:assignment_id/cancel
  * @desc Cancelar una asignación activa
- * @access Admin
+ * @access Todos los usuarios autenticados
  */
 router.put(
   '/:assignment_id/cancel',
   authenticateToken,
-  authorizeRoles(['admin']),
   assignmentController.cancelAssignment
 );
 

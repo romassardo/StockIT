@@ -225,7 +225,6 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
   const [branches, setBranches] = useState<Branch[]>([]);
   const [availableItems, setAvailableItems] = useState<InventoryItem[]>([]);
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
-  const [activeTab, setActiveTab] = useState<'empleado' | 'sector' | 'sucursal'>('empleado');
   
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -240,7 +239,9 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
     numero_telefono: '',
     cuenta_gmail: '',
     password_gmail: '',
-    codigo_2fa_whatsapp: ''
+    codigo_2fa_whatsapp: '',
+    imei_1: '',
+    imei_2: ''
   });
 
   useEffect(() => {
@@ -272,22 +273,13 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
         numero_telefono: '',
         cuenta_gmail: '',
         password_gmail: '',
-        codigo_2fa_whatsapp: ''
+        codigo_2fa_whatsapp: '',
+        imei_1: '',
+        imei_2: ''
       }));
       setErrors({});
-      setActiveTab('empleado');
     }
   }, [selectedItem?.id, inventoryItem?.id]);
-
-  // Resetear otros campos de destino cuando cambia el tab
-  useEffect(() => {
-    setFormData(prev => ({
-      ...prev,
-      empleado_id: undefined,
-      sector_id: undefined,
-      sucursal_id: undefined
-    }));
-  }, [activeTab]);
 
   const loadInitialData = async () => {
     try {
@@ -312,7 +304,9 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
     try {
       const response = await getInventoryItems();
       if (response.success && Array.isArray(response.data)) {
-        setAvailableItems(response.data);
+        // Solo mostrar activos disponibles (no asignados, no en reparación, no dados de baja)
+        const disponibles = response.data.filter(item => item.estado === 'Disponible');
+        setAvailableItems(disponibles);
       }
     } catch (error) {
       console.error("Error al cargar items disponibles", error);
@@ -335,9 +329,9 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
       newErrors.item = 'Debes seleccionar un producto.';
     }
 
-    const destinationCount = [formData.empleado_id, formData.sector_id, formData.sucursal_id].filter(Boolean).length;
-    if (destinationCount === 0) {
-      newErrors.destination = 'Seleccione un destinatario válido.';
+    // Empleado es obligatorio
+    if (!formData.empleado_id) {
+      newErrors.empleado_id = 'Debe seleccionar un empleado.';
     }
 
     const selectedItem = availableItems.find(item => item.id === formData.inventario_individual_id) || inventoryItem;
@@ -348,9 +342,11 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
           newErrors.password_encriptacion = 'La contraseña de encriptación es obligatoria.';
         }
       } else if (categoryName === 'celulares') {
+        if (!formData.imei_1) newErrors.imei_1 = 'El IMEI 1 es obligatorio.';
         if (!formData.numero_telefono) newErrors.numero_telefono = 'El número de teléfono es obligatorio.';
         if (!formData.cuenta_gmail) newErrors.cuenta_gmail = 'La cuenta de Gmail es obligatoria.';
         if (!formData.password_gmail) newErrors.password_gmail = 'La contraseña de Gmail es obligatoria.';
+        if (!formData.codigo_2fa_whatsapp) newErrors.codigo_2fa_whatsapp = 'El PIN de WhatsApp es obligatorio.';
       }
     }
     
@@ -478,68 +474,53 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
               </div>
             )}
 
-            {/* Destino (Tabs) */}
-            <div className="space-y-3">
-              <label className={`text-sm font-medium ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
-                Asignar a
-              </label>
-              
-              <div className={`grid grid-cols-3 gap-1 p-1 rounded-xl ${
-                theme === 'dark' ? 'bg-slate-800' : 'bg-slate-100'
-              }`}>
-                {[
-                  { id: 'empleado', label: 'Empleado', icon: FiUser },
-                  { id: 'sector', label: 'Sector', icon: FiHome },
-                  { id: 'sucursal', label: 'Sucursal', icon: FiMapPin }
-                ].map(tab => (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    onClick={() => setActiveTab(tab.id as any)}
-                    className={`flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-all ${
-                      activeTab === tab.id
-                        ? 'bg-indigo-600 text-white shadow-lg'
-                        : 'text-slate-500 hover:text-slate-700 hover:bg-white/50'
-                    }`}
-                  >
-                    <tab.icon size={14} />
-                    {tab.label}
-                  </button>
-                ))}
+            {/* Destino - Empleado (obligatorio) + Sector/Sucursal (opcionales) */}
+            <div className="space-y-4">
+              {/* Empleado - Obligatorio */}
+              <div className="space-y-2">
+                <label className={`text-sm font-medium flex items-center gap-2 ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
+                  <FiUser className="text-indigo-500" /> Empleado <span className="text-red-500">*</span>
+                </label>
+                <SearchableSelect
+                  value={formData.empleado_id || ''}
+                  onChange={(v) => handleInputChange('empleado_id', v)}
+                  options={employees.map(e => ({ id: e.id, label: `${e.nombre} ${e.apellido}` }))}
+                  placeholder="Buscar empleado..."
+                  theme={theme}
+                  emptyLabel="Seleccione un empleado"
+                />
+                {errors.empleado_id && <p className="text-xs text-red-500 mt-1">{errors.empleado_id}</p>}
               </div>
 
-              <div className="mt-3">
-                {activeTab === 'empleado' && (
-                  <SearchableSelect
-                    value={formData.empleado_id || ''}
-                    onChange={(v) => handleInputChange('empleado_id', v)}
-                    options={employees.map(e => ({ id: e.id, label: `${e.nombre} ${e.apellido}` }))}
-                    placeholder="Buscar empleado..."
-                    theme={theme}
-                    emptyLabel="Seleccione un empleado"
-                  />
-                )}
-                {activeTab === 'sector' && (
+              {/* Sector y Sucursal en fila - Opcionales */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className={`text-sm font-medium flex items-center gap-2 ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
+                    <FiHome className="text-emerald-500" /> Sector <span className="text-slate-500 text-xs">(opcional)</span>
+                  </label>
                   <SearchableSelect
                     value={formData.sector_id || ''}
                     onChange={(v) => handleInputChange('sector_id', v)}
                     options={sectors.map(s => ({ id: s.id, label: s.nombre }))}
                     placeholder="Buscar sector..."
                     theme={theme}
-                    emptyLabel="Seleccione un sector"
+                    emptyLabel="Sin sector"
                   />
-                )}
-                {activeTab === 'sucursal' && (
+                </div>
+
+                <div className="space-y-2">
+                  <label className={`text-sm font-medium flex items-center gap-2 ${theme === 'dark' ? 'text-slate-300' : 'text-slate-700'}`}>
+                    <FiMapPin className="text-amber-500" /> Sucursal <span className="text-slate-500 text-xs">(opcional)</span>
+                  </label>
                   <SearchableSelect
                     value={formData.sucursal_id || ''}
                     onChange={(v) => handleInputChange('sucursal_id', v)}
                     options={branches.map(b => ({ id: b.id, label: b.nombre }))}
                     placeholder="Buscar sucursal..."
                     theme={theme}
-                    emptyLabel="Seleccione una sucursal"
+                    emptyLabel="Sin sucursal"
                   />
-                )}
-                {errors.destination && <p className="text-xs text-red-500 mt-1">{errors.destination}</p>}
+                </div>
               </div>
             </div>
 
@@ -571,58 +552,103 @@ export const AssignmentModal: React.FC<AssignmentModalProps> = ({
                 <h4 className={`text-sm font-semibold flex items-center gap-2 ${theme === 'dark' ? 'text-slate-200' : 'text-slate-700'}`}>
                   <FiSmartphone className="text-blue-500" /> Configuración Móvil
                 </h4>
+                
+                {/* IMEI */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <input
-                      type="tel"
-                      value={formData.numero_telefono}
-                      onChange={(e) => handleInputChange('numero_telefono', e.target.value)}
-                      placeholder="Número de línea"
+                      type="text"
+                      value={formData.imei_1}
+                      onChange={(e) => handleInputChange('imei_1', e.target.value)}
+                      placeholder="IMEI 1 *"
+                      maxLength={15}
+                      className={`w-full px-4 py-2.5 rounded-xl text-sm outline-none border transition-all ${
+                        theme === 'dark'
+                          ? 'bg-slate-800/50 border-slate-700 text-white focus:border-indigo-500'
+                          : 'bg-white border-slate-200 text-slate-800 focus:border-indigo-500'
+                      } ${errors.imei_1 ? 'border-red-500' : ''}`}
+                    />
+                    {errors.imei_1 && <p className="text-xs text-red-500 mt-1">{errors.imei_1}</p>}
+                  </div>
+                  <div>
+                    <input
+                      type="text"
+                      value={formData.imei_2}
+                      onChange={(e) => handleInputChange('imei_2', e.target.value)}
+                      placeholder="IMEI 2 (opcional)"
+                      maxLength={15}
                       className={`w-full px-4 py-2.5 rounded-xl text-sm outline-none border transition-all ${
                         theme === 'dark'
                           ? 'bg-slate-800/50 border-slate-700 text-white focus:border-indigo-500'
                           : 'bg-white border-slate-200 text-slate-800 focus:border-indigo-500'
                       }`}
                     />
+                  </div>
+                </div>
+
+                {/* Línea y WhatsApp */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <input
+                      type="tel"
+                      value={formData.numero_telefono}
+                      onChange={(e) => handleInputChange('numero_telefono', e.target.value)}
+                      placeholder="Número de línea *"
+                      className={`w-full px-4 py-2.5 rounded-xl text-sm outline-none border transition-all ${
+                        theme === 'dark'
+                          ? 'bg-slate-800/50 border-slate-700 text-white focus:border-indigo-500'
+                          : 'bg-white border-slate-200 text-slate-800 focus:border-indigo-500'
+                      } ${errors.numero_telefono ? 'border-red-500' : ''}`}
+                    />
                     {errors.numero_telefono && <p className="text-xs text-red-500 mt-1">{errors.numero_telefono}</p>}
                   </div>
-                  <input
-                    type="text"
-                    value={formData.codigo_2fa_whatsapp}
-                    onChange={(e) => handleInputChange('codigo_2fa_whatsapp', e.target.value)}
-                    placeholder="PIN WhatsApp (2FA)"
-                    className={`w-full px-4 py-2.5 rounded-xl text-sm outline-none border transition-all ${
-                      theme === 'dark'
-                        ? 'bg-slate-800/50 border-slate-700 text-white focus:border-indigo-500'
-                        : 'bg-white border-slate-200 text-slate-800 focus:border-indigo-500'
-                    }`}
-                  />
-                  <input
-                    type="email"
-                    value={formData.cuenta_gmail}
-                    onChange={(e) => handleInputChange('cuenta_gmail', e.target.value)}
-                    placeholder="Cuenta Google"
-                    className={`w-full px-4 py-2.5 rounded-xl text-sm outline-none border transition-all ${
-                      theme === 'dark'
-                        ? 'bg-slate-800/50 border-slate-700 text-white focus:border-indigo-500'
-                        : 'bg-white border-slate-200 text-slate-800 focus:border-indigo-500'
-                    }`}
-                  />
-                  <input
-                    type="text"
-                    value={formData.password_gmail}
-                    onChange={(e) => handleInputChange('password_gmail', e.target.value)}
-                    placeholder="Contraseña Google"
-                    className={`w-full px-4 py-2.5 rounded-xl text-sm outline-none border transition-all ${
-                      theme === 'dark'
-                        ? 'bg-slate-800/50 border-slate-700 text-white focus:border-indigo-500'
-                        : 'bg-white border-slate-200 text-slate-800 focus:border-indigo-500'
-                    }`}
-                  />
+                  <div>
+                    <input
+                      type="text"
+                      value={formData.codigo_2fa_whatsapp}
+                      onChange={(e) => handleInputChange('codigo_2fa_whatsapp', e.target.value)}
+                      placeholder="PIN WhatsApp (2FA) *"
+                      className={`w-full px-4 py-2.5 rounded-xl text-sm outline-none border transition-all ${
+                        theme === 'dark'
+                          ? 'bg-slate-800/50 border-slate-700 text-white focus:border-indigo-500'
+                          : 'bg-white border-slate-200 text-slate-800 focus:border-indigo-500'
+                      } ${errors.codigo_2fa_whatsapp ? 'border-red-500' : ''}`}
+                    />
+                    {errors.codigo_2fa_whatsapp && <p className="text-xs text-red-500 mt-1">{errors.codigo_2fa_whatsapp}</p>}
+                  </div>
                 </div>
-                {(errors.cuenta_gmail || errors.password_gmail) && (
-                  <p className="text-xs text-red-500">Complete los datos de la cuenta Google.</p>
-                )}
+
+                {/* Cuenta Google */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <input
+                      type="email"
+                      value={formData.cuenta_gmail}
+                      onChange={(e) => handleInputChange('cuenta_gmail', e.target.value)}
+                      placeholder="Cuenta Google *"
+                      className={`w-full px-4 py-2.5 rounded-xl text-sm outline-none border transition-all ${
+                        theme === 'dark'
+                          ? 'bg-slate-800/50 border-slate-700 text-white focus:border-indigo-500'
+                          : 'bg-white border-slate-200 text-slate-800 focus:border-indigo-500'
+                      } ${errors.cuenta_gmail ? 'border-red-500' : ''}`}
+                    />
+                    {errors.cuenta_gmail && <p className="text-xs text-red-500 mt-1">{errors.cuenta_gmail}</p>}
+                  </div>
+                  <div>
+                    <input
+                      type="text"
+                      value={formData.password_gmail}
+                      onChange={(e) => handleInputChange('password_gmail', e.target.value)}
+                      placeholder="Contraseña Google *"
+                      className={`w-full px-4 py-2.5 rounded-xl text-sm outline-none border transition-all ${
+                        theme === 'dark'
+                          ? 'bg-slate-800/50 border-slate-700 text-white focus:border-indigo-500'
+                          : 'bg-white border-slate-200 text-slate-800 focus:border-indigo-500'
+                      } ${errors.password_gmail ? 'border-red-500' : ''}`}
+                    />
+                    {errors.password_gmail && <p className="text-xs text-red-500 mt-1">{errors.password_gmail}</p>}
+                  </div>
+                </div>
               </div>
             )}
 

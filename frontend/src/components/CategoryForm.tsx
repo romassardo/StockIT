@@ -119,192 +119,141 @@ export const CategoryForm: React.FC<CategoryFormProps> = ({
   };
 
   return createPortal(
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-[9999] p-4" style={{ top: 0, left: 0, right: 0, bottom: 0 }}>
-      <div className="bg-slate-900/90 backdrop-blur-xl border border-slate-700/50 rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col relative overflow-hidden">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-[9999] p-4">
+      <div className="bg-slate-900/95 backdrop-blur-xl border border-slate-700/50 rounded-2xl shadow-2xl w-full max-w-md relative overflow-hidden">
         
         {/* Gradiente de fondo sutil */}
-        <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 via-purple-500/5 to-transparent pointer-events-none"></div>
+        <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 via-purple-500/5 to-transparent pointer-events-none"></div>
         
-        {/* Header */}
-        <div className="relative p-6 border-b border-slate-700/50 flex-shrink-0">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="p-2 bg-gradient-to-br from-indigo-500/20 to-purple-500/20 rounded-lg backdrop-blur-sm border border-indigo-400/20">
-                <Folder className="text-xl text-indigo-300" />
-              </div>
-              <div>
-                <h2 className="text-xl font-bold text-slate-50">
-                  {category ? 'Editar Categoría' : 'Nueva Categoría'}
-                </h2>
-                <p className="text-sm text-slate-300">
-                  {category ? 'Modifica los datos de la categoría' : 'Completa los datos de la nueva categoría'}
-                </p>
-              </div>
+        {/* Header compacto */}
+        <div className="relative px-5 py-4 border-b border-slate-700/50 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-gradient-to-br from-indigo-500/20 to-purple-500/20 rounded-lg border border-indigo-400/20">
+              <Folder size={18} className="text-indigo-300" />
             </div>
-            <button
-              onClick={onClose}
-              className="p-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 rounded-lg transition-all duration-200 hover:scale-105"
-            >
-              <X className="text-xl" />
-            </button>
+            <h2 className="text-lg font-bold text-slate-50">
+              {category ? 'Editar Categoría' : 'Nueva Categoría'}
+            </h2>
           </div>
+          <button onClick={onClose} className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-lg transition-colors">
+            <X size={18} />
+          </button>
         </div>
 
-        {/* Body */}
-        <div className="relative flex-1 overflow-y-auto p-6 space-y-6">
-          {/* Nombre */}
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-slate-200">
-              Nombre de la Categoría <span className="text-red-400">*</span>
-            </label>
-            <input
-              type="text"
-              value={formData.nombre}
-              onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
-              className="w-full px-4 py-3 bg-slate-800/60 backdrop-blur-sm border border-slate-600/50 rounded-xl text-slate-100 
-                       placeholder:text-slate-400 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-400/20 focus:bg-slate-800/80
-                       transition-all duration-200 hover:border-slate-500"
-              placeholder="Ej: Notebooks, Periféricos, Consumibles..."
-              required
-            />
+        {/* Body compacto */}
+        <div className="relative p-5 space-y-4">
+          {/* Nombre + Categoría Padre en grid */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="col-span-2">
+              <label className="block text-xs font-medium text-slate-300 mb-1.5">Nombre *</label>
+              <input
+                type="text"
+                value={formData.nombre}
+                onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+                className="w-full px-3 py-2 bg-slate-800/60 border border-slate-600/50 rounded-lg text-sm text-slate-100 
+                         placeholder:text-slate-500 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/20 transition-colors"
+                placeholder="Notebooks, Periféricos..."
+              />
+            </div>
           </div>
 
           {/* Categoría Padre */}
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-slate-200">
-              Categoría Padre
-            </label>
+          <div>
+            <label className="block text-xs font-medium text-slate-300 mb-1.5">Categoría Padre</label>
             <select
               value={formData.categoria_padre_id || ''}
               onChange={(e) => setFormData({ ...formData, categoria_padre_id: e.target.value ? parseInt(e.target.value) : null })}
-              className="w-full px-4 py-3 bg-slate-800/60 backdrop-blur-sm border border-slate-600/50 rounded-xl text-slate-100 
-                       focus:border-indigo-400 focus:ring-4 focus:ring-indigo-400/20 focus:bg-slate-800/80
-                       transition-all duration-200 hover:border-slate-500"
+              className="w-full px-3 py-2 bg-slate-800/60 border border-slate-600/50 rounded-lg text-sm text-slate-100 
+                       focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/20 transition-colors"
             >
-              <option value="" className="bg-slate-800 text-slate-100">Sin categoría padre (Categoría principal)</option>
+              <option value="" className="bg-slate-800">Sin padre (Principal)</option>
               {parentCategories.map(cat => (
-                <option key={cat.id} value={cat.id} className="bg-slate-800 text-slate-100">
-                  {cat.ruta_completa}
-                </option>
+                <option key={cat.id} value={cat.id} className="bg-slate-800">{cat.ruta_completa}</option>
               ))}
             </select>
-            <p className="text-xs text-slate-400">
-              Selecciona una categoría padre para crear una subcategoría
-            </p>
           </div>
 
-          {/* Switches de Configuración */}
-          <div className="space-y-4">
-            <h3 className="text-sm font-medium text-slate-200 border-b border-slate-700/50 pb-2">
-              Configuración de la Categoría
-            </h3>
-            
+          {/* Switches en fila compacta */}
+          <div className="grid grid-cols-3 gap-2">
             {/* Requiere Serie */}
-            <div className="flex items-center justify-between p-4 bg-slate-800/40 backdrop-blur-sm rounded-xl border border-slate-700/50">
-              <div>
-                <span className="text-sm font-medium text-slate-200">Requiere Número de Serie</span>
-                <p className="text-xs text-slate-400 mt-1">Solo para productos que necesitan seguimiento individual</p>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer">
+            <div className="flex flex-col items-center p-3 bg-slate-800/40 rounded-lg border border-slate-700/50">
+              <label className="relative inline-flex items-center cursor-pointer mb-1.5">
                 <input
                   type="checkbox"
                   checked={formData.requiere_serie}
                   onChange={(e) => setFormData({ ...formData, requiere_serie: e.target.checked })}
                   className="sr-only peer"
                 />
-                <div className="w-11 h-6 bg-slate-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-400/20 rounded-full peer 
-                             peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] 
-                             after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gradient-to-r 
-                             peer-checked:from-purple-500 peer-checked:to-violet-500"></div>
+                <div className="w-9 h-5 bg-slate-600 rounded-full peer peer-checked:after:translate-x-full 
+                             after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white 
+                             after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-purple-500"></div>
               </label>
+              <span className="text-[10px] text-slate-400 text-center">Nº Serie</span>
             </div>
 
             {/* Permite Asignación */}
-            <div className="flex items-center justify-between p-4 bg-slate-800/40 backdrop-blur-sm rounded-xl border border-slate-700/50">
-              <div>
-                <span className="text-sm font-medium text-slate-200">Permite Asignación</span>
-                <p className="text-xs text-slate-400 mt-1">Los productos pueden asignarse a empleados</p>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer">
+            <div className="flex flex-col items-center p-3 bg-slate-800/40 rounded-lg border border-slate-700/50">
+              <label className="relative inline-flex items-center cursor-pointer mb-1.5">
                 <input
                   type="checkbox"
                   checked={formData.permite_asignacion}
                   onChange={(e) => setFormData({ ...formData, permite_asignacion: e.target.checked })}
                   className="sr-only peer"
                 />
-                <div className="w-11 h-6 bg-slate-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-emerald-400/20 rounded-full peer 
-                             peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] 
-                             after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gradient-to-r 
-                             peer-checked:from-emerald-500 peer-checked:to-green-500"></div>
+                <div className="w-9 h-5 bg-slate-600 rounded-full peer peer-checked:after:translate-x-full 
+                             after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white 
+                             after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
               </label>
+              <span className="text-[10px] text-slate-400 text-center">Asignación</span>
             </div>
 
             {/* Permite Reparación */}
-            <div className="flex items-center justify-between p-4 bg-slate-800/40 backdrop-blur-sm rounded-xl border border-slate-700/50">
-              <div>
-                <span className="text-sm font-medium text-slate-200">Permite Reparación</span>
-                <p className="text-xs text-slate-400 mt-1">Los productos pueden enviarse a reparación</p>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer">
+            <div className="flex flex-col items-center p-3 bg-slate-800/40 rounded-lg border border-slate-700/50">
+              <label className="relative inline-flex items-center cursor-pointer mb-1.5">
                 <input
                   type="checkbox"
                   checked={formData.permite_reparacion}
                   onChange={(e) => setFormData({ ...formData, permite_reparacion: e.target.checked })}
                   className="sr-only peer"
                 />
-                <div className="w-11 h-6 bg-slate-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-amber-400/20 rounded-full peer 
-                             peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] 
-                             after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gradient-to-r 
-                             peer-checked:from-amber-500 peer-checked:to-orange-500"></div>
+                <div className="w-9 h-5 bg-slate-600 rounded-full peer peer-checked:after:translate-x-full 
+                             after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white 
+                             after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-amber-500"></div>
               </label>
+              <span className="text-[10px] text-slate-400 text-center">Reparación</span>
             </div>
           </div>
 
-          {/* Preview de la ruta */}
-          <div className="p-4 bg-indigo-500/10 backdrop-blur-sm rounded-xl border border-indigo-400/20">
-            <div className="flex items-center space-x-2 mb-2">
-              <div className="w-2 h-2 bg-indigo-400 rounded-full"></div>
-              <span className="text-sm font-medium text-indigo-300">Vista previa de la ruta</span>
-            </div>
-            <div className="text-sm text-slate-300">
-              {getPreviewPath()}
-            </div>
+          {/* Preview compacto */}
+          <div className="flex items-center gap-2 px-3 py-2 bg-indigo-500/10 rounded-lg border border-indigo-400/20">
+            <div className="w-1.5 h-1.5 bg-indigo-400 rounded-full"></div>
+            <span className="text-xs text-slate-300">Ruta: <span className="text-indigo-300">{getPreviewPath()}</span></span>
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="relative p-6 border-t border-slate-700/50 flex-shrink-0">
-          <div className="flex space-x-3">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 px-4 py-3 text-slate-300 hover:text-slate-100 bg-slate-800/50 hover:bg-slate-700/50 
-                       border border-slate-600/50 hover:border-slate-500 rounded-xl transition-all duration-200 
-                       backdrop-blur-sm font-medium"
-            >
-              Cancelar
-            </button>
-            <button
-              onClick={handleSubmit}
-              disabled={loading}
-              className="flex-1 px-4 py-3 bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 
-                       text-white font-medium rounded-xl transition-all duration-200 transform hover:scale-[1.02] hover:shadow-lg 
-                       hover:shadow-indigo-500/25 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none
-                       flex items-center justify-center space-x-2 border border-indigo-400/20"
-            >
-              {loading ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                  <span>Guardando...</span>
-                </>
-              ) : (
-                <>
-                  <Save className="text-lg" />
-                  <span>{category ? 'Actualizar' : 'Crear'} Categoría</span>
-                </>
-              )}
-            </button>
-          </div>
+        {/* Footer compacto */}
+        <div className="relative px-5 py-4 border-t border-slate-700/50 flex gap-3">
+          <button
+            onClick={onClose}
+            className="flex-1 px-4 py-2 text-sm text-slate-300 hover:text-white bg-slate-800/50 hover:bg-slate-700/50 
+                     border border-slate-600/50 rounded-lg transition-colors font-medium"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={loading}
+            className="flex-1 px-4 py-2 text-sm bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 
+                     text-white font-medium rounded-lg transition-all flex items-center justify-center gap-2
+                     disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loading ? (
+              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+            ) : (
+              <Save size={16} />
+            )}
+            <span>{category ? 'Actualizar' : 'Crear'}</span>
+          </button>
         </div>
       </div>
     </div>,

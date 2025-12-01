@@ -178,138 +178,86 @@ export const ProductForm: React.FC<ProductFormProps> = ({
   const selectedCategory = categories.find(cat => cat.id === formData.categoria_id);
 
   return createPortal(
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-[9999] p-4" style={{ top: 0, left: 0, right: 0, bottom: 0 }}>
-      <div className="bg-slate-900/90 backdrop-blur-xl border border-slate-700/50 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col relative overflow-hidden">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex justify-center items-center z-[9999] p-4">
+      <div className="bg-slate-900/95 backdrop-blur-xl border border-slate-700/50 rounded-2xl shadow-2xl w-full max-w-xl relative overflow-hidden">
         
         {/* Gradiente de fondo sutil */}
-        <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 via-purple-500/5 to-transparent pointer-events-none"></div>
+        <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 via-purple-500/5 to-transparent pointer-events-none"></div>
         
-        {/* Header */}
-        <div className="relative p-6 border-b border-slate-700/50 flex-shrink-0">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="p-2 bg-gradient-to-br from-indigo-500/20 to-purple-500/20 rounded-lg backdrop-blur-sm border border-indigo-400/20">
-                <Package className="text-xl text-indigo-300" />
-              </div>
-              <div>
-                <h2 className="text-xl font-bold text-slate-50">
-                  {product ? 'Editar Producto' : 'Nuevo Producto'}
-                </h2>
-                <p className="text-sm text-slate-300">
-                  {product ? 'Modifica los datos del producto' : 'Completa los datos del nuevo producto'}
-                </p>
-              </div>
+        {/* Header compacto */}
+        <div className="relative px-5 py-4 border-b border-slate-700/50 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-gradient-to-br from-indigo-500/20 to-purple-500/20 rounded-lg border border-indigo-400/20">
+              <Package size={18} className="text-indigo-300" />
             </div>
-            <button
-              onClick={onClose}
-              className="p-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 rounded-lg transition-all duration-200 hover:scale-105"
-            >
-              <X className="text-xl" />
-            </button>
+            <h2 className="text-lg font-bold text-slate-50">
+              {product ? 'Editar Producto' : 'Nuevo Producto'}
+            </h2>
           </div>
+          <button onClick={onClose} className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-lg transition-colors">
+            <X size={18} />
+          </button>
         </div>
 
-        {/* Body */}
-        <div className="relative flex-1 overflow-y-auto p-6 space-y-6">
+        {/* Body compacto */}
+        <div className="relative p-5 space-y-4">
           {/* Categoría */}
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-slate-200">
-              Categoría <span className="text-red-400">*</span>
-            </label>
+          <div>
+            <label className="block text-xs font-medium text-slate-300 mb-1.5">Categoría *</label>
             <select
               value={formData.categoria_id}
               onChange={(e) => setFormData({ ...formData, categoria_id: parseInt(e.target.value) })}
-              className="w-full px-4 py-3 bg-slate-800/60 backdrop-blur-sm border border-slate-600/50 rounded-xl text-slate-100 
-                       focus:border-indigo-400 focus:ring-4 focus:ring-indigo-400/20 focus:bg-slate-800/80
-                       transition-all duration-200 hover:border-slate-500"
-              required
+              className="w-full px-3 py-2 bg-slate-800/60 border border-slate-600/50 rounded-lg text-sm text-slate-100 
+                       focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/20 transition-colors"
             >
-              <option value="">
-                {categories.length === 0 ? 'Cargando categorías...' : `Selecciona una categoría (${categories.length} disponibles)`}
-              </option>
+              <option value="">{categories.length === 0 ? 'Cargando...' : 'Selecciona categoría'}</option>
               {categories.map(cat => (
-                <option key={cat.id} value={cat.id} className="bg-slate-800 text-slate-100">
-                  {cat.ruta_completa || cat.nombre}
-                </option>
+                <option key={cat.id} value={cat.id} className="bg-slate-800">{cat.ruta_completa || cat.nombre}</option>
               ))}
             </select>
           </div>
 
-          {/* Marca */}
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-slate-200">
-              Marca <span className="text-red-400">*</span>
-            </label>
-            <input
-              type="text"
-              value={formData.marca}
-              onChange={(e) => setFormData({ ...formData, marca: e.target.value })}
-              className="w-full px-4 py-3 bg-slate-800/60 backdrop-blur-sm border border-slate-600/50 rounded-xl text-slate-100 
-                       placeholder:text-slate-400 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-400/20 focus:bg-slate-800/80
-                       transition-all duration-200 hover:border-slate-500"
-              placeholder="Ej: Dell, HP, Samsung..."
-              required
-            />
+          {/* Grid Marca + Modelo */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-slate-300 mb-1.5">Marca *</label>
+              <input
+                type="text"
+                value={formData.marca}
+                onChange={(e) => setFormData({ ...formData, marca: e.target.value })}
+                className="w-full px-3 py-2 bg-slate-800/60 border border-slate-600/50 rounded-lg text-sm text-slate-100 
+                         placeholder:text-slate-500 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/20 transition-colors"
+                placeholder="Dell, HP..."
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-slate-300 mb-1.5">Modelo *</label>
+              <input
+                type="text"
+                value={formData.modelo}
+                onChange={(e) => setFormData({ ...formData, modelo: e.target.value })}
+                className="w-full px-3 py-2 bg-slate-800/60 border border-slate-600/50 rounded-lg text-sm text-slate-100 
+                         placeholder:text-slate-500 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/20 transition-colors"
+                placeholder="Latitude 5520..."
+              />
+            </div>
           </div>
 
-          {/* Modelo */}
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-slate-200">
-              Modelo <span className="text-red-400">*</span>
-            </label>
-            <input
-              type="text"
-              value={formData.modelo}
-              onChange={(e) => setFormData({ ...formData, modelo: e.target.value })}
-              className="w-full px-4 py-3 bg-slate-800/60 backdrop-blur-sm border border-slate-600/50 rounded-xl text-slate-100 
-                       placeholder:text-slate-400 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-400/20 focus:bg-slate-800/80
-                       transition-all duration-200 hover:border-slate-500"
-              placeholder="Ej: Latitude 5520, EliteDesk 800..."
-              required
-            />
-          </div>
-
-          {/* Descripción */}
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-slate-200">
-              Descripción
-            </label>
-            <textarea
-              value={formData.descripcion || ''}
-              onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
-              rows={3}
-              className="w-full px-4 py-3 bg-slate-800/60 backdrop-blur-sm border border-slate-600/50 rounded-xl text-slate-100 
-                       placeholder:text-slate-400 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-400/20 focus:bg-slate-800/80
-                       transition-all duration-200 hover:border-slate-500 resize-none"
-              placeholder="Descripción opcional del producto..."
-            />
-          </div>
-
-          {/* Stock Mínimo */}
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-slate-200">
-              Stock Mínimo
-            </label>
-            <input
-              type="number"
-              value={formData.stock_minimo}
-              onChange={(e) => setFormData({ ...formData, stock_minimo: parseInt(e.target.value) || 0 })}
-              className="w-full px-4 py-3 bg-slate-800/60 backdrop-blur-sm border border-slate-600/50 rounded-xl text-slate-100 
-                       placeholder:text-slate-400 focus:border-indigo-400 focus:ring-4 focus:ring-indigo-400/20 focus:bg-slate-800/80
-                       transition-all duration-200 hover:border-slate-500"
-              placeholder="0"
-              min="0"
-            />
-          </div>
-
-          {/* Switches */}
-          <div className="grid grid-cols-1 gap-4">
-            {/* Usa Número de Serie */}
-            <div className="flex items-center justify-between p-4 bg-slate-800/40 backdrop-blur-sm rounded-xl border border-slate-700/50">
-              <div>
-                <span className="text-sm font-medium text-slate-200">Número de Serie</span>
-                <p className="text-xs text-slate-400 mt-1">Solo para Notebooks y Celulares</p>
-              </div>
+          {/* Grid Stock Mínimo + Switch Serie */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-slate-300 mb-1.5">Stock Mínimo</label>
+              <input
+                type="number"
+                value={formData.stock_minimo}
+                onChange={(e) => setFormData({ ...formData, stock_minimo: parseInt(e.target.value) || 0 })}
+                className="w-full px-3 py-2 bg-slate-800/60 border border-slate-600/50 rounded-lg text-sm text-slate-100 
+                         focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/20 transition-colors"
+                min="0"
+              />
+            </div>
+            <div className="flex items-center justify-between px-3 py-2 bg-slate-800/40 rounded-lg border border-slate-700/50">
+              <span className="text-xs font-medium text-slate-300">Usa Nº Serie</span>
               <label className="relative inline-flex items-center cursor-pointer">
                 <input
                   type="checkbox"
@@ -317,63 +265,66 @@ export const ProductForm: React.FC<ProductFormProps> = ({
                   onChange={(e) => setFormData({ ...formData, usa_numero_serie: e.target.checked })}
                   className="sr-only peer"
                 />
-                <div className="w-11 h-6 bg-slate-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-400/20 rounded-full peer 
-                             peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] 
-                             after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gradient-to-r 
-                             peer-checked:from-indigo-500 peer-checked:to-purple-500"></div>
+                <div className="w-9 h-5 bg-slate-600 rounded-full peer peer-checked:after:translate-x-full 
+                             after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white 
+                             after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-500"></div>
               </label>
             </div>
           </div>
 
-          {/* Información adicional */}
+          {/* Descripción */}
+          <div>
+            <label className="block text-xs font-medium text-slate-300 mb-1.5">Descripción (opcional)</label>
+            <input
+              type="text"
+              value={formData.descripcion || ''}
+              onChange={(e) => setFormData({ ...formData, descripcion: e.target.value })}
+              className="w-full px-3 py-2 bg-slate-800/60 border border-slate-600/50 rounded-lg text-sm text-slate-100 
+                       placeholder:text-slate-500 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-400/20 transition-colors"
+              placeholder="Descripción breve..."
+            />
+          </div>
+
+          {/* Info categoría compacta */}
           {selectedCategory && (
-            <div className="p-4 bg-indigo-500/10 backdrop-blur-sm rounded-xl border border-indigo-400/20">
-              <div className="flex items-center space-x-2 mb-2">
-                <div className="w-2 h-2 bg-indigo-400 rounded-full"></div>
-                <span className="text-sm font-medium text-indigo-300">Información de la categoría</span>
-              </div>
-              <div className="text-xs text-slate-300 space-y-1">
-                <p><span className="text-slate-400">Permite serie:</span> <span className="text-indigo-300">{selectedCategory.requiere_serie ? 'Sí' : 'No'}</span></p>
-                <p><span className="text-slate-400">Permite asignación:</span> <span className="text-indigo-300">{selectedCategory.permite_asignacion ? 'Sí' : 'No'}</span></p>
-                <p><span className="text-slate-400">Permite reparación:</span> <span className="text-indigo-300">{selectedCategory.permite_reparacion ? 'Sí' : 'No'}</span></p>
-              </div>
+            <div className="flex items-center gap-4 px-3 py-2 bg-indigo-500/10 rounded-lg border border-indigo-400/20 text-xs">
+              <span className="text-indigo-300 font-medium">Categoría:</span>
+              <span className={selectedCategory.requiere_serie ? 'text-emerald-400' : 'text-slate-400'}>
+                Serie: {selectedCategory.requiere_serie ? '✓' : '✗'}
+              </span>
+              <span className={selectedCategory.permite_asignacion ? 'text-emerald-400' : 'text-slate-400'}>
+                Asignación: {selectedCategory.permite_asignacion ? '✓' : '✗'}
+              </span>
+              <span className={selectedCategory.permite_reparacion ? 'text-emerald-400' : 'text-slate-400'}>
+                Reparación: {selectedCategory.permite_reparacion ? '✓' : '✗'}
+              </span>
             </div>
           )}
         </div>
 
-        {/* Footer */}
-        <div className="relative p-6 border-t border-slate-700/50 flex-shrink-0">
-          <div className="flex space-x-3">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 px-4 py-3 text-slate-300 hover:text-slate-100 bg-slate-800/50 hover:bg-slate-700/50 
-                       border border-slate-600/50 hover:border-slate-500 rounded-xl transition-all duration-200 
-                       backdrop-blur-sm font-medium"
-            >
-              Cancelar
-            </button>
-            <button
-              onClick={handleSubmit}
-              disabled={loading}
-              className="flex-1 px-4 py-3 bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 
-                       text-white font-medium rounded-xl transition-all duration-200 transform hover:scale-[1.02] hover:shadow-lg 
-                       hover:shadow-indigo-500/25 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none
-                       flex items-center justify-center space-x-2 border border-indigo-400/20"
-            >
-              {loading ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                  <span>Guardando...</span>
-                </>
-              ) : (
-                <>
-                  <Save className="text-lg" />
-                  <span>{product ? 'Actualizar' : 'Crear'} Producto</span>
-                </>
-              )}
-            </button>
-          </div>
+        {/* Footer compacto */}
+        <div className="relative px-5 py-4 border-t border-slate-700/50 flex gap-3">
+          <button
+            onClick={onClose}
+            className="flex-1 px-4 py-2 text-sm text-slate-300 hover:text-white bg-slate-800/50 hover:bg-slate-700/50 
+                     border border-slate-600/50 rounded-lg transition-colors font-medium"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={loading}
+            className="flex-1 px-4 py-2 text-sm bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 
+                     text-white font-medium rounded-lg transition-all flex items-center justify-center gap-2
+                     disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loading ? (
+              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+            ) : (
+              <Save size={16} />
+            )}
+            <span>{product ? 'Actualizar' : 'Crear'}</span>
+          </button>
         </div>
       </div>
     </div>,

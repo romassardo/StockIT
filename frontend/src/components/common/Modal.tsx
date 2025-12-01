@@ -1,6 +1,6 @@
 // frontend/src/components/common/Modal.tsx
 import React, { ReactNode, useEffect } from 'react';
-import { FiX } from 'react-icons/fi';
+import { X } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 
 interface ModalProps {
@@ -75,42 +75,39 @@ const Modal: React.FC<ModalProps> = ({
                     ${isOpen ? 'scale-100 opacity-100' : 'scale-95 opacity-0'} \
                     ${sizeClasses[size as keyof typeof sizeClasses] || sizeClasses.md} w-full \
                     ${theme === 'dark' 
-                      ? 'bg-slate-900 border border-slate-800 text-slate-100'
-                      : 'bg-white border border-slate-200 text-slate-900'
+                      ? 'bg-slate-900/95 backdrop-blur-xl border border-slate-700/50 text-slate-100 shadow-xl shadow-black/20'
+                      : 'bg-white/95 backdrop-blur-xl border border-slate-200 text-slate-900 shadow-xl shadow-slate-200/50'
                     } ${className}`}
       >
         {/* Cabecera del Modal */} 
-        {
+        {title && (
           <div 
-            className={`flex items-center justify-between p-5 border-b \
-                        ${theme === 'dark' ? 'border-slate-800' : 'border-slate-100'}`}
+            className={`flex items-center justify-between px-6 py-4 border-b \
+                        ${theme === 'dark' ? 'border-slate-700/50 bg-slate-800/30' : 'border-slate-100 bg-slate-50/50'}`}
           >
-            {title && (
-              <h3 
-                id="modal-title" 
-                className={`text-lg font-bold tracking-tight \
-                            ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}
-              >
-                {title}
-              </h3>
-            )}
+            <h3 
+              id="modal-title" 
+              className="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-500 to-purple-600"
+            >
+              {title}
+            </h3>
             <button
               type="button"
               onClick={onClose}
-              className={`p-2 rounded-lg transition-all duration-200 ease-out-expo \
+              className={`p-2 rounded-xl transition-all duration-200 \
                           ${theme === 'dark' 
-                            ? 'text-slate-400 hover:text-white hover:bg-slate-800' 
+                            ? 'text-slate-400 hover:text-white hover:bg-slate-700' 
                             : 'text-slate-400 hover:text-slate-900 hover:bg-slate-100'
                           }`}
               aria-label="Cerrar modal"
             >
-              <FiX className="h-5 w-5" />
+              <X size={20} />
             </button>
           </div>
-        }
+        )}
 
-        {/* Cuerpo del Modal - Removemos padding fijo para permitir control total desde el hijo si es necesario */} 
-        <div className="overflow-y-auto max-h-[85vh]">
+        {/* Cuerpo del Modal con padding */} 
+        <div className="overflow-y-auto max-h-[80vh] p-6">
           {children}
         </div>
         

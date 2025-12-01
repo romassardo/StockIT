@@ -22,6 +22,8 @@ const entityTabs = [
   { id: 'branches', name: 'Sucursales', icon: '🏪' },
 ];
 
+const ITEMS_PER_PAGE = 15;
+
 const EntitiesManagement: React.FC = () => {
   const { theme } = useTheme();
   const { addNotification } = useNotification();
@@ -35,6 +37,7 @@ const EntitiesManagement: React.FC = () => {
   const [editing, setEditing] = useState<EditingState>({ id: null, type: null, data: {} });
   const [isCreating, setIsCreating] = useState(false);
   const [newItemData, setNewItemData] = useState<Partial<EntityType>>({});
+  const [currentPage, setCurrentPage] = useState(1);
 
   const services = {
     employees: employeeService,
@@ -85,6 +88,18 @@ const EntitiesManagement: React.FC = () => {
       return matchNombre;
     });
   }, [activeTab, searchTerm, employees, sectors, branches]);
+
+  // Paginación
+  const totalPages = Math.ceil(filteredData.length / ITEMS_PER_PAGE);
+  const paginatedData = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredData.slice(start, start + ITEMS_PER_PAGE);
+  }, [filteredData, currentPage]);
+
+  // Reset página cuando cambia el filtro o tab
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, activeTab]);
 
   const startEditing = (item: EntityType) => {
     setEditing({ id: item.id, type: activeTab, data: { ...item } });
@@ -194,13 +209,13 @@ const EntitiesManagement: React.FC = () => {
   };
 
   const renderTableBody = () => {
-    if (loading && filteredData.length === 0) return <tbody><tr key="loading"><td colSpan={3} className="py-10 text-center"><FiLoader className="mx-auto text-4xl text-primary-500 animate-spin" /></td></tr></tbody>;
+    if (loading && paginatedData.length === 0) return <tbody><tr key="loading"><td colSpan={3} className="py-10 text-center"><FiLoader className="mx-auto text-4xl text-primary-500 animate-spin" /></td></tr></tbody>;
     if (error) return <tbody><tr key="error"><td colSpan={3} className="py-10 text-center text-red-400"><FiAlertCircle className="mx-auto mb-2 text-4xl" /><p>{error}</p></td></tr></tbody>;
-    if (filteredData.length === 0) return <tbody><tr key="empty"><td colSpan={3} className="py-10 text-center text-slate-400"><FiAlertCircle className="mx-auto mb-2 text-4xl" /><p>No se encontraron resultados.</p></td></tr></tbody>;
+    if (paginatedData.length === 0) return <tbody><tr key="empty"><td colSpan={3} className="py-10 text-center text-slate-400"><FiAlertCircle className="mx-auto mb-2 text-4xl" /><p>No se encontraron resultados.</p></td></tr></tbody>;
 
     return (
         <tbody className="divide-y divide-white/10">
-            {filteredData.map((item: EntityType, index: number) => (
+            {paginatedData.map((item: EntityType, index: number) => (
                 <tr key={item.id ?? `item-${index}`} className="text-sm text-slate-200 transition-colors duration-200 hover:bg-black/20">
                     <td className="px-6 py-3 whitespace-nowrap">
                         {editing.id === item.id ? (
@@ -259,43 +274,8 @@ const EntitiesManagement: React.FC = () => {
   };
   
   return (
-    <div className="relative min-h-screen overflow-hidden">
-      {/* 🌌 ORBES DE FONDO ANIMADOS - IMPLEMENTACIÓN OBLIGATORIA */}
-      <div className={`fixed inset-0 pointer-events-none transition-all duration-300 ${
-        theme === 'dark' 
-          ? 'bg-gradient-to-br from-slate-900/95 via-slate-800/90 to-slate-900/95' 
-          : 'bg-gradient-to-br from-slate-50/95 via-slate-100/90 to-slate-200/95'
-      }`}>
-        {/* Orbe 1: Top-left - Primary */}
-        <div className={`absolute top-20 left-10 w-32 h-32 rounded-full blur-xl animate-float transition-all duration-300 ${
-          theme === 'dark' 
-            ? 'bg-primary-500/20' 
-            : 'bg-primary-500/10'
-        }`}></div>
-        
-        {/* Orbe 2: Top-right - Secondary */}
-        <div className={`absolute top-40 right-20 w-24 h-24 rounded-full blur-lg animate-float transition-all duration-300 ${
-          theme === 'dark' 
-            ? 'bg-secondary-500/20' 
-            : 'bg-secondary-500/10'
-        }`} style={{animationDelay: '2s'}}></div>
-        
-        {/* Orbe 3: Bottom-left - Success */}
-        <div className={`absolute bottom-32 left-1/4 w-20 h-20 rounded-full blur-lg animate-float transition-all duration-300 ${
-          theme === 'dark' 
-            ? 'bg-success-500/20' 
-            : 'bg-success-500/10'
-        }`} style={{animationDelay: '4s'}}></div>
-        
-        {/* Orbe 4: Bottom-right - Info */}
-        <div className={`absolute bottom-20 right-1/3 w-28 h-28 rounded-full blur-xl animate-float transition-all duration-300 ${
-          theme === 'dark' 
-            ? 'bg-info-500/20' 
-            : 'bg-info-500/10'
-        }`} style={{animationDelay: '1s'}}></div>
-      </div>
-
-      <div className="relative z-10 p-6 max-w-7xl mx-auto">
+    <div className="relative">
+      <div className="p-6 max-w-7xl mx-auto">
         <div className="sm:flex sm:items-center sm:justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold text-gradient-primary">Gestión de Entidades</h1>
@@ -395,6 +375,55 @@ const EntitiesManagement: React.FC = () => {
             {renderTableBody()}
           </table>
         </div>
+
+        {/* Paginación */}
+        {totalPages > 1 && (
+          <div className="relative z-50 flex items-center justify-between mt-4 px-4 py-3 bg-slate-800/50 rounded-lg border border-slate-700">
+            <div className="flex items-center gap-2 text-sm text-slate-400">
+              <span>Mostrando {((currentPage - 1) * ITEMS_PER_PAGE) + 1} - {Math.min(currentPage * ITEMS_PER_PAGE, filteredData.length)} de {filteredData.length}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                  currentPage === 1 
+                    ? 'bg-slate-700/50 text-slate-500 cursor-not-allowed' 
+                    : 'bg-slate-700 text-white hover:bg-slate-600'
+                }`}
+              >
+                Anterior
+              </button>
+              
+              <div className="relative z-50">
+                <select
+                  value={currentPage}
+                  onChange={(e) => setCurrentPage(Number(e.target.value))}
+                  className="px-3 py-1.5 rounded-md text-sm font-medium bg-slate-700 text-white border border-slate-600 focus:outline-none focus:ring-2 focus:ring-primary-500 cursor-pointer"
+                  style={{ position: 'relative', zIndex: 9999 }}
+                >
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                    <option key={page} value={page}>
+                      Página {page} de {totalPages}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <button
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                  currentPage === totalPages 
+                    ? 'bg-slate-700/50 text-slate-500 cursor-not-allowed' 
+                    : 'bg-slate-700 text-white hover:bg-slate-600'
+                }`}
+              >
+                Siguiente
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

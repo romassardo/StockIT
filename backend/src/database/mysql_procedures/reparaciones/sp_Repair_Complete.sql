@@ -65,8 +65,7 @@ BEGIN
         fecha_retorno = NOW(),
         solucion_descripcion = p_solucion_descripcion,
         estado = p_estado_reparacion,
-        usuario_recibe_id = p_usuario_recibe_id,
-        fecha_modificacion = NOW()
+        usuario_recibe_id = p_usuario_recibe_id
     WHERE id = p_reparacion_id;
 
     -- Actualizar estado del inventario

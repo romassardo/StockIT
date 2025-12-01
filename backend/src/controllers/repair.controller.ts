@@ -105,37 +105,49 @@ export class RepairController {
 
   /**
    * Procesa el retorno de una reparación.
-   * BODY: { solucion_descripcion, estado_final }
+   * BODY: { solucion_descripcion, estado }
    */
   public returnRepair = async (req: AuthRequest, res: Response): Promise<void> => {
     const { id } = req.params;
-    const { solucion_descripcion, estado_final } = req.body;
+    const { solucion_descripcion, estado } = req.body;
     const usuario_recibe_id = req.user!.id;
 
-    if (!id || !solucion_descripcion || !estado_final || !usuario_recibe_id) {
-      res.status(400).json({ success: false, error: 'Faltan parámetros requeridos.' });
+    const validStates = ['Reparado', 'Sin Reparación'];
+    if (!id || !estado || !validStates.includes(estado)) {
+      res.status(400).json({ 
+        success: false, 
+        error: 'Estado inválido. Debe ser "Reparado" o "Sin Reparación".',
+        validStates 
+      });
       return;
     }
 
-    const params = [
-      Number(id),
-      solucion_descripcion,
-      estado_final,
-      usuario_recibe_id
-    ];
+    const repairId = Number(id);
+
+    // Para "Sin Reparación", usar la solución como motivo de baja
+    const motivo_baja = estado === 'Sin Reparación' ? (solucion_descripcion || 'Sin reparación posible') : null;
 
     try {
-      await this.db.executeStoredProcedure<mysql.RowDataPacket[]>('sp_Repair_Return', params);
+      // Usar el SP sp_Repair_Complete que sí existe
+      await this.db.executeStoredProcedure('sp_Repair_Complete', [
+        repairId,
+        estado,
+        solucion_descripcion || 'Sin detalles',
+        usuario_recibe_id,
+        motivo_baja
+      ]);
+
+      logger.info(`Reparación ${repairId} finalizada con estado '${estado}' por usuario ${usuario_recibe_id}`);
       res.json({ success: true, message: 'Retorno de reparación procesado exitosamente.' });
     } catch (error: any) {
       logger.error('Error procesando retorno de reparación:', { errorMessage: error.message, stack: error.stack, params: req.params, body: req.body });
       
-      if (error.message?.includes('no encontrada')) {
+      if (error.message?.includes('no existe')) {
         res.status(404).json({ success: false, error: 'Reparación no encontrada.' });
-      } else if (error.message?.includes('ya procesada')) {
+      } else if (error.message?.includes('En Reparación')) {
         res.status(409).json({ success: false, error: 'La reparación ya fue procesada anteriormente.' });
       } else {
-        res.status(500).json({ success: false, error: 'Error interno del servidor al procesar el retorno.' });
+        res.status(500).json({ success: false, error: error.message || 'Error interno del servidor al procesar el retorno.' });
       }
     }
   }

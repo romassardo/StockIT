@@ -1,28 +1,66 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  FiUsers, 
-  FiPlus, 
-  FiEdit2,  
-  FiToggleLeft, 
-  FiToggleRight,
-  FiSearch,
-  FiFilter,
-  FiUserCheck,
-  FiUserX,
-  FiShield,
-  FiUser,
-  FiRefreshCw
-} from 'react-icons/fi';
+  Users, Plus, Pencil, ToggleLeft, ToggleRight,
+  Search, UserCheck, UserX, Shield, User, RefreshCw
+} from 'lucide-react';
 import userService, { UserCreateData, UserUpdateData, UserFilters, UserStats } from '../../services/user.service';
 import type { SystemUser } from '../../types';
 import { useNotification } from '../../contexts/NotificationContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import Modal from '../common/Modal';
-import Button from '../common/Button';
-import Input from '../common/Input';
-import DataTable from '../common/DataTable';
 import Loading from '../common/Loading';
 
+// 🎯 GlassCard idéntico al de Inventory.tsx
+const GlassCard = ({ children, className = "", onClick }: { children: React.ReactNode; className?: string; onClick?: () => void }) => {
+  const { theme } = useTheme();
+  return (
+    <div 
+      onClick={onClick}
+      className={`
+        relative overflow-hidden rounded-2xl transition-all duration-300
+        ${onClick ? 'cursor-pointer hover:scale-[1.01] hover:shadow-lg' : ''}
+        ${theme === 'dark' 
+          ? 'bg-slate-900/60 border border-slate-700/50 shadow-lg shadow-slate-900/20 backdrop-blur-xl' 
+          : 'bg-white/80 border border-slate-200/60 shadow-xl shadow-slate-200/40 backdrop-blur-xl'
+        }
+        ${className}
+      `}
+    >
+      {children}
+    </div>
+  );
+};
+
+// 🎯 Badge de Rol estilizado
+const RoleBadge = ({ rol }: { rol: string }) => {
+  const isAdmin = rol === 'admin';
+  return (
+    <span className={`px-2.5 py-1 rounded-full text-xs font-bold border inline-flex items-center gap-1.5
+      ${isAdmin 
+        ? 'bg-purple-500/10 text-purple-600 border-purple-500/20 dark:text-purple-400' 
+        : 'bg-blue-500/10 text-blue-600 border-blue-500/20 dark:text-blue-400'
+      }`}>
+      <div className={`w-1.5 h-1.5 rounded-full ${isAdmin ? 'bg-purple-500' : 'bg-blue-500'}`} />
+      {isAdmin ? 'Administrador' : 'Usuario'}
+    </span>
+  );
+};
+
+// 🎯 Badge de Estado estilizado
+const StatusBadge = ({ activo }: { activo: boolean }) => {
+  return (
+    <span className={`px-2.5 py-1 rounded-full text-xs font-bold border inline-flex items-center gap-1.5
+      ${activo 
+        ? 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20 dark:text-emerald-400' 
+        : 'bg-red-500/10 text-red-600 border-red-500/20 dark:text-red-400'
+      }`}>
+      <div className={`w-1.5 h-1.5 rounded-full ${activo ? 'bg-emerald-500' : 'bg-red-500'}`} />
+      {activo ? 'Activo' : 'Inactivo'}
+    </span>
+  );
+};
+
+// --- Formulario de Usuario ---
 interface UserFormData {
   nombre: string;
   email: string;
@@ -48,260 +86,193 @@ const UserForm: React.FC<UserFormProps> = ({ user, onSave, onCancel, isLoading }
     activo: user?.activo ?? true,
   });
   const [errors, setErrors] = useState<Partial<UserFormData>>({});
-  const [emailValidating, setEmailValidating] = useState(false);
 
   const validateForm = () => {
     const newErrors: Partial<UserFormData> = {};
-
-    if (!formData.nombre.trim()) {
-      newErrors.nombre = 'El nombre es requerido';
-    }
-
+    if (!formData.nombre.trim()) newErrors.nombre = 'El nombre es requerido';
     if (!formData.email.trim()) {
       newErrors.email = 'El email es requerido';
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
       newErrors.email = 'El formato del email no es válido';
     }
-
     if (!user && !formData.password) {
-      newErrors.password = 'La contraseña es requerida para usuarios nuevos';
+      newErrors.password = 'La contraseña es requerida';
     } else if (formData.password && formData.password.length < 6) {
-      newErrors.password = 'La contraseña debe tener al menos 6 caracteres';
+      newErrors.password = 'Mínimo 6 caracteres';
     }
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  };
-
-  const validateEmail = async (email: string) => {
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return;
-    
-    setEmailValidating(true);
-    try {
-      const available = await userService.validateEmail(email, user?.id);
-      if (!available) {
-        setErrors(prev => ({ ...prev, email: 'Este email ya está registrado' }));
-      } else {
-        // Eliminar el error de email del objeto
-        setErrors(prev => {
-          const { email, ...rest } = prev;
-          return rest;
-        });
-      }
-    } catch (error) {
-      console.error('Error validando email:', error);
-      // En caso de error, no bloquear el formulario
-      setErrors(prev => {
-        const { email, ...rest } = prev;
-        return rest;
-      });
-    } finally {
-      setEmailValidating(false);
-    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateForm()) return;
-
-    const userData = {
+    await onSave({
       nombre: formData.nombre,
       email: formData.email,
       rol: formData.rol,
       activo: formData.activo,
       ...(formData.password && { password: formData.password })
-    };
-
-    await onSave(userData);
+    });
   };
 
-  const handleInputChange = (field: keyof UserFormData, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-    
-    // Limpiar error del campo eliminando la key
-    if (errors[field]) {
-      setErrors(prev => {
-        const newErrors = { ...prev };
-        delete newErrors[field];
-        return newErrors;
-      });
-    }
-
-    // Validar email en tiempo real
-    if (field === 'email' && value !== user?.email) {
-      const debounceTimer = setTimeout(() => validateEmail(value), 500);
-      return () => clearTimeout(debounceTimer);
-    }
-  };
+  const inputClass = `w-full px-4 py-2.5 rounded-xl text-sm outline-none transition-all border ${
+    theme === 'dark' 
+      ? 'bg-slate-800/50 border-slate-700 focus:border-indigo-500 text-white placeholder-slate-500' 
+      : 'bg-slate-50 border-slate-200 focus:border-indigo-500 text-slate-800 placeholder-slate-400'
+  }`;
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <form onSubmit={handleSubmit} className="space-y-5">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         <div>
-          <Input
-            label="Nombre"
+          <label className={`flex items-center gap-2 text-xs font-semibold uppercase tracking-wider mb-2 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
+            <User size={14} className="text-indigo-500" />
+            Nombre Completo
+          </label>
+          <input
             type="text"
             value={formData.nombre}
-            onChange={(e) => handleInputChange('nombre', e.target.value)}
-            error={errors.nombre}
-            required
-            placeholder="Ingrese el nombre completo"
+            onChange={(e) => setFormData(prev => ({ ...prev, nombre: e.target.value }))}
+            className={inputClass}
+            placeholder="Ej: Juan Pérez"
+            autoComplete="off"
           />
+          {errors.nombre && <p className="text-red-400 text-xs mt-1.5 flex items-center gap-1">⚠ {errors.nombre}</p>}
         </div>
-
         <div>
-          <Input
-            label="Email"
+          <label className={`flex items-center gap-2 text-xs font-semibold uppercase tracking-wider mb-2 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
+            <span className="text-indigo-500">@</span>
+            Email
+          </label>
+          <input
             type="email"
             value={formData.email}
-            onChange={(e) => handleInputChange('email', e.target.value)}
-            error={errors.email}
-            required
+            onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+            className={inputClass}
             placeholder="usuario@empresa.com"
-            disabled={emailValidating}
+            autoComplete="off"
           />
+          {errors.email && <p className="text-red-400 text-xs mt-1.5 flex items-center gap-1">⚠ {errors.email}</p>}
         </div>
-
         <div>
-          <label className={`block text-sm font-medium mb-2 ${
-            theme === 'dark' ? 'text-slate-300' : 'text-slate-700'
-          }`}>
-            Rol *
+          <label className={`flex items-center gap-2 text-xs font-semibold uppercase tracking-wider mb-2 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
+            <Shield size={14} className="text-indigo-500" />
+            Rol
           </label>
           <select
             value={formData.rol}
-            onChange={(e) => handleInputChange('rol', e.target.value as 'admin' | 'usuario')}
-            className={`
-              w-full px-4 py-3 rounded-xl backdrop-blur-sm border transition-all duration-300
-              ${theme === 'dark'
-                ? 'bg-slate-800/50 border-slate-600 text-white focus:border-primary-400'
-                : 'bg-white/50 border-slate-300 text-slate-900 focus:border-primary-500'
-              }
-              focus:outline-none focus:ring-4 focus:ring-primary-500/20
-            `}
+            onChange={(e) => setFormData(prev => ({ ...prev, rol: e.target.value as 'admin' | 'usuario' }))}
+            className={inputClass}
           >
-            <option value="usuario">Usuario</option>
+            <option value="usuario">Usuario Estándar</option>
             <option value="admin">Administrador</option>
           </select>
         </div>
-
         <div>
-          <Input
-            label={user ? "Nueva Contraseña (opcional)" : "Contraseña"}
+          <label className={`flex items-center gap-2 text-xs font-semibold uppercase tracking-wider mb-2 ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
+            🔒 {user ? 'Nueva Contraseña' : 'Contraseña'}
+          </label>
+          <input
             type="password"
-            value={formData.password}
-            onChange={(e) => handleInputChange('password', e.target.value)}
-            error={errors.password}
-            required={!user}
-            placeholder={user ? "Dejar vacío para mantener la actual" : "Mínimo 6 caracteres"}
+            value={formData.password || ''}
+            onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
+            className={inputClass}
+            placeholder={user ? 'Dejar vacío para mantener' : 'Mínimo 6 caracteres'}
+            autoComplete="new-password"
           />
+          {errors.password && <p className="text-red-400 text-xs mt-1.5 flex items-center gap-1">⚠ {errors.password}</p>}
         </div>
       </div>
 
-      <div className="flex items-center gap-3">
-        <label className="flex items-center gap-3 cursor-pointer">
+      <div className={`flex items-center justify-between p-4 rounded-xl border ${theme === 'dark' ? 'bg-slate-800/30 border-slate-700/50' : 'bg-slate-50 border-slate-200'}`}>
+        <div>
+          <p className={`text-sm font-medium ${theme === 'dark' ? 'text-slate-200' : 'text-slate-700'}`}>Estado del Usuario</p>
+          <p className={`text-xs ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>
+            {formData.activo ? 'El usuario puede acceder al sistema' : 'El usuario está deshabilitado'}
+          </p>
+        </div>
+        <label className="cursor-pointer">
           <div className="relative">
             <input
               type="checkbox"
               checked={formData.activo}
-              onChange={(e) => handleInputChange('activo', e.target.checked)}
-              className="sr-only"
+              onChange={(e) => setFormData(prev => ({ ...prev, activo: e.target.checked }))}
+              className="sr-only peer"
             />
-            <div className={`
-              w-12 h-6 rounded-full transition-all duration-300 ${
-                formData.activo
-                  ? 'bg-gradient-to-r from-green-500 to-emerald-500'
-                  : theme === 'dark' 
-                    ? 'bg-slate-600' 
-                    : 'bg-slate-300'
-              }
-            `}>
-              <div className={`
-                w-5 h-5 bg-white rounded-full shadow-lg transition-all duration-300 transform top-0.5 absolute
-                ${formData.activo ? 'translate-x-6' : 'translate-x-0.5'}
-              `} />
+            <div className={`w-12 h-7 rounded-full transition-all peer-checked:bg-emerald-500 ${theme === 'dark' ? 'bg-slate-700' : 'bg-slate-300'}`}>
+              <div className="w-5 h-5 bg-white rounded-full shadow-md transition-transform absolute top-1 left-1 peer-checked:translate-x-5" />
             </div>
           </div>
-          <span className={`text-sm font-medium ${
-            theme === 'dark' ? 'text-slate-300' : 'text-slate-700'
-          }`}>
-            Usuario Activo
-          </span>
         </label>
       </div>
 
-      <div className="flex justify-end gap-3">
-        <Button type="button" variant="secondary" onClick={onCancel}>
-          Cancelar
-        </Button>
-        <Button 
-          type="submit" 
-          variant="primary" 
-          isLoading={isLoading}
-          disabled={Object.keys(errors).length > 0 || emailValidating}
+      {/* Botones de acción */}
+      <div className={`flex justify-end gap-3 pt-4 border-t ${theme === 'dark' ? 'border-slate-700/50' : 'border-slate-200'}`}>
+        <button 
+          type="button" 
+          onClick={onCancel} 
+          className={`px-5 py-2.5 rounded-xl font-medium text-sm transition-all ${
+            theme === 'dark' 
+              ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700' 
+              : 'bg-white hover:bg-slate-50 text-slate-600 border border-slate-200'
+          }`}
         >
-          {user ? 'Actualizar Usuario' : 'Crear Usuario'}
-        </Button>
+          Cancelar
+        </button>
+        <button 
+          type="submit" 
+          disabled={isLoading}
+          className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-bold text-sm hover:from-indigo-700 hover:to-purple-700 transition-all shadow-lg shadow-indigo-500/30 disabled:opacity-50 flex items-center gap-2"
+        >
+          {isLoading ? (
+            <>
+              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              Guardando...
+            </>
+          ) : (
+            <>
+              {user ? 'Actualizar Usuario' : 'Crear Usuario'}
+            </>
+          )}
+        </button>
       </div>
     </form>
   );
 };
 
+// --- Componente Principal ---
 const UserManagement: React.FC = () => {
   const { theme } = useTheme();
   const { addNotification } = useNotification();
   
-  // Estados principales
   const [users, setUsers] = useState<SystemUser[]>([]);
-  const [stats, setStats] = useState<UserStats>({
-    total: 0,
-    admins: 0,
-    usuarios: 0,
-    activos: 0,
-    inactivos: 0
-  });
+  const [stats, setStats] = useState<UserStats>({ total: 0, admins: 0, usuarios: 0, activos: 0, inactivos: 0 });
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   
-  // Paginación
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
   const pageSize = 10;
   
-  // Filtros
+  const [searchTerm, setSearchTerm] = useState('');
   const [filters, setFilters] = useState<UserFilters>({});
-  const [showFilters, setShowFilters] = useState(false);
+  const [quickFilter, setQuickFilter] = useState<'todos' | 'admins' | 'usuarios' | 'activos' | 'inactivos'>('todos');
   
-  // Modales
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingUser, setEditingUser] = useState<SystemUser | null>(null);
 
-  // Cargar datos
   const loadUsers = async () => {
     try {
       setLoading(true);
-      const response = await userService.getAll({
-        page: currentPage,
-        pageSize,
-        filters
-      });
-      
-      // La respuesta puede venir en diferentes formatos dependiendo del backend
+      const response = await userService.getAll({ page: currentPage, pageSize, filters });
       const userData = (response as any)?.data?.data || (response as any)?.data || response || [];
-      const pages = (response as any)?.data?.totalPages || (response as any)?.totalPages || 1;
       const items = (response as any)?.data?.totalItems || (response as any)?.totalItems || userData.length;
-      
       setUsers(Array.isArray(userData) ? userData : []);
-      setTotalPages(pages);
       setTotalItems(items);
     } catch (error) {
-      addNotification({
-        type: 'error',
-        title: 'Error',
-        message: 'Error al cargar usuarios'
-      });
+      addNotification({ type: 'error', title: 'Error', message: 'Error al cargar usuarios' });
     } finally {
       setLoading(false);
     }
@@ -309,43 +280,37 @@ const UserManagement: React.FC = () => {
 
   const loadStats = async () => {
     try {
-      const statsData = await userService.getStats();
-      setStats(statsData);
+      const data = await userService.getStats();
+      setStats(data);
     } catch (error) {
       console.error('Error cargando estadísticas:', error);
     }
   };
 
-  // Efectos
-  useEffect(() => {
-    loadUsers();
-  }, [currentPage, filters]);
+  useEffect(() => { loadUsers(); }, [currentPage, filters]);
+  useEffect(() => { loadStats(); }, [users]);
 
-  useEffect(() => {
-    loadStats();
-  }, [users]);
+  const handleQuickFilter = (type: typeof quickFilter) => {
+    setQuickFilter(type);
+    let newFilters: UserFilters = {};
+    if (type === 'admins') newFilters.rol = 'admin';
+    if (type === 'usuarios') newFilters.rol = 'usuario';
+    if (type === 'activos') newFilters.activo = true;
+    if (type === 'inactivos') newFilters.activo = false;
+    setFilters(newFilters);
+    setCurrentPage(1);
+  };
 
-  // Handlers CRUD
   const handleCreateUser = async (userData: UserCreateData | UserUpdateData) => {
     try {
       setActionLoading(true);
       await userService.create(userData as UserCreateData);
-      
-      addNotification({
-        type: 'success',
-        title: 'Usuario Creado',
-        message: `Usuario ${userData.nombre} creado exitosamente`
-      });
-      
+      addNotification({ type: 'success', title: 'Éxito', message: `Usuario ${userData.nombre} creado` });
       setShowCreateModal(false);
       loadUsers();
       loadStats();
     } catch (error: any) {
-      addNotification({
-        type: 'error',
-        title: 'Error',
-        message: error.response?.data?.error || 'Error al crear usuario'
-      });
+      addNotification({ type: 'error', title: 'Error', message: error.response?.data?.error || 'Error al crear usuario' });
     } finally {
       setActionLoading(false);
     }
@@ -353,27 +318,16 @@ const UserManagement: React.FC = () => {
 
   const handleUpdateUser = async (userData: UserUpdateData) => {
     if (!editingUser) return;
-    
     try {
       setActionLoading(true);
       await userService.update(editingUser.id, userData);
-      
-      addNotification({
-        type: 'success',
-        title: 'Usuario Actualizado',
-        message: `Usuario ${userData.nombre} actualizado exitosamente`
-      });
-      
+      addNotification({ type: 'success', title: 'Éxito', message: `Usuario ${userData.nombre} actualizado` });
       setShowEditModal(false);
       setEditingUser(null);
       loadUsers();
       loadStats();
     } catch (error: any) {
-      addNotification({
-        type: 'error',
-        title: 'Error',
-        message: error.response?.data?.error || 'Error al actualizar usuario'
-      });
+      addNotification({ type: 'error', title: 'Error', message: error.response?.data?.error || 'Error al actualizar' });
     } finally {
       setActionLoading(false);
     }
@@ -382,480 +336,263 @@ const UserManagement: React.FC = () => {
   const handleToggleActive = async (user: SystemUser) => {
     try {
       await userService.toggleActive(user.id);
-      
-      addNotification({
-        type: 'success',
-        title: 'Estado Actualizado',
-        message: `Usuario ${user.activo ? 'desactivado' : 'activado'} exitosamente`
-      });
-      
+      addNotification({ type: 'success', title: 'Éxito', message: `Usuario ${user.activo ? 'desactivado' : 'activado'}` });
       loadUsers();
       loadStats();
     } catch (error: any) {
-      addNotification({
-        type: 'error',
-        title: 'Error',
-        message: error.response?.data?.error || 'Error al cambiar estado'
-      });
+      addNotification({ type: 'error', title: 'Error', message: 'Error al cambiar estado' });
     }
   };
 
-  // Configuración de tabla
-  const columns = [
-    {
-      id: 'usuario',
-      header: 'Usuario',
-      accessor: (user: SystemUser) => (
-        <div className="flex items-center gap-3">
-          <div className={`
-            w-10 h-10 rounded-full flex items-center justify-center
-            ${user.rol === 'admin' 
-              ? 'bg-gradient-to-r from-purple-500 to-pink-500' 
-              : 'bg-gradient-to-r from-blue-500 to-cyan-500'
-            }
-          `}>
-            {user.rol === 'admin' ? (
-              <FiShield className="h-5 w-5 text-white" />
-            ) : (
-              <FiUser className="h-5 w-5 text-white" />
-            )}
-          </div>
-          <div>
-            <p className={`font-medium ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
-              {user.nombre}
-            </p>
-            <p className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
-              {user.email}
-            </p>
-          </div>
-        </div>
-      )
-    },
-    {
-      id: 'rol',
-      header: 'Rol',
-      accessor: (user: SystemUser) => (
-        <span className={`
-          inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium
-          ${user.rol === 'admin'
-            ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300'
-            : 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
-          }
-        `}>
-          {user.rol === 'admin' ? <FiShield className="h-3 w-3" /> : <FiUser className="h-3 w-3" />}
-          {user.rol === 'admin' ? 'Administrador' : 'Usuario'}
-        </span>
-      )
-    },
-    {
-      id: 'estado',
-      header: 'Estado',
-      accessor: (user: SystemUser) => (
-        <span className={`
-          inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium
-          ${user.activo
-            ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
-            : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
-          }
-        `}>
-          {user.activo ? <FiUserCheck className="h-3 w-3" /> : <FiUserX className="h-3 w-3" />}
-          {user.activo ? 'Activo' : 'Inactivo'}
-        </span>
-      )
-    },
-    {
-      id: 'ultimo_acceso',
-      header: 'Último Acceso',
-      accessor: (user: SystemUser) => (
-        <span className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
-          {user.ultimo_acceso ? new Date(user.ultimo_acceso).toLocaleDateString() : 'Nunca'}
-        </span>
-      )
-    },
-    {
-      id: 'acciones',
-      header: 'Acciones',
-      accessor: (user: SystemUser) => (
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => {
-              setEditingUser(user);
-              setShowEditModal(true);
-            }}
-            className={`
-              p-2 rounded-lg transition-all duration-200 hover:scale-110
-              ${theme === 'dark' 
-                ? 'bg-slate-700 hover:bg-slate-600 text-blue-400' 
-                : 'bg-slate-100 hover:bg-slate-200 text-blue-600'
-              }
-            `}
-            title="Editar usuario"
-          >
-            <FiEdit2 className="h-4 w-4" />
-          </button>
-          
-          <button
-            onClick={() => handleToggleActive(user)}
-            className={`
-              p-2 rounded-lg transition-all duration-200 hover:scale-110
-              ${user.activo
-                ? theme === 'dark' 
-                  ? 'bg-slate-700 hover:bg-slate-600 text-red-400' 
-                  : 'bg-slate-100 hover:bg-slate-200 text-red-600'
-                : theme === 'dark' 
-                  ? 'bg-slate-700 hover:bg-slate-600 text-green-400' 
-                  : 'bg-slate-100 hover:bg-slate-200 text-green-600'
-              }
-            `}
-            title={user.activo ? 'Desactivar usuario' : 'Activar usuario'}
-          >
-            {user.activo ? <FiToggleRight className="h-4 w-4" /> : <FiToggleLeft className="h-4 w-4" />}
-          </button>
-        </div>
-      )
-    }
+  const statCards = [
+    { label: 'Total', value: stats.total, icon: Users, color: 'indigo' },
+    { label: 'Admins', value: stats.admins, icon: Shield, color: 'purple' },
+    { label: 'Usuarios', value: stats.usuarios, icon: User, color: 'blue' },
+    { label: 'Activos', value: stats.activos, icon: UserCheck, color: 'emerald' },
+    { label: 'Inactivos', value: stats.inactivos, icon: UserX, color: 'red' },
+  ];
+
+  const filterButtons = [
+    { id: 'todos', label: 'Todos', icon: Users },
+    { id: 'admins', label: 'Admins', icon: Shield },
+    { id: 'usuarios', label: 'Usuarios', icon: User },
+    { id: 'activos', label: 'Activos', icon: UserCheck },
+    { id: 'inactivos', label: 'Inactivos', icon: UserX },
   ];
 
   return (
-    <div className="relative min-h-screen overflow-hidden">
-      {/* 🌌 ORBES DE FONDO ANIMADOS - IMPLEMENTACIÓN OBLIGATORIA */}
-      <div className={`fixed inset-0 pointer-events-none transition-all duration-300 ${
-        theme === 'dark' 
-          ? 'bg-gradient-to-br from-slate-900/95 via-slate-800/90 to-slate-900/95' 
-          : 'bg-gradient-to-br from-slate-50/95 via-slate-100/90 to-slate-200/95'
-      }`}>
-        {/* Orbe 1: Top-left - Primary */}
-        <div className={`absolute top-20 left-10 w-32 h-32 rounded-full blur-xl animate-float transition-all duration-300 ${
-          theme === 'dark' 
-            ? 'bg-primary-500/20' 
-            : 'bg-primary-500/10'
-        }`}></div>
-        
-        {/* Orbe 2: Top-right - Secondary */}
-        <div className={`absolute top-40 right-20 w-24 h-24 rounded-full blur-lg animate-float transition-all duration-300 ${
-          theme === 'dark' 
-            ? 'bg-secondary-500/20' 
-            : 'bg-secondary-500/10'
-        }`} style={{animationDelay: '2s'}}></div>
-        
-        {/* Orbe 3: Bottom-left - Success */}
-        <div className={`absolute bottom-32 left-1/4 w-20 h-20 rounded-full blur-lg animate-float transition-all duration-300 ${
-          theme === 'dark' 
-            ? 'bg-success-500/20' 
-            : 'bg-success-500/10'
-        }`} style={{animationDelay: '4s'}}></div>
-        
-        {/* Orbe 4: Bottom-right - Info */}
-        <div className={`absolute bottom-20 right-1/3 w-28 h-28 rounded-full blur-xl animate-float transition-all duration-300 ${
-          theme === 'dark' 
-            ? 'bg-info-500/20' 
-            : 'bg-info-500/10'
-        }`} style={{animationDelay: '1s'}}></div>
+    <div className="space-y-6">
+      
+      {/* Tarjetas de Estadísticas - Estilo Inventory */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        {statCards.map((stat) => {
+          const Icon = stat.icon;
+          const colorClasses: Record<string, string> = {
+            indigo: 'bg-indigo-500/10 text-indigo-500 border-indigo-500/20',
+            purple: 'bg-purple-500/10 text-purple-500 border-purple-500/20',
+            blue: 'bg-blue-500/10 text-blue-500 border-blue-500/20',
+            emerald: 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20',
+            red: 'bg-red-500/10 text-red-500 border-red-500/20',
+          };
+          return (
+            <GlassCard key={stat.label} className="!p-4">
+              <div className="flex items-center gap-3">
+                <div className={`p-2.5 rounded-xl border ${colorClasses[stat.color]}`}>
+                  <Icon size={20} />
+                </div>
+                <div>
+                  <p className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>
+                    {stat.value}
+                  </p>
+                  <p className={`text-xs font-medium ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
+                    {stat.label}
+                  </p>
+                </div>
+              </div>
+            </GlassCard>
+          );
+        })}
       </div>
 
-      {/* Contenido existente */}
-      <div className="relative z-10 p-6 max-w-7xl mx-auto">
-        <div className="space-y-6 p-6">
-          {/* Header */}
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
-                Gestión de Usuarios
-              </h2>
-              <p className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
-                Administrar usuarios del sistema y sus permisos
-              </p>
+      {/* Barra de Herramientas - Estilo Inventory */}
+      <GlassCard className="!p-4">
+        <div className="flex flex-col lg:flex-row gap-4 justify-between items-center">
+          
+          {/* Buscador con filtrado en tiempo real */}
+          <div className="w-full lg:w-80 relative">
+            <div className={`absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none ${theme === 'dark' ? 'text-slate-500' : 'text-slate-400'}`}>
+              <Search size={18} />
             </div>
-            
-            <Button 
-              onClick={() => setShowCreateModal(true)}
-              variant="primary"
-              leftIcon={<FiPlus className="h-4 w-4" />}
-            >
-              Nuevo Usuario
-            </Button>
-          </div>
-
-          {/* Estadísticas */}
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
-            <div className={`
-              glass-card p-6 transition-all duration-300
-              ${theme === 'dark' 
-                ? 'bg-slate-900/80 border-slate-700/50' 
-                : 'bg-white/80 border-white/30'
-              }
-            `}>
-              <div className="flex items-center gap-3">
-                <div className="p-3 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500">
-                  <FiUsers className="h-6 w-6 text-white" />
-                </div>
-                <div>
-                  <p className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
-                    {stats ? stats.total : '-'}
-                  </p>
-                  <p className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
-                    Total Usuarios
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className={`
-              glass-card p-6 transition-all duration-300
-              ${theme === 'dark' 
-                ? 'bg-slate-900/80 border-slate-700/50' 
-                : 'bg-white/80 border-white/30'
-              }
-            `}>
-              <div className="flex items-center gap-3">
-                <div className="p-3 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500">
-                  <FiShield className="h-6 w-6 text-white" />
-                </div>
-                <div>
-                  <p className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
-                    {stats ? stats.admins : '-'}
-                  </p>
-                  <p className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
-                    Administradores
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className={`
-              glass-card p-6 transition-all duration-300
-              ${theme === 'dark' 
-                ? 'bg-slate-900/80 border-slate-700/50' 
-                : 'bg-white/80 border-white/30'
-              }
-            `}>
-              <div className="flex items-center gap-3">
-                <div className="p-3 rounded-xl bg-gradient-to-r from-indigo-500 to-blue-500">
-                  <FiUser className="h-6 w-6 text-white" />
-                </div>
-                <div>
-                  <p className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
-                    {stats ? stats.usuarios : '-'}
-                  </p>
-                  <p className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
-                    Usuarios Estándar
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className={`
-              glass-card p-6 transition-all duration-300
-              ${theme === 'dark' 
-                ? 'bg-slate-900/80 border-slate-700/50' 
-                : 'bg-white/80 border-white/30'
-              }
-            `}>
-              <div className="flex items-center gap-3">
-                <div className="p-3 rounded-xl bg-gradient-to-r from-green-500 to-emerald-500">
-                  <FiUserCheck className="h-6 w-6 text-white" />
-                </div>
-                <div>
-                  <p className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
-                    {stats ? stats.activos : '-'}
-                  </p>
-                  <p className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
-                    Activos
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className={`
-              glass-card p-6 transition-all duration-300
-              ${theme === 'dark' 
-                ? 'bg-slate-900/80 border-slate-700/50' 
-                : 'bg-white/80 border-white/30'
-              }
-            `}>
-              <div className="flex items-center gap-3">
-                <div className="p-3 rounded-xl bg-gradient-to-r from-red-500 to-rose-500">
-                  <FiUserX className="h-6 w-6 text-white" />
-                </div>
-                <div>
-                  <p className={`text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>
-                    {stats ? stats.inactivos : '-'}
-                  </p>
-                  <p className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
-                    Inactivos
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Filtros y Búsqueda */}
-          <div className={`
-            glass-card p-6 transition-all duration-300
-            ${theme === 'dark' 
-              ? 'bg-slate-900/80 border-slate-700/50' 
-              : 'bg-white/80 border-white/30'
-            }
-          `}>
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-4">
-                <Input
-                  type="text"
-                  placeholder="Buscar por nombre o email..."
-                  value={filters.search || ''}
-                  onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
-                  leftIcon={<FiSearch className="h-4 w-4" />}
-                  className="w-80"
-                />
-                
-                <Button
-                  variant="secondary"
-                  onClick={() => setShowFilters(!showFilters)}
-                  leftIcon={<FiFilter className="h-4 w-4" />}
-                >
-                  Filtros
-                </Button>
-                
-                <Button
-                  variant="secondary"
-                  onClick={loadUsers}
-                  leftIcon={<FiRefreshCw className="h-4 w-4" />}
-                >
-                  Actualizar
-                </Button>
-              </div>
-            </div>
-
-            {showFilters && (
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-slate-200 dark:border-slate-700">
-                <div>
-                  <label className={`block text-sm font-medium mb-2 ${
-                    theme === 'dark' ? 'text-slate-300' : 'text-slate-700'
-                  }`}>
-                    Rol
-                  </label>
-                  <select
-                    value={filters.rol || ''}
-                    onChange={(e) => setFilters(prev => ({ ...prev, rol: e.target.value }))}
-                    className={`
-                      w-full px-4 py-2 rounded-lg backdrop-blur-sm border transition-all duration-300
-                      ${theme === 'dark'
-                        ? 'bg-slate-800/50 border-slate-600 text-white'
-                        : 'bg-white/50 border-slate-300 text-slate-900'
-                      }
-                    `}
-                  >
-                    <option value="">Todos los roles</option>
-                    <option value="admin">Administrador</option>
-                    <option value="usuario">Usuario</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className={`block text-sm font-medium mb-2 ${
-                    theme === 'dark' ? 'text-slate-300' : 'text-slate-700'
-                  }`}>
-                    Estado
-                  </label>
-                  <select
-                    value={filters.activo === undefined ? '' : filters.activo.toString()}
-                    onChange={(e) => setFilters(prev => ({ 
-                      ...prev, 
-                      activo: e.target.value === '' ? undefined : e.target.value === 'true'
-                    }))}
-                    className={`
-                      w-full px-4 py-2 rounded-lg backdrop-blur-sm border transition-all duration-300
-                      ${theme === 'dark'
-                        ? 'bg-slate-800/50 border-slate-600 text-white'
-                        : 'bg-white/50 border-slate-300 text-slate-900'
-                      }
-                    `}
-                  >
-                    <option value="">Todos los estados</option>
-                    <option value="true">Activos</option>
-                    <option value="false">Inactivos</option>
-                  </select>
-                </div>
-
-                <div className="flex items-end">
-                  <Button
-                    variant="secondary"
-                    onClick={() => {
-                      setFilters({});
-                      setCurrentPage(1);
-                    }}
-                    className="w-full"
-                  >
-                    Limpiar Filtros
-                  </Button>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Tabla de Usuarios */}
-          <div className={`
-            glass-card transition-all duration-300
-            ${theme === 'dark' 
-              ? 'bg-slate-900/80 border-slate-700/50' 
-              : 'bg-white/80 border-white/30'
-            }
-          `}>
-            {loading ? (
-              <div className="flex justify-center items-center py-12">
-                <Loading />
-              </div>
-            ) : (
-              <DataTable
-                data={users}
-                columns={columns}
-                keyExtractor={(user) => user?.id?.toString() || Math.random().toString()}
-                pagination={{
-                  currentPage,
-                  pageSize,
-                  total: totalItems
-                }}
-                onPageChange={setCurrentPage}
-              />
-            )}
-          </div>
-
-          {/* Modal Crear Usuario */}
-          <Modal 
-            isOpen={showCreateModal} 
-            onClose={() => setShowCreateModal(false)}
-            title="Crear Nuevo Usuario"
-            size="lg"
-          >
-            <UserForm
-              onSave={handleCreateUser}
-              onCancel={() => setShowCreateModal(false)}
-              isLoading={actionLoading}
-            />
-          </Modal>
-
-          {/* Modal Editar Usuario */}
-          <Modal 
-            isOpen={showEditModal} 
-            onClose={() => {
-              setShowEditModal(false);
-              setEditingUser(null);
-            }}
-            title="Editar Usuario"
-            size="lg"
-          >
-            <UserForm
-              user={editingUser || undefined}
-              onSave={handleUpdateUser}
-              onCancel={() => {
-                setShowEditModal(false);
-                setEditingUser(null);
+            <input
+              type="text"
+              placeholder="Buscar por nombre o email..."
+              value={searchTerm}
+              autoComplete="off"
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                // Filtrar automáticamente al escribir
+                setFilters(prev => ({ ...prev, search: e.target.value }));
+                setCurrentPage(1);
               }}
-              isLoading={actionLoading}
+              className={`w-full pl-10 pr-4 py-2 rounded-xl text-sm outline-none transition-all border ${
+                theme === 'dark' 
+                  ? 'bg-slate-800/50 border-slate-700 focus:border-indigo-500 text-white placeholder-slate-500' 
+                  : 'bg-slate-50 border-slate-200 focus:border-indigo-500 text-slate-800 placeholder-slate-400'
+              }`}
             />
-          </Modal>
+          </div>
+
+          {/* Filtros Rápidos */}
+          <div className={`flex p-1 rounded-xl border ${theme === 'dark' ? 'bg-slate-800/50 border-slate-700' : 'bg-slate-100/50 border-slate-200'}`}>
+            {filterButtons.map((filter) => {
+              const Icon = filter.icon;
+              return (
+                <button
+                  key={filter.id}
+                  onClick={() => handleQuickFilter(filter.id as any)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all ${
+                    quickFilter === filter.id 
+                      ? 'bg-indigo-500 text-white shadow-md' 
+                      : `${theme === 'dark' ? 'text-slate-400 hover:text-white' : 'text-slate-500 hover:text-indigo-500'}`
+                  }`}
+                >
+                  <Icon size={14} /> {filter.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Botones de Acción */}
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={loadUsers}
+              className={`p-2 rounded-lg transition-colors ${theme === 'dark' ? 'hover:bg-slate-700 text-slate-400' : 'hover:bg-slate-200 text-slate-500'}`}
+              title="Recargar"
+            >
+              <RefreshCw size={18} />
+            </button>
+            <button 
+              onClick={() => setShowCreateModal(true)}
+              className="px-4 py-2 rounded-xl bg-indigo-600 text-white font-bold text-sm hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-500/30 flex items-center gap-2"
+            >
+              <Plus size={18} /> Nuevo Usuario
+            </button>
+          </div>
+
         </div>
-      </div>
+      </GlassCard>
+
+      {/* Tabla de Usuarios - Estilo Inventory */}
+      {loading ? (
+        <Loading text="Cargando usuarios..." />
+      ) : users.length === 0 ? (
+        <div className="text-center py-20 opacity-60">
+          <div className={`w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-4 ${theme === 'dark' ? 'bg-slate-800/50' : 'bg-slate-100'}`}>
+            <Users size={40} className="text-slate-400" />
+          </div>
+          <h3 className={`text-lg font-bold mb-2 ${theme === 'dark' ? 'text-white' : 'text-slate-800'}`}>No se encontraron usuarios</h3>
+          <p className="text-sm text-slate-500">Intenta ajustar los filtros o crear uno nuevo.</p>
+        </div>
+      ) : (
+        <GlassCard className="!p-0 overflow-hidden">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className={`text-xs uppercase tracking-wider font-semibold border-b ${
+                theme === 'dark' 
+                  ? 'text-slate-400 border-slate-700 bg-slate-800/30' 
+                  : 'text-slate-500 border-slate-200 bg-slate-50/50'
+              }`}>
+                <th className="px-4 py-3">Usuario</th>
+                <th className="px-4 py-3">Email</th>
+                <th className="px-4 py-3">Rol</th>
+                <th className="px-4 py-3">Estado</th>
+                <th className="px-4 py-3">Último Acceso</th>
+                <th className="px-4 py-3 text-right">Acciones</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-200 dark:divide-slate-700/50">
+              {users.map((user) => (
+                <tr 
+                  key={user.id} 
+                  className={`transition-colors ${theme === 'dark' ? 'hover:bg-slate-800/50' : 'hover:bg-slate-50'}`}
+                >
+                  <td className="px-4 py-2.5">
+                    <div className="flex items-center gap-2">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                        user.rol === 'admin' 
+                          ? 'bg-gradient-to-br from-purple-500 to-pink-500' 
+                          : 'bg-gradient-to-br from-blue-500 to-cyan-500'
+                      }`}>
+                        {user.rol === 'admin' ? <Shield size={14} className="text-white" /> : <User size={14} className="text-white" />}
+                      </div>
+                      <span className={`font-semibold ${theme === 'dark' ? 'text-slate-200' : 'text-slate-800'}`}>
+                        {user.nombre}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="px-4 py-2.5">
+                    <span className="text-xs text-indigo-500 font-mono bg-indigo-50 dark:bg-indigo-900/20 px-1.5 py-0.5 rounded">
+                      {user.email}
+                    </span>
+                  </td>
+                  <td className="px-4 py-2.5">
+                    <RoleBadge rol={user.rol} />
+                  </td>
+                  <td className="px-4 py-2.5">
+                    <StatusBadge activo={user.activo} />
+                  </td>
+                  <td className="px-4 py-2.5">
+                    <span className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-600'}`}>
+                      {user.ultimo_acceso ? new Date(user.ultimo_acceso).toLocaleDateString() : 'Nunca'}
+                    </span>
+                  </td>
+                  <td className="px-4 py-2.5">
+                    <div className="flex justify-end items-center gap-1">
+                      <button 
+                        onClick={() => { setEditingUser(user); setShowEditModal(true); }}
+                        className={`p-1.5 rounded-lg transition-colors ${theme === 'dark' ? 'hover:bg-slate-700 text-indigo-400' : 'hover:bg-indigo-50 text-indigo-500'}`}
+                        title="Editar"
+                      >
+                        <Pencil size={16} />
+                      </button>
+                      <button 
+                        onClick={() => handleToggleActive(user)}
+                        className={`p-1.5 rounded-lg transition-colors ${
+                          user.activo 
+                            ? theme === 'dark' ? 'hover:bg-red-900/30 text-red-400' : 'hover:bg-red-50 text-red-500'
+                            : theme === 'dark' ? 'hover:bg-emerald-900/30 text-emerald-400' : 'hover:bg-emerald-50 text-emerald-500'
+                        }`}
+                        title={user.activo ? 'Desactivar' : 'Activar'}
+                      >
+                        {user.activo ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          
+          {/* Paginación simple */}
+          {totalItems > pageSize && (
+            <div className={`px-6 py-4 border-t flex justify-between items-center ${theme === 'dark' ? 'border-slate-700' : 'border-slate-200'}`}>
+              <span className={`text-sm ${theme === 'dark' ? 'text-slate-400' : 'text-slate-500'}`}>
+                Mostrando {users.length} de {totalItems} usuarios
+              </span>
+              <div className="flex gap-2">
+                <button 
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 ${
+                    theme === 'dark' ? 'bg-slate-800 hover:bg-slate-700 text-slate-300' : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
+                  }`}
+                >
+                  Anterior
+                </button>
+                <button 
+                  onClick={() => setCurrentPage(p => p + 1)}
+                  disabled={users.length < pageSize}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 ${
+                    theme === 'dark' ? 'bg-slate-800 hover:bg-slate-700 text-slate-300' : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
+                  }`}
+                >
+                  Siguiente
+                </button>
+              </div>
+            </div>
+          )}
+        </GlassCard>
+      )}
+
+      {/* Modal Crear Usuario */}
+      <Modal isOpen={showCreateModal} onClose={() => setShowCreateModal(false)} title="Crear Nuevo Usuario" size="lg">
+        <UserForm onSave={handleCreateUser} onCancel={() => setShowCreateModal(false)} isLoading={actionLoading} />
+      </Modal>
+
+      {/* Modal Editar Usuario */}
+      <Modal isOpen={showEditModal} onClose={() => { setShowEditModal(false); setEditingUser(null); }} title="Editar Usuario" size="lg">
+        <UserForm user={editingUser || undefined} onSave={handleUpdateUser} onCancel={() => { setShowEditModal(false); setEditingUser(null); }} isLoading={actionLoading} />
+      </Modal>
     </div>
   );
 };

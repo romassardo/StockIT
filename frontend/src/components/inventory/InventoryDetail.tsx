@@ -4,14 +4,11 @@ import {
   FiX, 
   FiClock, 
   FiCalendar, 
-  FiTag,
   FiPackage,
-  FiHash,
   FiRefreshCw,
   FiActivity,
   FiCheckCircle,
-  FiAlertCircle,
-  FiXCircle
+  FiAlertCircle
 } from 'react-icons/fi';
 import { InventoryItem } from '../../types';
 import * as inventoryService from '../../services/inventory.service';
@@ -22,7 +19,6 @@ import { AssignmentModal } from '../assignment/AssignmentModal';
 import SendToRepairModal from '../modals/SendToRepairModal';
 import ReturnAssignmentModal from '../modals/ReturnAssignmentModal';
 import RepairReturnModal from '../modals/RepairReturnModal';
-import Button from '../common/Button';
 
 interface InventoryDetailProps {
   item: InventoryItem;
@@ -58,11 +54,15 @@ const parseLogToAction = (log: ActivityLog): TimelineEvent => {
       }
     } else if (log.tabla_afectada === 'Asignaciones') {
       if (desc.accion === 'Nueva Asignación' || desc.accion === 'Nueva Asignacion') {
-        accion = `Asignado a ${desc.empleado}`;
-        observaciones = `Ubicación: ${desc.sector} / ${desc.sucursal}.`;
-      } else if (desc.accion === 'Devolución' || desc.accion === 'Devolucion') {
-        accion = 'Activo Devuelto';
-        observaciones = `El activo fue devuelto y está disponible.`;
+        accion = `Asignado a ${desc.empleado?.trim() || 'N/A'}`;
+        // Mostrar solo sector O sucursal (el que tenga valor)
+        const ubicacion = desc.sector || desc.sucursal;
+        observaciones = ubicacion ? `${desc.sector ? 'Sector' : 'Sucursal'}: ${ubicacion}` : '';
+      } else if (desc.accion === 'Devolución' || desc.accion === 'Devolucion' || desc.accion === 'Devolución de Activo') {
+        const destinatario = desc.empleado?.trim() || desc.sector || desc.sucursal || '';
+        accion = `Devolución${destinatario ? ` de ${destinatario}` : ''}`;
+        const obs = desc.observaciones ? desc.observaciones.replace(/.*DEVOLUCIÓN:\s*/i, '').trim() : '';
+        observaciones = obs || 'El activo fue devuelto y está disponible.';
       }
     } else if (log.tabla_afectada === 'Reparaciones') {
       if (desc.accion === 'Envío a Reparación' || desc.accion === 'Envio a Reparacion') {
@@ -367,60 +367,62 @@ const InventoryDetail: React.FC<InventoryDetailProps> = ({ item, onClose, onRefr
     </>
   );
 
-  return typeof document !== 'undefined' ? (
-    <>
-      {createPortal(modalContent, document.body)}
-      
-      {/* Modales Secundarios */}
-      {showAssignModal && (
-        <AssignmentModal
-          isOpen={showAssignModal}
-          onClose={() => setShowAssignModal(false)}
-          onSuccess={handleActionSuccess}
-        />
-      )}
-      {showSendToRepairModal && selectedAssetForRepair && (
-        <SendToRepairModal
-          isOpen={showSendToRepairModal}
-          onClose={() => {
-            setShowSendToRepairModal(false);
-            setSelectedAssetForRepair(null);
-          }}
-          onRepairSubmitted={handleActionSuccess}
-          preselectedAsset={{
-            inventario_individual_id: selectedAssetForRepair.id,
-            producto_info: `${selectedAssetForRepair.producto?.marca ?? ''} ${selectedAssetForRepair.producto?.modelo ?? ''}`.trim(),
-            numero_serie: selectedAssetForRepair.numero_serie,
-            empleado_info: selectedAssetForRepair.asignacion_actual ? `${selectedAssetForRepair.asignacion_actual.empleado?.nombre ?? ''} ${selectedAssetForRepair.asignacion_actual.empleado?.apellido ?? ''}`.trim() : undefined,
-          }}
-          zIndex={10010}
-        />
-      )}
-      {showReturnAssignmentModal && item.asignacion_actual && (
-        <ReturnAssignmentModal
-          isOpen={showReturnAssignmentModal}
-          onClose={() => setShowReturnAssignmentModal(false)}
-          onAssignmentReturned={handleActionSuccess}
-          assignment={{
-            id: item.asignacion_actual.id,
-            numero_serie: item.numero_serie,
-            producto_info: `${item.producto?.marca ?? ''} ${item.producto?.modelo ?? ''}`.trim(),
-            empleado_info: `${item.asignacion_actual.empleado?.nombre ?? ''} ${item.asignacion_actual.empleado?.apellido ?? ''}`.trim(),
-          }}
-          zIndex={10010}
-        />
-      )}
-       {showRepairReturnModal && item.reparacion_actual && (
-        <RepairReturnModal 
-          isOpen={true} 
-          onClose={() => setShowRepairReturnModal(false)}
-          onRepairReturned={handleActionSuccess}
-          repair={item.reparacion_actual}
-          zIndex={10001}
-        />
-      )}
-    </>
-  ) : null;
+return typeof document !== 'undefined' ? (
+  <>
+    {createPortal(modalContent, document.body)}
+    
+    {/* Modales Secundarios */}
+    {showAssignModal && (
+      <AssignmentModal
+        isOpen={showAssignModal}
+        onClose={() => setShowAssignModal(false)}
+        onSuccess={handleActionSuccess}
+        inventoryItem={item}
+      />
+    )}
+    {showSendToRepairModal && selectedAssetForRepair && (
+      <SendToRepairModal
+        isOpen={showSendToRepairModal}
+        onClose={() => {
+          setShowSendToRepairModal(false);
+          setSelectedAssetForRepair(null);
+        }}
+        onRepairSubmitted={handleActionSuccess}
+        preselectedAsset={{
+          inventario_individual_id: selectedAssetForRepair.id,
+          producto_info: `${selectedAssetForRepair.producto?.marca ?? ''} ${selectedAssetForRepair.producto?.modelo ?? ''}`.trim(),
+          numero_serie: selectedAssetForRepair.numero_serie,
+          empleado_info: selectedAssetForRepair.asignacion_actual ? `${selectedAssetForRepair.asignacion_actual.empleado?.nombre ?? ''} ${selectedAssetForRepair.asignacion_actual.empleado?.apellido ?? ''}`.trim() : undefined,
+        }}
+        zIndex={10010}
+      />
+    )}
+    {showReturnAssignmentModal && item.asignacion_actual && (
+      <ReturnAssignmentModal
+        isOpen={showReturnAssignmentModal}
+        onClose={() => setShowReturnAssignmentModal(false)}
+        onAssignmentReturned={handleActionSuccess}
+        assignment={{
+          id: item.asignacion_actual.id,
+          numero_serie: item.numero_serie,
+          producto_info: `${item.producto?.marca ?? ''} ${item.producto?.modelo ?? ''}`.trim(),
+          empleado_info: `${item.asignacion_actual.empleado?.nombre ?? ''} ${item.asignacion_actual.empleado?.apellido ?? ''}`.trim(),
+        }}
+        zIndex={10010}
+      />
+    )}
+    {showRepairReturnModal && item.reparacion_actual && (
+      <RepairReturnModal 
+        isOpen={true} 
+        onClose={() => setShowRepairReturnModal(false)}
+        onRepairReturned={handleActionSuccess}
+        repair={item.reparacion_actual}
+        zIndex={10001}
+      />
+    )}
+  </>
+) : null;
+
 };
 
 export default InventoryDetail;

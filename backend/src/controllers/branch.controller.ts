@@ -29,33 +29,28 @@ export class BranchController {
     }
 
     try {
-      // Parámetros como array para MySQL
-      const params = [
-        nombre,
-        activo !== undefined ? activo : true, // Default true si no se especifica
-        usuarioId
-      ];
+      // Usar consulta directa ya que el SP no existe en MySQL
+      const activoValue = activo !== undefined ? (activo ? 1 : 0) : 1;
+      const insertQuery = `INSERT INTO Sucursales (nombre, activo) VALUES (?, ?)`;
 
-      const result = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>('sp_Branch_Create', params);
+      logger.info(`Creando sucursal: ${nombre}`);
+      const [result] = await this.db.executeQuery<any>(insertQuery, [nombre, activoValue]);
 
-      const [data] = result;
-      if (data && data.length > 0 && data[0].id) {
-        const branchId = data[0].id;
-        const message = data[0].mensaje || 'Sucursal creada exitosamente.';
-        logger.info(`Sucursal creada con ID: ${branchId} por usuario ID: ${usuarioId}`);
-        res.status(201).json({ success: true, message, branchId });
+      if (result.insertId) {
+        logger.info(`Sucursal creada con ID: ${result.insertId} por usuario ID: ${usuarioId}`);
+        res.status(201).json({ 
+          success: true, 
+          message: 'Sucursal creada exitosamente.', 
+          data: { id: result.insertId, nombre, activo: activoValue === 1 }
+        });
       } else {
-        logger.error('Error al crear la sucursal: el SP no devolvió el ID o mensaje esperado.', { nombre, usuarioId, spResult: result });
-        res.status(500).json({ success: false, message: 'Error al crear la sucursal, respuesta inesperada del procedimiento almacenado.' });
+        res.status(500).json({ success: false, message: 'Error al crear la sucursal.' });
       }
     } catch (error: any) {
       logger.error('Error al crear la sucursal:', { error, nombre, usuarioId });
       
-      // Manejo simplificado de errores para MySQL
-      if (error.message?.includes('ya existe')) {
+      if (error.code === 'ER_DUP_ENTRY') {
         res.status(409).json({ success: false, message: 'Ya existe una sucursal con ese nombre.' });
-      } else if (error.message?.includes('obligatorio')) {
-        res.status(400).json({ success: false, message: 'El nombre de la sucursal es obligatorio.' });
       } else {
         res.status(500).json({ success: false, message: 'Error interno del servidor al crear la sucursal.' });
       }
@@ -142,29 +137,25 @@ export class BranchController {
     }
 
     try {
-      const params = [branchId, nombre, usuarioId];
+      // Usar consulta directa ya que el SP no existe en MySQL
+      const updateQuery = `UPDATE Sucursales SET nombre = ? WHERE id = ?`;
+      
+      const [result] = await this.db.executeQuery<any>(updateQuery, [nombre, branchId]);
 
-      const result = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>('sp_Branch_Update', params);
-
-      const [data] = result;
-      if (data && data.length > 0 && data[0].id) {
+      if (result.affectedRows > 0) {
+        logger.info(`Sucursal ID: ${branchId} actualizada por UsuarioID: ${usuarioId}`);
         res.status(200).json({
           success: true,
-          message: data[0].mensaje,
-          data: { id: data[0].id, nombre: nombre, activo: true } // Devolvemos el nombre actualizado y estado activo
+          message: 'Sucursal actualizada exitosamente.',
+          data: { id: branchId, nombre: nombre, activo: true }
         });
       } else {
-        logger.error(`SP sp_Branch_Update para ID ${branchId} no devolvió resultado esperado.`, { spResult: result });
-        res.status(500).json({ success: false, message: 'Error al actualizar la sucursal, respuesta inesperada del servidor.' });
+        res.status(404).json({ success: false, message: 'Sucursal no encontrada.' });
       }
     } catch (error: any) {
       logger.error(`Error al actualizar la sucursal ID ${branchId}:`, { error, nombre });
       
-      if (error.message?.includes('no encontrada')) {
-        res.status(404).json({ success: false, message: 'Sucursal no encontrada.' });
-      } else if (error.message?.includes('obligatorio')) {
-        res.status(400).json({ success: false, message: 'El nombre de la sucursal es obligatorio.' });
-      } else if (error.message?.includes('ya existe')) {
+      if (error.message?.includes('Duplicate')) {
         res.status(409).json({ success: false, message: 'Ya existe otra sucursal con ese nombre.' });
       } else {
         res.status(500).json({ success: false, message: 'Error interno del servidor al actualizar la sucursal.' });
@@ -196,31 +187,23 @@ export class BranchController {
     }
 
     try {
-      const params = [branchId, activo, usuarioId];
+      // Usar consulta directa ya que el SP no existe en MySQL
+      const updateQuery = `UPDATE Sucursales SET activo = ? WHERE id = ?`;
+      const [result] = await this.db.executeQuery<any>(updateQuery, [activo ? 1 : 0, branchId]);
 
-      const result = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>('sp_Branch_ToggleActive', params);
-
-      const [data] = result;
-      if (data && data.length > 0 && data[0].id) {
+      if (result.affectedRows > 0) {
+        logger.info(`Estado de sucursal ID ${branchId} cambiado a ${activo} por usuario ID ${usuarioId}`);
         res.status(200).json({
           success: true,
-          message: data[0].mensaje,
-          data: { id: data[0].id, activo: activo } // Devolvemos el nuevo estado
+          message: activo ? 'Sucursal activada exitosamente.' : 'Sucursal desactivada exitosamente.',
+          data: { id: branchId, activo: activo }
         });
       } else {
-        logger.error(`SP sp_Branch_ToggleActive para ID ${branchId} no devolvió resultado esperado.`, { spResult: result });
-        res.status(500).json({ success: false, message: 'Error al cambiar estado de la sucursal, respuesta inesperada del servidor.' });
+        res.status(404).json({ success: false, message: 'Sucursal no encontrada.' });
       }
     } catch (error: any) {
       logger.error(`Error al cambiar estado de la sucursal ID ${branchId}:`, { error, activo });
-      
-      if (error.message?.includes('no encontrada')) {
-        res.status(404).json({ success: false, message: 'Sucursal no encontrada.' });
-      } else if (error.message?.includes('ya tiene ese estado')) {
-        res.status(409).json({ success: false, message: 'La sucursal ya tiene ese estado.' });
-      } else {
-        res.status(500).json({ success: false, message: 'Error interno del servidor al cambiar el estado de la sucursal.' });
-      }
+      res.status(500).json({ success: false, message: 'Error interno del servidor al cambiar el estado de la sucursal.' });
     }
   };
 }

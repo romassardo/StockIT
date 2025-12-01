@@ -89,6 +89,9 @@ export class AuthController {
       const accessToken = jwt.sign(payload, JWT_SECRET, JWT_OPTIONS);
       const refreshToken = jwt.sign({ id: user.id }, JWT_REFRESH_SECRET, JWT_REFRESH_OPTIONS);
 
+      // Actualizar ultimo_acceso del usuario
+      await this.db.executeQuery('UPDATE Usuarios SET ultimo_acceso = NOW() WHERE id = ?', [user.id]);
+
       await this.logSecurityEvent(user.id, 'LOGIN_SUCCESS', ipAddress, 'Usuarios', user.id, `Login exitoso para email: ${email}`, req.headers['user-agent']);
       logger.info(`Login exitoso para email ${email}. IP: ${ipAddress}`);
 

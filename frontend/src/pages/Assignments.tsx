@@ -364,7 +364,7 @@ const Assignments: React.FC = () => {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
               {filteredAssignments.map((assignment) => (
-                <GlassCard key={assignment.id} className="flex flex-col hover:border-blue-500/50 transition-all group">
+                <GlassCard key={assignment.id} className="p-4 flex flex-col hover:border-blue-500/50 transition-all group">
                   <div className="flex justify-between items-start mb-3">
                     <DestinationBadge assignment={assignment} />
                     <div className="flex gap-1">
@@ -430,7 +430,6 @@ const Assignments: React.FC = () => {
           onClose={() => setShowReturnModal(false)}
           onAssignmentReturned={() => {
             loadAssignments();
-            addNotification({ type: 'success', message: 'Devolución registrada exitosamente' });
           }}
           assignment={{
             id: selectedAssignment.id,

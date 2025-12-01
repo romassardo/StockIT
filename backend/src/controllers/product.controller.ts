@@ -61,7 +61,8 @@ export class ProductController {
         categoria_id,
         categoria_nombre,
         usa_numero_serie,
-        activo = 'true',
+        activo = 'all',
+        search,
         page = '1',
         limit = '50'
       } = req.query;
@@ -74,7 +75,7 @@ export class ProductController {
         return;
       }
 
-      // Usar consulta directa en lugar de SP (SP tiene problemas con columnas inexistentes)
+      // Consulta base
       let query = `
         SELECT p.id, p.categoria_id, c.nombre as categoria_nombre, p.marca, p.modelo, 
                p.descripcion, p.stock_minimo, p.usa_numero_serie, p.activo
@@ -84,9 +85,26 @@ export class ProductController {
       `;
       const params: any[] = [];
       
+      // Filtro de búsqueda por texto (marca, modelo o descripción)
+      if (search && typeof search === 'string' && search.trim()) {
+        const searchTerm = `%${search.trim()}%`;
+        query += ' AND (p.marca LIKE ? OR p.modelo LIKE ? OR p.descripcion LIKE ? OR c.nombre LIKE ?)';
+        params.push(searchTerm, searchTerm, searchTerm, searchTerm);
+      }
+      
       if (categoria_id) { query += ' AND p.categoria_id = ?'; params.push(parseInt(categoria_id as string)); }
       if (usa_numero_serie !== undefined) { query += ' AND p.usa_numero_serie = ?'; params.push(usa_numero_serie === 'true' ? 1 : 0); }
-      if (activo === 'true') { query += ' AND p.activo = 1'; }
+      if (activo === 'true') { query += ' AND p.activo = 1'; } 
+      else if (activo === 'false') { query += ' AND p.activo = 0'; }
+      // Si activo === 'all', no filtramos
+      
+      // Primero obtener el total sin paginación
+      const countQuery = query.replace(
+        /SELECT .* FROM/,
+        'SELECT COUNT(*) as total FROM'
+      );
+      const [countResult] = await this.db.executeQuery<mysql.RowDataPacket[]>(countQuery, params);
+      const totalItems = countResult[0]?.total || 0;
       
       query += ' ORDER BY p.marca, p.modelo LIMIT ? OFFSET ?';
       params.push(limitNum, (pageNum - 1) * limitNum);
@@ -94,8 +112,6 @@ export class ProductController {
       const [rows] = await this.db.executeQuery<mysql.RowDataPacket[]>(query, params);
       const data = rows;
 
-      // Si el SP no incluye paginación, calculamos básica
-      const totalItems = Array.isArray(data) ? data.length : 0;
       const totalPages = Math.ceil(totalItems / limitNum);
 
       res.json({
@@ -535,29 +551,51 @@ export class ProductController {
    */
   public getCategories = async (req: AuthRequest, res: Response): Promise<void> => {
     try {
-      const { incluir_inactivas = 'false', page = '1', limit = '50' } = req.query;
+      const { incluir_inactivas = 'false', activo = 'all', search, page = '1', limit = '50' } = req.query;
       const pageNum = parseInt(page as string);
       const limitNum = parseInt(limit as string);
 
-      // Usar consulta directa (SP tiene problemas con columnas inexistentes)
+      // Consulta base
       let query = `
         SELECT c.id, c.nombre, c.categoria_padre_id, c.requiere_serie, 
                c.permite_asignacion, c.permite_reparacion, c.activo,
-               cp.nombre as categoria_padre_nombre
+               cp.nombre as categoria_padre_nombre,
+               (SELECT COUNT(*) FROM Productos p WHERE p.categoria_id = c.id) as productos_count
         FROM Categorias c
         LEFT JOIN Categorias cp ON c.categoria_padre_id = cp.id
         WHERE 1=1
       `;
-      if (incluir_inactivas !== 'true') { query += ' AND c.activo = 1'; }
-      query += ' ORDER BY c.nombre LIMIT ? OFFSET ?';
+      const params: any[] = [];
       
-      const [rows] = await this.db.executeQuery<mysql.RowDataPacket[]>(query, [limitNum, (pageNum - 1) * limitNum]);
+      // Filtro de búsqueda por texto
+      if (search && typeof search === 'string' && search.trim()) {
+        const searchTerm = `%${search.trim()}%`;
+        query += ' AND (c.nombre LIKE ? OR cp.nombre LIKE ?)';
+        params.push(searchTerm, searchTerm);
+      }
+      
+      // Filtro por estado activo
+      if (activo === 'true') { query += ' AND c.activo = 1'; }
+      else if (activo === 'false') { query += ' AND c.activo = 0'; }
+      else if (incluir_inactivas !== 'true') { query += ' AND c.activo = 1'; }
+      
+      // Obtener total antes de paginación
+      const countQuery = query.replace(/SELECT .* FROM/, 'SELECT COUNT(*) as total FROM');
+      const [countResult] = await this.db.executeQuery<mysql.RowDataPacket[]>(countQuery, params);
+      const totalItems = countResult[0]?.total || 0;
+      
+      query += ' ORDER BY c.nombre LIMIT ? OFFSET ?';
+      params.push(limitNum, (pageNum - 1) * limitNum);
+      
+      const [rows] = await this.db.executeQuery<mysql.RowDataPacket[]>(query, params);
       const categories = rows.map((row: any) => ({
         id: row.id, nombre: row.nombre, categoria_padre_id: row.categoria_padre_id,
+        padre_nombre: row.categoria_padre_nombre,
         requiere_serie: row.requiere_serie === 1, permite_asignacion: row.permite_asignacion === 1,
-        permite_reparacion: row.permite_reparacion === 1, activo: row.activo === 1
+        permite_reparacion: row.permite_reparacion === 1, activo: row.activo === 1,
+        productos_count: row.productos_count || 0, nivel: 1, ruta_completa: row.nombre
       }));
-      res.status(200).json({ success: true, data: categories, pagination: { page: pageNum, limit: limitNum, totalItems: categories.length } });
+      res.status(200).json({ success: true, data: categories, pagination: { page: pageNum, limit: limitNum, totalItems, totalPages: Math.ceil(totalItems / limitNum) } });
     } catch (error: any) {
       logger.error('Error obteniendo categorías:', error);
       res.status(500).json({ success: false, message: 'Error interno del servidor al obtener categorías' });

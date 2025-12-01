@@ -672,6 +672,29 @@ export class InventoryController {
         LEFT JOIN Usuarios u ON r.usuario_recibe_id = u.id
         WHERE r.inventario_individual_id = ? AND r.fecha_retorno IS NOT NULL
         
+        UNION ALL
+        
+        -- Devoluciones de Asignaciones (cuando activa = 0 y fecha_devolucion IS NOT NULL)
+        SELECT 
+          a.id * 100000 + 4 AS id,
+          a.fecha_devolucion AS fecha_hora,
+          'Devolución' AS accion,
+          JSON_OBJECT(
+            'accion', 'Devolución de Activo',
+            'empleado', CONCAT(COALESCE(e.nombre, ''), ' ', COALESCE(e.apellido, '')),
+            'sector', s.nombre,
+            'sucursal', suc.nombre,
+            'observaciones', a.observaciones
+          ) AS descripcion,
+          COALESCE(u.nombre, 'Sistema') AS nombre_usuario,
+          'Asignaciones' AS tabla_afectada
+        FROM Asignaciones a
+        LEFT JOIN Empleados e ON a.empleado_id = e.id
+        LEFT JOIN Sectores s ON a.sector_id = s.id
+        LEFT JOIN Sucursales suc ON a.sucursal_id = suc.id
+        LEFT JOIN Usuarios u ON a.usuario_recibe_id = u.id
+        WHERE a.inventario_individual_id = ? AND a.activa = 0 AND a.fecha_devolucion IS NOT NULL
+        
         ORDER BY fecha_hora DESC
       `;
       
@@ -679,7 +702,8 @@ export class InventoryController {
         inventoryId, inventoryId, inventoryId, // Para LogsActividad
         inventoryId, // Para Asignaciones
         inventoryId, // Para Reparaciones envío
-        inventoryId  // Para Reparaciones retorno
+        inventoryId, // Para Reparaciones retorno
+        inventoryId  // Para Devoluciones
       ]);
 
       const data = results || [];
@@ -819,22 +843,46 @@ export class InventoryController {
         problema_descripcion
       } = req.body;
 
-      const [results] = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>(
-        'sp_Repair_Create',
-        [
-          inventario_individual_id,
-          proveedor,
-          problema_descripcion,
-          req.user!.id
-        ]
+      const usuario_id = req.user!.id;
+
+      // Verificar que el ítem existe y está en estado válido
+      const [checkRows] = await this.db.executeQuery<mysql.RowDataPacket[]>(
+        'SELECT id, estado FROM InventarioIndividual WHERE id = ?',
+        [inventario_individual_id]
       );
 
-      logger.info(`Reparación creada para inventario ${inventario_individual_id} por ${req.user!.username}`);
+      if (!checkRows || checkRows.length === 0) {
+        res.status(404).json({ error: 'El ítem de inventario no existe.' });
+        return;
+      }
+
+      const estadoActual = checkRows[0].estado;
+      if (!['Disponible', 'Asignado'].includes(estadoActual)) {
+        res.status(400).json({ error: 'El ítem debe estar "Disponible" o "Asignado" para enviarlo a reparación.' });
+        return;
+      }
+
+      // Crear registro de reparación
+      const [insertResult] = await this.db.executeQuery<any>(
+        `INSERT INTO Reparaciones (inventario_individual_id, fecha_envio, problema_descripcion, proveedor, estado, usuario_envia_id)
+         VALUES (?, NOW(), ?, ?, 'En Reparación', ?)`,
+        [inventario_individual_id, problema_descripcion, proveedor, usuario_id]
+      );
+
+      const nuevaReparacionId = insertResult.insertId;
+
+      // Actualizar estado del inventario
+      await this.db.executeQuery(
+        `UPDATE InventarioIndividual SET estado = 'En Reparación', fecha_modificacion = NOW() WHERE id = ?`,
+        [inventario_individual_id]
+      );
+
+      logger.info(`Reparación ${nuevaReparacionId} creada para inventario ${inventario_individual_id} por usuario ${usuario_id}`);
 
       res.status(201).json({
         success: true,
         message: 'Reparación creada exitosamente.',
-        data: results && results.length > 0 ? results[0] : null
+        data: { id: nuevaReparacionId }
       });
 
     } catch (error: any) {

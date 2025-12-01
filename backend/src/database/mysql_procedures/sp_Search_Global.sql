@@ -142,37 +142,88 @@ BEGIN
             AND a.activa = 1;
     END IF;
     
-    -- BÚSQUEDAS GENERALES (empleados, productos, sectores, sucursales)
+    -- BÚSQUEDAS POR NOMBRE DE EMPLEADO/SECTOR/SUCURSAL -> Devolver ASIGNACIONES directamente
     IF p_SearchType = 'General' THEN
-        -- Empleados
-        INSERT INTO temp_SearchResults (ResultType, ItemId, Title, Description, Status, DateInfo, EntityType, SerialNumber, EncryptionPassword, RelatedInfo)
-        SELECT 'Empleado', e.id, CONCAT(e.nombre, ' ', e.apellido), 'Empleado', 
-               CASE WHEN e.activo = 1 THEN 'Activo' ELSE 'Inactivo' END, NOW(), 'Empleado', NULL, NULL, NULL
-        FROM Empleados e
-        WHERE (e.nombre LIKE v_SearchTermLike OR e.apellido LIKE v_SearchTermLike) AND e.activo = 1
-        LIMIT 500;
-            
-        -- Productos
-        INSERT INTO temp_SearchResults (ResultType, ItemId, Title, Description, Status, DateInfo, EntityType, SerialNumber, EncryptionPassword, RelatedInfo)
-        SELECT 'Producto', p.id, CONCAT(p.marca, ' ', p.modelo), p.descripcion,
-               CASE WHEN p.activo = 1 THEN 'Activo' ELSE 'Inactivo' END, NOW(), c.nombre, NULL, NULL,
-               CONCAT('Categoría: ', c.nombre, ', Stock mínimo: ', CAST(p.stock_minimo AS CHAR))
-        FROM Productos p INNER JOIN Categorias c ON p.categoria_id = c.id
-        WHERE (p.marca LIKE v_SearchTermLike OR p.modelo LIKE v_SearchTermLike OR p.descripcion LIKE v_SearchTermLike) AND p.activo = 1
-        LIMIT 500;
-            
-        -- Sectores
-        INSERT INTO temp_SearchResults (ResultType, ItemId, Title, Description, Status, DateInfo, EntityType, SerialNumber, EncryptionPassword, RelatedInfo)
-        SELECT 'Sector', s.id, s.nombre, 'Sector',
-               CASE WHEN s.activo = 1 THEN 'Activo' ELSE 'Inactivo' END, NOW(), 'Sector', NULL, NULL, NULL
-        FROM Sectores s WHERE s.nombre LIKE v_SearchTermLike AND s.activo = 1
+        -- Asignaciones por nombre de empleado
+        INSERT INTO temp_SearchResults (
+            ResultType, ItemId, Title, Description, Status, 
+            DateInfo, EntityType, SerialNumber, EncryptionPassword, RelatedInfo
+        )
+        SELECT 
+            'Asignacion',
+            a.id,
+            CONCAT('Asignado a: ', e.nombre, ' ', e.apellido),
+            CONCAT(p.marca, ' ', p.modelo, ' - S/N: ', ii.numero_serie),
+            'Asignado',
+            a.fecha_asignacion,
+            c.nombre,
+            ii.numero_serie,
+            CASE 
+                WHEN c.nombre LIKE '%Notebook%' THEN a.password_encriptacion
+                WHEN c.nombre LIKE '%Celular%' THEN a.password_gmail
+                ELSE NULL
+            END,
+            CASE
+                WHEN c.nombre LIKE '%Celular%' THEN 
+                    CONCAT('Gmail: ', COALESCE(a.cuenta_gmail, 'N/A'), 
+                    ', Tel: ', COALESCE(a.numero_telefono, 'N/A'))
+                ELSE CONCAT('Asignado el: ', DATE_FORMAT(a.fecha_asignacion, '%d/%m/%Y'))
+            END
+        FROM Asignaciones a
+        INNER JOIN InventarioIndividual ii ON a.inventario_individual_id = ii.id
+        INNER JOIN Productos p ON ii.producto_id = p.id
+        INNER JOIN Categorias c ON p.categoria_id = c.id
+        INNER JOIN Empleados e ON a.empleado_id = e.id
+        WHERE (e.nombre LIKE v_SearchTermLike OR e.apellido LIKE v_SearchTermLike) 
+          AND a.activa = 1
         LIMIT 100;
             
-        -- Sucursales
-        INSERT INTO temp_SearchResults (ResultType, ItemId, Title, Description, Status, DateInfo, EntityType, SerialNumber, EncryptionPassword, RelatedInfo)
-        SELECT 'Sucursal', b.id, b.nombre, 'Sucursal',
-               CASE WHEN b.activo = 1 THEN 'Activo' ELSE 'Inactivo' END, NOW(), 'Sucursal', NULL, NULL, NULL
-        FROM Sucursales b WHERE b.nombre LIKE v_SearchTermLike AND b.activo = 1
+        -- Asignaciones por nombre de sector
+        INSERT INTO temp_SearchResults (
+            ResultType, ItemId, Title, Description, Status, 
+            DateInfo, EntityType, SerialNumber, EncryptionPassword, RelatedInfo
+        )
+        SELECT 
+            'Asignacion',
+            a.id,
+            CONCAT('Asignado a sector: ', s.nombre),
+            CONCAT(p.marca, ' ', p.modelo, ' - S/N: ', ii.numero_serie),
+            'Asignado',
+            a.fecha_asignacion,
+            c.nombre,
+            ii.numero_serie,
+            NULL,
+            CONCAT('Asignado el: ', DATE_FORMAT(a.fecha_asignacion, '%d/%m/%Y'))
+        FROM Asignaciones a
+        INNER JOIN InventarioIndividual ii ON a.inventario_individual_id = ii.id
+        INNER JOIN Productos p ON ii.producto_id = p.id
+        INNER JOIN Categorias c ON p.categoria_id = c.id
+        INNER JOIN Sectores s ON a.sector_id = s.id
+        WHERE s.nombre LIKE v_SearchTermLike AND a.activa = 1
+        LIMIT 100;
+            
+        -- Asignaciones por nombre de sucursal
+        INSERT INTO temp_SearchResults (
+            ResultType, ItemId, Title, Description, Status, 
+            DateInfo, EntityType, SerialNumber, EncryptionPassword, RelatedInfo
+        )
+        SELECT 
+            'Asignacion',
+            a.id,
+            CONCAT('Asignado a sucursal: ', b.nombre),
+            CONCAT(p.marca, ' ', p.modelo, ' - S/N: ', ii.numero_serie),
+            'Asignado',
+            a.fecha_asignacion,
+            c.nombre,
+            ii.numero_serie,
+            NULL,
+            CONCAT('Asignado el: ', DATE_FORMAT(a.fecha_asignacion, '%d/%m/%Y'))
+        FROM Asignaciones a
+        INNER JOIN InventarioIndividual ii ON a.inventario_individual_id = ii.id
+        INNER JOIN Productos p ON ii.producto_id = p.id
+        INNER JOIN Categorias c ON p.categoria_id = c.id
+        INNER JOIN Sucursales b ON a.sucursal_id = b.id
+        WHERE b.nombre LIKE v_SearchTermLike AND a.activa = 1
         LIMIT 100;
     END IF;
     

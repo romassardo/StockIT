@@ -1,24 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom';
-import { FiX, FiLock, FiPhone, FiMail, FiKey, FiShield, FiSmartphone, FiCopy, FiLoader } from 'react-icons/fi';
+import { FiX, FiLock, FiPhone, FiMail, FiKey, FiShield, FiSmartphone, FiCopy, FiLoader, FiUser, FiMapPin, FiHome } from 'react-icons/fi';
 import { useNotification } from '../../contexts/NotificationContext';
 import { motion } from 'framer-motion';
 import { SearchResult, Assignment, ResultType } from '../../types';
 import { getAssignmentDetails, assignmentService } from '../../services/assignment.service';
-
-type SensitiveAsset = SearchResult & {
-  marca?: string;
-  modelo?: string;
-  nombre_empleado?: string;
-  password_encriptacion?: string;
-  numero_telefono?: string;
-  cuenta_gmail?: string;
-  password_gmail?: string;
-  codigo_2fa_whatsapp?: string;
-  imei_1?: string;
-  imei_2?: string;
-  numero_serie?: string;
-};
 
 type SensitiveDataCardProps = {
   icon: React.ReactNode;
@@ -166,19 +152,42 @@ const SensitiveDataModal: React.FC<SensitiveDataModalProps> = ({ initialAsset, o
   }, [initialAsset]);
   
   const renderDetails = (details: Assignment) => {
-    // Extraer nombre del producto si está disponible anidado
-    const productoNombre = details.inventario?.producto 
-      ? `${details.inventario.producto.marca} ${details.inventario.producto.modelo}` 
-      : 'Dispositivo Desconocido';
+    // Determinar quién tiene asignado el activo
+    const getAsignadoA = () => {
+      if (details.empleado) {
+        return { tipo: 'Empleado', nombre: `${details.empleado.nombre} ${details.empleado.apellido || ''}`.trim(), icon: <FiUser /> };
+      }
+      if (details.empleado_nombre) {
+        return { tipo: 'Empleado', nombre: details.empleado_nombre, icon: <FiUser /> };
+      }
+      if (details.sector) {
+        return { tipo: 'Sector', nombre: details.sector.nombre, icon: <FiMapPin /> };
+      }
+      if (details.sector_nombre) {
+        return { tipo: 'Sector', nombre: details.sector_nombre, icon: <FiMapPin /> };
+      }
+      if (details.sucursal) {
+        return { tipo: 'Sucursal', nombre: details.sucursal.nombre, icon: <FiHome /> };
+      }
+      if (details.sucursal_nombre) {
+        return { tipo: 'Sucursal', nombre: details.sucursal_nombre, icon: <FiHome /> };
+      }
+      return null;
+    };
 
-    const numeroSerie = details.inventario?.numero_serie || details.numero_serie || 'S/N No disponible';
+    const asignadoA = getAsignadoA();
 
     return (
       <div key={details.id || Math.random()} className="mb-8 last:mb-0">
-        <div className="mb-3 border-b border-white/10 pb-2">
-          <h3 className="text-lg font-semibold text-indigo-200">{productoNombre}</h3>
-          <p className="text-xs text-slate-400 font-mono">S/N: {numeroSerie}</p>
-        </div>
+        {asignadoA && (
+          <div className="mb-4 pb-3 border-b border-white/10 flex items-center gap-2 text-sm">
+            <span className="text-slate-400">{asignadoA.tipo}:</span>
+            <span className="flex items-center gap-1.5 text-emerald-400 font-medium">
+              {asignadoA.icon}
+              {asignadoA.nombre}
+            </span>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <SensitiveDataCard icon={<FiLock />} label="Contraseña Encriptación" value={details.password_encriptacion} color="yellow" />

@@ -28,30 +28,25 @@ export class SectorController {
     }
 
     try {
-      const params = [
-        nombre,
-        descripcion || null,
-        responsable_email || null,
-        userId
-      ];
+      // Usar consulta directa ya que el SP no existe en MySQL
+      const insertQuery = `INSERT INTO Sectores (nombre, activo) VALUES (?, 1)`;
       
-      const result = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>('sp_Sector_Create', params);
+      logger.info(`Creando sector: ${nombre}`);
+      const [result] = await this.db.executeQuery<any>(insertQuery, [nombre]);
       
-      const [data] = result;
-      if (data && data.length > 0 && data[0].id) {
-        const newSectorId = data[0].id;
-        logger.info(`Sector creado con ID: ${newSectorId} por UsuarioID: ${userId}`);
+      if (result.insertId) {
+        logger.info(`Sector creado con ID: ${result.insertId} por UsuarioID: ${userId}`);
         res.status(201).json({ 
           success: true, 
           message: 'Sector creado exitosamente.', 
-          sectorId: newSectorId 
+          data: { id: result.insertId, nombre, activo: true }
         });
       } else {
-        throw new Error('El SP sp_Sector_Create no devolvió el ID del sector creado.');
+        res.status(500).json({ success: false, message: 'Error al crear el sector.' });
       }
     } catch (error: any) {
       logger.error(`Error al crear sector: ${error.message}`, { error, params: req.body, userId });
-      if (error.message?.includes('ya existe')) {
+      if (error.code === 'ER_DUP_ENTRY') {
         res.status(409).json({ success: false, message: 'Ya existe un sector con ese nombre.' });
       } else {
         res.status(500).json({ success: false, message: 'Error interno del servidor al crear el sector.' });
@@ -129,38 +124,31 @@ export class SectorController {
     }
 
     try {
-      const params = [
-        Number(id),
-        nombre,
-        userId
-      ];
+      // Usar consulta directa ya que el SP no existe en MySQL
+      const updateQuery = `UPDATE Sectores SET nombre = ? WHERE id = ?`;
       
-      const result = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>('sp_Sector_Update', params);
+      const [result] = await this.db.executeQuery<any>(updateQuery, [nombre, Number(id)]);
       
-      logger.info(`Sector ID: ${id} actualizado por UsuarioID: ${userId}`);
-      
-      // Devolver los datos del sector actualizado (solo campos disponibles en BD)
-      const sectorData = {
-        id: Number(id),
-        nombre: nombre,
-        activo: true // Los sectores están activos por defecto después de actualizar
-      };
-      
-      res.status(200).json({ 
-        success: true, 
-        message: 'Sector actualizado exitosamente.',
-        data: sectorData
-      });
+      if (result.affectedRows > 0) {
+        logger.info(`Sector ID: ${id} actualizado por UsuarioID: ${userId}`);
+        
+        const sectorData = {
+          id: Number(id),
+          nombre: nombre,
+          activo: true
+        };
+        
+        res.status(200).json({ 
+          success: true, 
+          message: 'Sector actualizado exitosamente.',
+          data: sectorData
+        });
+      } else {
+        res.status(404).json({ success: false, message: 'Sector no encontrado.' });
+      }
     } catch (error: any) {
       logger.error(`Error al actualizar sector ID ${id}: ${error.message}`, { error, params: req.body, userId });
-      
-      if (error.message?.includes('no existe')) {
-        res.status(404).json({ success: false, message: 'Sector no encontrado para actualizar.' });
-      } else if (error.message?.includes('ya existe')) {
-        res.status(409).json({ success: false, message: 'Ya existe otro sector con ese nombre.' });
-      } else {
-        res.status(500).json({ success: false, message: 'Error interno del servidor al actualizar el sector.' });
-      }
+      res.status(500).json({ success: false, message: 'Error interno del servidor al actualizar el sector.' });
     }
   };
 
@@ -188,30 +176,25 @@ export class SectorController {
     }
 
     try {
-      const params = [
-        sectorId,
-        activo,
-        usuarioId
-      ];
+      // Usar consulta directa ya que el SP no existe en MySQL
+      const updateQuery = `UPDATE Sectores SET activo = ? WHERE id = ?`;
+      const [result] = await this.db.executeQuery<any>(updateQuery, [activo ? 1 : 0, sectorId]);
       
-      await this.db.executeStoredProcedure<mysql.RowDataPacket[]>('sp_Sector_ToggleActive', params);
-      
-      const message = activo ? 'Sector activado exitosamente' : 'Sector desactivado exitosamente';
-      logger.info(`Estado de sector ID ${sectorId} cambiado a ${activo} por usuario ID ${usuarioId}`);
-      
-      res.status(200).json({ 
-        success: true, 
-        message: message,
-        data: { id: sectorId, activo: activo }
-      });
+      if (result.affectedRows > 0) {
+        const message = activo ? 'Sector activado exitosamente' : 'Sector desactivado exitosamente';
+        logger.info(`Estado de sector ID ${sectorId} cambiado a ${activo} por usuario ID ${usuarioId}`);
+        
+        res.status(200).json({ 
+          success: true, 
+          message: message,
+          data: { id: sectorId, activo: activo }
+        });
+      } else {
+        res.status(404).json({ success: false, message: 'Sector no encontrado.' });
+      }
     } catch (error: any) {
       logger.error(`Error al cambiar estado del sector ID ${sectorId}: ${error.message}`, { error, usuarioId });
-      
-      if (error.message?.includes('no existe')) {
-        res.status(404).json({ success: false, message: 'Sector no encontrado.' });
-      } else {
-        res.status(500).json({ success: false, message: 'Error interno del servidor.' });
-      }
+      res.status(500).json({ success: false, message: 'Error interno del servidor.' });
     }
   };
 }

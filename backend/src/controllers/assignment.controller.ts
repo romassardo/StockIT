@@ -66,8 +66,11 @@ export class AssignmentController {
         sucursal_id,
         password_encriptacion,
         cuenta_gmail,
+        password_gmail,
         numero_telefono,
         codigo_2fa_whatsapp,
+        imei_1,
+        imei_2,
         observaciones
       } = req.body;
 
@@ -82,13 +85,12 @@ export class AssignmentController {
         return;
       }
 
-      // Validación de destino (debe tener exactamente uno)
-      const destinos = [empleado_id, sector_id, sucursal_id].filter(d => d !== undefined && d !== null);
-      if (destinos.length !== 1) {
-        logger.warn('Intento de crear asignación sin un destino único');
+      // Validación de destino: empleado es obligatorio, sector y sucursal son opcionales
+      if (!empleado_id) {
+        logger.warn('Intento de crear asignación sin empleado');
         res.status(400).json({
           success: false,
-          message: 'Debe especificar exactamente un destino (empleado, sector o sucursal)'
+          message: 'Debe especificar un empleado para la asignación'
         });
         return;
       }
@@ -116,29 +118,27 @@ export class AssignmentController {
         return;
       }
 
-      // Parámetros para el stored procedure
-      const tipo_asignacion = empleado_id ? 'Empleado' : sector_id ? 'Sector' : 'Sucursal';
-      const id_destino = empleado_id || sector_id || sucursal_id;
+      // Ejecutar el stored procedure con los tres IDs por separado
+      // Orden SP: p_inventario_individual_id, p_empleado_id, p_sector_id, p_sucursal_id, p_usuario_asigna_id,
+      // p_observaciones, p_password_encriptacion, p_numero_telefono, p_cuenta_gmail, p_password_gmail, 
+      // p_codigo_2fa_whatsapp, p_imei_1, p_imei_2, OUT p_id_asignacion
 
-      // Ejecutar el stored procedure
-      // Orden correcto SP: 
-      // p_inventario_individual_id, p_tipo_asignacion, p_id_destino, p_usuario_asigna_id, p_observaciones, 
-      // p_password_encriptacion, p_numero_telefono, p_cuenta_gmail, p_password_gmail, p_codigo_2fa_whatsapp, OUT p_id_asignacion
-
-      // Usamos una variable de sesión para capturar el ID de salida
-      const query = 'CALL sp_Assignment_Create(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, @newId); SELECT @newId AS id_asignacion;';
+      const query = 'CALL sp_Assignment_Create(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, @newId); SELECT @newId AS id_asignacion;';
       
       const [results] = await this.db.executeQuery<any>(query, [
         inventario_individual_id || null,
-        tipo_asignacion,
-        id_destino,
-        usuario_id, // p_usuario_asigna_id
-        observaciones || null, // p_observaciones
+        empleado_id,               // obligatorio
+        sector_id || null,         // opcional
+        sucursal_id || null,       // opcional
+        usuario_id,                // p_usuario_asigna_id
+        observaciones || null,
         password_encriptacion || null,
         numero_telefono || null,
         cuenta_gmail || null,
-        req.body.password_gmail || null, // Faltaba password_gmail en la desestructuración
-        codigo_2fa_whatsapp || null
+        password_gmail || null,
+        codigo_2fa_whatsapp || null,
+        imei_1 || null,
+        imei_2 || null
       ]);
       
       // El resultado vendrá en el segundo resultset (el SELECT)
@@ -259,46 +259,54 @@ export class AssignmentController {
         return;
       }
 
-      const result = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>(
-        'sp_Assignment_Return',
-        [
-          +assignment_id,
-          observaciones || null,
-          usuario_id
-        ]
+      // Verificar que la asignación existe y está activa
+      const [checkRows] = await this.db.executeQuery<mysql.RowDataPacket[]>(
+        'SELECT id, inventario_individual_id FROM Asignaciones WHERE id = ? AND activa = 1',
+        [+assignment_id]
       );
 
-      const [data] = result;
-      if (data && data.length > 0) {
-        const { message } = data[0];
-        
-        logger.info(`Asignación ${assignment_id} devuelta exitosamente por usuario ${usuario_id}`);
-        
-        res.status(200).json({
-          success: true,
-          message: message || 'Asignación devuelta exitosamente'
-        });
-      } else {
-        logger.error('El SP no devolvió el resultado esperado', { result });
-        res.status(500).json({ 
+      if (!checkRows || checkRows.length === 0) {
+        res.status(404).json({ 
           success: false, 
-          message: 'Error al procesar la devolución: respuesta incompleta del servidor'
+          message: 'Asignación no encontrada o ya fue devuelta' 
         });
+        return;
       }
+
+      const inventarioId = checkRows[0].inventario_individual_id;
+
+      // Actualizar la asignación
+      await this.db.executeQuery(
+        `UPDATE Asignaciones SET 
+          activa = 0, 
+          fecha_devolucion = NOW(), 
+          usuario_recibe_id = ?,
+          observaciones = IF(? IS NOT NULL, CONCAT(IFNULL(observaciones, ''), ' | DEVOLUCIÓN: ', ?), observaciones)
+        WHERE id = ?`,
+        [usuario_id, observaciones, observaciones, +assignment_id]
+      );
+
+      // Actualizar estado del inventario a Disponible
+      if (inventarioId) {
+        await this.db.executeQuery(
+          `UPDATE InventarioIndividual SET estado = 'Disponible', fecha_modificacion = NOW() WHERE id = ?`,
+          [inventarioId]
+        );
+      }
+
+      logger.info(`Asignación ${assignment_id} devuelta exitosamente por usuario ${usuario_id}`);
+      
+      res.status(200).json({
+        success: true,
+        message: 'Devolución registrada exitosamente'
+      });
+
     } catch (error: any) {
       logger.error(`Error al devolver asignación: ${error.message}`, { error });
-      
-      if (error.message?.includes('no encontrada') || error.message?.includes('ya devuelta')) {
-        res.status(404).json({ 
-          success: false,
-          message: 'Asignación no encontrada o ya fue devuelta/cancelada'
-        });
-      } else {
-        res.status(500).json({ 
-          success: false,
-          message: 'Error interno al procesar la devolución'
-        });
-      }
+      res.status(500).json({ 
+        success: false,
+        message: 'Error interno al procesar la devolución'
+      });
     }
   };
 
@@ -338,51 +346,52 @@ export class AssignmentController {
         return;
       }
 
-      const result = await this.db.executeStoredProcedure<mysql.RowDataPacket[]>(
-        'sp_Assignment_Cancel',
-        [
-          +assignment_id,
-          motivo.trim(),
-          usuario_id
-        ]
+      // Verificar que la asignación existe y está activa
+      const [checkRows] = await this.db.executeQuery<mysql.RowDataPacket[]>(
+        'SELECT id, inventario_individual_id FROM Asignaciones WHERE id = ? AND activa = 1',
+        [+assignment_id]
       );
 
-      const [data] = result;
-      if (data && data.length > 0) {
-        const { message } = data[0];
-        
-        logger.info(`Asignación ${assignment_id} cancelada por usuario ${usuario_id}. Motivo: ${motivo}`);
-        
-        res.status(200).json({
-          success: true,
-          message: message || 'Asignación cancelada exitosamente'
-        });
-      } else {
-        logger.error('El SP no devolvió el resultado esperado', { result });
-        res.status(500).json({ 
+      if (!checkRows || checkRows.length === 0) {
+        res.status(404).json({ 
           success: false, 
-          message: 'Error al cancelar la asignación: respuesta incompleta del servidor'
+          message: 'Asignación no encontrada o ya fue cancelada' 
         });
+        return;
       }
+
+      const inventarioId = checkRows[0].inventario_individual_id;
+
+      // Cancelar la asignación
+      await this.db.executeQuery(
+        `UPDATE Asignaciones SET 
+          activa = 0, 
+          observaciones = CONCAT(IFNULL(observaciones, ''), ' | CANCELADA: ', ?)
+        WHERE id = ?`,
+        [motivo.trim(), +assignment_id]
+      );
+
+      // Devolver inventario a Disponible
+      if (inventarioId) {
+        await this.db.executeQuery(
+          `UPDATE InventarioIndividual SET estado = 'Disponible', fecha_modificacion = NOW() WHERE id = ?`,
+          [inventarioId]
+        );
+      }
+
+      logger.info(`Asignación ${assignment_id} cancelada por usuario ${usuario_id}. Motivo: ${motivo}`);
+      
+      res.status(200).json({
+        success: true,
+        message: 'Asignación cancelada exitosamente'
+      });
+
     } catch (error: any) {
       logger.error(`Error al cancelar asignación: ${error.message}`, { error });
-      
-      if (error.message?.includes('no encontrada')) {
-        res.status(404).json({ 
-          success: false,
-          message: 'Asignación no encontrada'
-        });
-      } else if (error.message?.includes('no está activa')) {
-        res.status(409).json({ 
-          success: false,
-          message: 'No se puede cancelar una asignación que no está activa'
-        });
-      } else {
-        res.status(500).json({ 
-          success: false,
-          message: 'Error interno al cancelar la asignación'
-        });
-      }
+      res.status(500).json({ 
+        success: false,
+        message: 'Error interno al cancelar la asignación'
+      });
     }
   };
 
@@ -487,9 +496,15 @@ export class AssignmentController {
           a.empleado_id,
           a.sector_id,
           a.sucursal_id,
+          ii.id AS inventario_id,
           ii.numero_serie,
+          ii.estado AS inventario_estado,
+          ii.fecha_creacion AS inventario_created_at,
+          p.id AS producto_id,
           p.marca,
           p.modelo,
+          p.descripcion AS producto_descripcion,
+          c.id AS categoria_id,
           c.nombre AS categoria_nombre,
           CASE
             WHEN a.empleado_id IS NOT NULL THEN CONCAT(e.nombre, ' ', e.apellido)
@@ -536,11 +551,17 @@ export class AssignmentController {
         inventario_individual_id: row.inventario_individual_id,
         activa: true,
         inventario: {
+          id: row.inventario_id,
           numero_serie: row.numero_serie,
+          estado: row.inventario_estado || 'Asignado',
+          created_at: row.inventario_created_at,
           producto: {
+            id: row.producto_id,
             marca: row.marca,
             modelo: row.modelo,
+            descripcion: row.producto_descripcion,
             categoria: {
+              id: row.categoria_id,
               nombre: row.categoria_nombre
             }
           }
