@@ -5,7 +5,6 @@ import { sectorService } from '../../services/sector.service';
 import { branchService } from '../../services/branch.service';
 import { Employee, Sector, Branch } from '../../types';
 import { useNotification } from '../../contexts/NotificationContext';
-import { useTheme } from '../../contexts/ThemeContext';
 
 type EntityType = Employee | Sector | Branch;
 type ActiveTab = 'employees' | 'sectors' | 'branches';
@@ -25,7 +24,6 @@ const entityTabs = [
 const ITEMS_PER_PAGE = 15;
 
 const EntitiesManagement: React.FC = () => {
-  const { theme } = useTheme();
   const { addNotification } = useNotification();
   const [activeTab, setActiveTab] = useState<ActiveTab>('employees');
   const [employees, setEmployees] = useState<Employee[]>([]);

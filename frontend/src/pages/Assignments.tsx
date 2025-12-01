@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
-  FiList, FiRefreshCw, FiSearch, FiUser, 
-  FiChevronLeft, FiChevronRight, FiCornerDownLeft, FiTool, 
+  FiList, FiRefreshCw, FiSearch, FiUser, FiCornerDownLeft, FiTool, 
   FiSmartphone, FiMonitor, FiAlertCircle, FiBriefcase, FiMapPin, FiGrid, FiClock, FiXCircle
 } from 'react-icons/fi';
 import { assignmentService } from '../services/assignment.service';
@@ -14,15 +13,6 @@ import ReturnAssignmentModal from '../components/modals/ReturnAssignmentModal';
 import SendToRepairModal from '../components/modals/SendToRepairModal';
 import CancelAssignmentModal from '../components/modals/CancelAssignmentModal';
 import { Assignment, InventoryItem } from '../types';
-
-// --- Interfaces y Tipos ---
-
-interface AssignmentFilters {
-  page: number;
-  pageSize: number;
-  search?: string;
-  type?: 'all' | 'notebook' | 'cellphone';
-}
 
 // --- Componentes UI Estilizados (Copiados de Inventory para consistencia) ---
 
@@ -138,10 +128,6 @@ const Assignments: React.FC = () => {
   });
 
   // Handlers de Filtros
-  const handleSearch = () => {
-    // Reactivo
-  };
-
   const handleQuickFilter = (type: 'all' | 'notebook' | 'cellphone') => {
     setActiveFilter(type);
   };
